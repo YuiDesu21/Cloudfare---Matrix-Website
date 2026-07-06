@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Admin Control Panel - Matrix Consumer Services">
+  <title>Matrix Admin | Control Panel</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body class="portal-body">
+  <a class="skip-link" href="#admin-main">Skip to content</a>
+
+  <!-- Header -->
+  <header class="portal-header site-header">
+    <div class="container header-wrapper">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">M</span>
+        <span>
+          <strong>Matrix Admin</strong>
+          <small>Manual Approval &amp; Placement Panel</small>
+        </span>
+      </a>
+      <div id="admin-user-status" class="user-status-strip" style="display: none;">
+        <span class="badge badge-active">Administrator Mode</span>
+        <button id="logout-btn-admin" class="button button-outline button-small">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main id="admin-main" class="portal-container">
+    
+    <!-- ADMIN ACCESS SCREEN -->
+    <section id="admin-auth-section" class="auth-wrapper">
+      <div class="portal-card">
+        <h2>Admin Access</h2>
+        <p class="subtitle">Enter the control panel access password</p>
+
+        <div id="admin-login-alert" style="display: none;"></div>
+
+        <form id="admin-login-form">
+          <div class="form-group">
+            <label for="admin-password">Control Password</label>
+            <input type="password" id="admin-password" class="form-control" placeholder="Default: admin123" required>
+          </div>
+          <button type="submit" class="button button-primary btn-block">Enter Dashboard</button>
+        </form>
+
+        <div class="alert alert-info" style="margin-top: 1.5rem; margin-bottom: 0; padding: 0.8rem; font-size: 0.76rem;">
+          <strong>Demo Security Notice:</strong> This is a local sandbox prototype. The access password is saved locally in `localStorage` and is not encrypted. Do not use production passwords.
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN SYSTEM DASHBOARD -->
+    <section id="admin-dashboard-section" style="display: none;">
+      
+      <!-- Tab Controls -->
+      <nav class="admin-tabs" aria-label="Admin tabs menu">
+        <button class="tab-btn active" data-target="tab-overview">Overview</button>
+        <button class="tab-btn" data-target="tab-approvals">Pending Requests <span id="badge-pending-count" class="badge badge-pending" style="display: none;">0</span></button>
+        <button class="tab-btn" data-target="tab-members">Members Directory</button>
+        <button class="tab-btn" data-target="tab-visualizer">Matrix Viewer</button>
+      </nav>
+
+      <!-- TAB 1: OVERVIEW & UTILITIES -->
+      <div id="tab-overview" class="admin-section active">
+        <div class="metrics-row" style="margin-bottom: 1.5rem;">
+          <div class="metric-card">
+            <span class="title">Active Members</span>
+            <span id="stat-active-members" class="value">0</span>
+          </div>
+          <div class="metric-card">
+            <span class="title">Pending Review</span>
+            <span id="stat-pending-requests" class="value">0</span>
+          </div>
+          <div class="metric-card">
+            <span class="title">Total Plan Volume</span>
+            <span id="stat-revenue" class="value">0 F3</span>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+          <!-- Left Column: Database Admin actions -->
+          <div class="portal-card">
+            <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem;">Sandbox Controls</h3>
+            <p style="font-size: 0.82rem; color: var(--muted); margin-bottom: 1.2rem;">
+              Manage local data simulation and seed mock structures to test the matrix visualizers instantly.
+            </p>
+            
+            <div id="utility-alert" style="display: none;" class="alert"></div>
+
+            <div class="admin-controls-card">
+              <button id="btn-seed" class="button button-primary button-small">Seed Sample Data</button>
+              <button id="btn-reset" class="button btn-danger button-small">Reset All Data</button>
+              <button id="btn-export" class="button btn-secondary button-small">Export Data (JSON)</button>
+              
+              <label for="import-file" class="button btn-outline-gold button-small" style="margin-top: 0; cursor: pointer; text-align: center;">
+                Import Data (JSON)
+              </label>
+              <input type="file" id="import-file" style="display: none;" accept=".json">
+            </div>
+            
+            <div style="margin-top: 1.5rem; border-top: 1px solid rgba(255, 201, 28, 0.15); padding-top: 1.2rem;">
+              <h4 style="color: var(--gold-soft); margin-top: 0; font-size: 0.9rem; text-transform: uppercase;">Update Admin password</h4>
+              <form id="change-pass-form" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+                <div class="form-group" style="margin-bottom: 0; flex-grow: 1; min-width: 150px;">
+                  <label for="new-password" style="font-size: 0.65rem;">New Admin Password</label>
+                  <input type="password" id="new-password" class="form-control" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;" placeholder="New password" required>
+                </div>
+                <button type="submit" class="button button-primary button-small">Save Password</button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Right Column: Recent Activity Logs -->
+          <div class="portal-card">
+            <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 1rem;">System Activity Logs</h3>
+            <div id="system-logs-container" class="logs-list">
+              <!-- Logs items injected here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: PENDING APPROVALS -->
+      <div id="tab-approvals" class="admin-section">
+        <div class="portal-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 0.5rem;">Pending Registrations Queue</h3>
+          <p style="font-size: 0.82rem; color: var(--muted); margin: 0;">
+            Review incoming registration requests. Click "Approve & Place" to manually select a placement node in the matrix structure.
+          </p>
+        </div>
+
+        <div id="pending-alert" style="display: none;" class="alert"></div>
+
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Applicant Name</th>
+                <th>Username</th>
+                <th>Email / Phone</th>
+                <th>F3 Wallet Address</th>
+                <th>Invited Sponsor</th>
+                <th>Requested Plan</th>
+                <th>Request Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pending-table-body">
+              <!-- Pending rows injected here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: MEMBERS DIRECTORY -->
+      <div id="tab-members" class="admin-section">
+        <div class="portal-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 1rem;">Approved Members Directory</h3>
+          <div class="search-row">
+            <input type="text" id="member-search" class="form-control" placeholder="Search by name, username, email, or wallet...">
+          </div>
+        </div>
+
+        <div id="directory-alert" style="display: none;" class="alert"></div>
+
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Full Name</th>
+                <th>Username</th>
+                <th>Plan Name</th>
+                <th>Parent ID</th>
+                <th>Sponsor ID</th>
+                <th>Wallet Address</th>
+                <th>Approved Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="members-table-body">
+              <!-- Members rows injected here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 4: MATRIX VISUALIZER -->
+      <div id="tab-visualizer" class="admin-section">
+        <div class="portal-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
+          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 1rem;">Global Matrix Viewer</h3>
+          <div class="search-row" style="flex-wrap: wrap;">
+            <div style="flex-grow: 1; min-width: 200px;">
+              <select id="viewer-plan-select" class="form-control">
+                <option value="power3">Power of 3 Matrix Structure</option>
+                <option value="power5">Power of 5 Matrix Structure</option>
+                <option value="power7">Power of 7 Matrix Structure</option>
+              </select>
+            </div>
+            <div style="flex-grow: 2; min-width: 250px;">
+              <input type="text" id="tree-member-search" class="form-control" placeholder="Search and highlight member by username or name...">
+            </div>
+          </div>
+        </div>
+
+        <!-- Global Matrix Visual Canvas -->
+        <div class="portal-card" style="padding: 1.5rem;">
+          <div id="global-tree-visualizer" class="tree-container" style="min-height: 500px;">
+            <!-- Roots & downlines rendered dynamically -->
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- MODAL: MANUAL PLACEMENT APPROVAL -->
+  <div id="placement-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="placement-modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="placement-modal-title">Manual Placement Details</h3>
+        <button class="close-btn" id="btn-close-placement-modal" aria-label="Close modal">&times;</button>
+      </div>
+      <div id="modal-alert" style="display: none;" class="alert"></div>
+      
+      <div style="background: #020704; border: 1px solid rgba(255, 201, 28, 0.15); padding: 0.8rem; border-radius: 8px; font-size: 0.82rem; margin-bottom: 1.2rem;">
+        <p style="margin: 0 0 0.3rem;"><strong>Applicant:</strong> <span id="modal-applicant-name"></span> (<span id="modal-applicant-username"></span>)</p>
+        <p style="margin: 0 0 0.3rem;"><strong>Sponsor Invited:</strong> <span id="modal-applicant-sponsor"></span></p>
+        <p style="margin: 0;"><strong>Plan Requested:</strong> <span id="modal-applicant-plan"></span></p>
+      </div>
+
+      <form id="placement-form">
+        <input type="hidden" id="modal-pending-id">
+        
+        <div class="form-group">
+          <label>Select Matrix Placement Mode</label>
+          <div style="display: flex; gap: 1rem; margin-top: 0.4rem; margin-bottom: 0.8rem;">
+            <label style="display: inline-flex; align-items: center; font-weight: normal; text-transform: none; color: #fff; cursor: pointer;">
+              <input type="radio" name="placement-mode" id="mode-parent" value="parent" checked style="margin-right: 0.4rem;"> Under Parent Node
+            </label>
+            <label style="display: inline-flex; align-items: center; font-weight: normal; text-transform: none; color: #fff; cursor: pointer;">
+              <input type="radio" name="placement-mode" id="mode-root" value="root" style="margin-right: 0.4rem;"> Place as Root Node
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group" id="parent-selection-group">
+          <label for="modal-parent-select">Select Placement Parent Node</label>
+          <select id="modal-parent-select" class="form-control">
+            <!-- Populated dynamically with eligible parent members -->
+          </select>
+          <p style="font-size: 0.72rem; color: var(--muted); margin-top: 0.4rem;">
+            Lists approved members in this plan who have empty positions remaining.
+          </p>
+        </div>
+
+        <div class="alert alert-info" id="root-warn-alert" style="display: none; font-size: 0.76rem; padding: 0.7rem;">
+          <strong>Warning:</strong> Placing this member as a Root will establish them at the very top of the plan tree. Only one root is allowed per plan.
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="button btn-secondary" id="btn-cancel-placement">Cancel</button>
+          <button type="submit" class="button button-primary">Confirm Approval</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: VIEW MEMBER DETAILS -->
+  <div id="details-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="details-modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="details-modal-title">Member Profile Card</h3>
+        <button class="close-btn" id="btn-close-details-modal" aria-label="Close modal">&times;</button>
+      </div>
+      <ul class="details-list" id="modal-details-list">
+        <!-- Details dynamically loaded -->
+      </ul>
+      <div class="modal-footer">
+        <button type="button" class="button button-primary" id="btn-close-details-footer">Close Details</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer" style="margin-top: auto;">
+    <div class="copyright">
+      © 2026 Matrix Consumer Services and Savers Merchandising, Inc. Website Concept.<br>
+      <span style="font-size: 0.65rem; color: rgba(198, 207, 188, 0.4);">Administrative Control Sandbox Sandbox Mode.</span>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="matrix-db.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

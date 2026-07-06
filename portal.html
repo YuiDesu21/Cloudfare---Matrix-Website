@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Member Portal - Matrix Consumer Services">
+  <title>Matrix Portal | Member Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body class="portal-body">
+  <a class="skip-link" href="#portal-main">Skip to content</a>
+
+  <!-- Header -->
+  <header class="portal-header site-header">
+    <div class="container header-wrapper">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">M</span>
+        <span>
+          <strong>Matrix</strong>
+          <small>Consumer Services &amp; Savers</small>
+        </span>
+      </a>
+      <div id="header-user-status" class="user-status-strip" style="display: none;">
+        <span id="header-user-name" class="label"></span>
+        <button id="logout-btn-header" class="button button-outline button-small">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main id="portal-main" class="portal-container">
+    
+    <!-- AUTH WRAPPER (LOGIN / REGISTER) -->
+    <section id="auth-section" class="auth-wrapper">
+      
+      <!-- LOGIN VIEW -->
+      <div id="login-view" class="portal-card">
+        <h2>Member Access</h2>
+        <p class="subtitle">Enter your details to view your matrix status</p>
+        
+        <div id="login-alert" style="display: none;"></div>
+
+        <form id="login-form">
+          <div class="form-group">
+            <label for="login-credential">Email or Wallet Address</label>
+            <input type="text" id="login-credential" class="form-control" placeholder="e.g. arthur@matrix.io or 0xRoot..." required>
+          </div>
+          <button type="submit" class="button button-primary btn-block">Access Dashboard</button>
+        </form>
+        
+        <p class="form-footer">
+          Not a member? <a href="#" id="go-to-register">Request Registration</a>
+        </p>
+        
+        <div class="alert alert-info" style="margin-top: 1.5rem; margin-bottom: 0; padding: 0.8rem; font-size: 0.76rem;">
+          <strong>Demo Sandbox Note:</strong> Secure passwords are not used in this MVP. Use any approved member's email or F3 wallet address to log in. You can seed mock users on the admin panel.
+        </div>
+      </div>
+
+      <!-- REGISTRATION VIEW -->
+      <div id="register-view" class="portal-card" style="display: none;">
+        <h2>Join the Matrix</h2>
+        <p class="subtitle">Submit a request to register your membership</p>
+
+        <div id="register-alert" style="display: none;"></div>
+
+        <form id="register-form" novalidate>
+          <div class="form-group">
+            <label for="reg-fullname">Full Name</label>
+            <input type="text" id="reg-fullname" class="form-control" placeholder="e.g. Mordred Orkney" required>
+            <div class="form-error" id="err-fullname"></div>
+          </div>
+          
+          <div class="form-group">
+            <label for="reg-username">Username</label>
+            <input type="text" id="reg-username" class="form-control" placeholder="e.g. mordred" required>
+            <div class="form-error" id="err-username"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-email">Email Address</label>
+            <input type="email" id="reg-email" class="form-control" placeholder="e.g. mordred@matrix.io" required>
+            <div class="form-error" id="err-email"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-phone">Phone Number</label>
+            <input type="text" id="reg-phone" class="form-control" placeholder="e.g. +639123456789" required>
+            <div class="form-error" id="err-phone"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-wallet">F3 Wallet Address</label>
+            <input type="text" id="reg-wallet" class="form-control" placeholder="e.g. 0x51A... or F3 wallet public key" required>
+            <div class="form-error" id="err-wallet"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-sponsor">Sponsor Username (Optional)</label>
+            <input type="text" id="reg-sponsor" class="form-control" placeholder="e.g. arthur">
+            <div class="form-error" id="err-sponsor"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-plan">Select Matrix Plan</label>
+            <select id="reg-plan" class="form-control" required>
+              <option value="" disabled selected>Choose plan...</option>
+              <option value="power3">Power of 3 (Price: 500 F3)</option>
+              <option value="power5">Power of 5 (Price: 1000 F3)</option>
+              <option value="power7">Power of 7 (Price: 1500 F3)</option>
+            </select>
+            <div class="form-error" id="err-plan"></div>
+          </div>
+
+          <button type="submit" class="button button-primary btn-block">Submit Registration</button>
+        </form>
+
+        <p class="form-footer">
+          Already submitted a request? <a href="#" id="go-to-login">Access Portal</a>
+        </p>
+      </div>
+
+      <!-- SUCCESS VIEW -->
+      <div id="success-view" class="portal-card" style="display: none; text-align: center;">
+        <span style="font-size: 3rem;" aria-hidden="true">⏳</span>
+        <h2 style="margin-top: 1rem; color: var(--gold);">Request Submitted!</h2>
+        <p class="subtitle">Your registration is now pending review</p>
+        
+        <div class="alert alert-success">
+          Your request has been saved under ID: <strong id="success-req-id"></strong>. An admin will review and manually place you in the matrix structure.
+        </div>
+
+        <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1.5rem;">
+          Once the admin completes the review, you can enter your email or wallet address to access your dashboard.
+        </p>
+
+        <button id="success-ok-btn" class="button button-primary">Return to Login</button>
+      </div>
+
+    </section>
+
+    <!-- MEMBER DASHBOARD -->
+    <section id="dashboard-section" class="dashboard-grid" style="display: none;">
+      
+      <!-- Left Column: Member Card -->
+      <aside class="dashboard-sidebar">
+        <div class="portal-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+            <h3 style="margin: 0; font-family: Georgia, serif; color: var(--gold); text-transform: uppercase; font-size: 1.3rem;">Membership</h3>
+            <span id="db-status-badge" class="badge">PENDING</span>
+          </div>
+
+          <div style="text-align: center; margin: 1rem 0 1.5rem;">
+            <div style="width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, var(--forest-light), var(--ink)); border: 2px solid var(--gold); display: inline-flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 800; color: var(--gold);">
+              <span id="db-avatar-letter">M</span>
+            </div>
+            <h4 id="db-fullname" style="margin: 0.5rem 0 0.2rem; font-size: 1.1rem; color: #fff;"></h4>
+            <p id="db-username" style="margin: 0; font-size: 0.8rem; color: var(--gold-soft); font-weight: 600;"></p>
+          </div>
+
+          <ul class="details-list">
+            <li>
+              <span class="label">Wallet</span>
+              <span id="db-wallet" class="val"></span>
+            </li>
+            <li>
+              <span class="label">Email</span>
+              <span id="db-email" class="val"></span>
+            </li>
+            <li>
+              <span class="label">Phone</span>
+              <span id="db-phone" class="val"></span>
+            </li>
+            <li>
+              <span class="label">Date Enrolled</span>
+              <span id="db-joindate" class="val"></span>
+            </li>
+            <li>
+              <span class="label">Invited Sponsor</span>
+              <span id="db-sponsor" class="val">-</span>
+            </li>
+          </ul>
+
+          <div id="referral-container" style="margin-top: 1.5rem; border-top: 1px solid rgba(255, 201, 28, 0.2); padding-top: 1.2rem; display: none;">
+            <label style="display: block; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 0.3rem;">Your Referral Link</label>
+            <div class="copy-panel">
+              <input type="text" id="ref-link-input" readonly>
+              <button id="copy-ref-btn" class="button button-primary btn-icon-only" title="Copy link">Copy</button>
+            </div>
+            <div id="copy-toast" style="color: #4bd675; font-size: 0.68rem; margin-top: 0.3rem; font-weight: 800; display: none;">Link copied to clipboard!</div>
+          </div>
+
+          <button id="logout-btn-sidebar" class="button button-outline btn-block" style="margin-top: 1.5rem;">Sign Out</button>
+        </div>
+      </aside>
+
+      <!-- Right Column: Interactive details / visualizer -->
+      <article class="dashboard-content">
+        
+        <!-- Welcome Card -->
+        <div class="portal-card" style="padding: 1.5rem;">
+          <h2 id="db-welcome-title" style="text-align: left; margin: 0; font-size: 1.4rem;">Member Portal</h2>
+          <p id="db-welcome-desc" style="margin: 0.5rem 0 0; color: var(--muted); font-size: 0.88rem;"></p>
+        </div>
+
+        <!-- Metrics Cards (Active only) -->
+        <div id="active-metrics-row" class="metrics-row" style="display: none;">
+          <div class="metric-card">
+            <span class="title">Active Matrix Plan</span>
+            <span id="metric-plan" class="value">-</span>
+          </div>
+          <div class="metric-card">
+            <span class="title">Sponsor Referrals</span>
+            <span id="metric-referrals" class="value">0</span>
+          </div>
+          <div class="metric-card">
+            <span class="title">Direct Tree Children</span>
+            <span id="metric-children" class="value">0</span>
+          </div>
+        </div>
+
+        <!-- Pending Status Message -->
+        <div id="pending-details-card" class="portal-card" style="display: none;">
+          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem;">Waiting for Review</h3>
+          <p style="font-size: 0.9rem; line-height: 1.5;">
+            Your registration request has been submitted to the manual review queue. The admin will check your information and manually select an appropriate parent node in the matrix tree.
+          </p>
+          <div class="alert alert-info" style="margin-bottom: 0;">
+            <strong>Plan Requested:</strong> <span id="pending-card-plan"></span><br>
+            <strong>Date Submitted:</strong> <span id="pending-card-date"></span><br>
+            <strong>Required Deposit:</strong> <span id="pending-card-price"></span> F3 Token
+          </div>
+        </div>
+
+        <!-- Active Matrix Tree Structure -->
+        <div id="active-tree-card" class="portal-card" style="display: none;">
+          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 1.5rem;">Your Downline Matrix Tree</h3>
+          <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 1.5rem; margin-top: -1rem;">
+            This tree shows members manually placed underneath you. Share your referral link above to invite new members to register.
+          </p>
+
+          <div id="member-tree-visualizer" class="tree-container">
+            <!-- Node hierarchy will be injected here dynamically -->
+          </div>
+        </div>
+
+      </article>
+
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer" style="margin-top: auto;">
+    <div class="copyright">
+      © 2026 Matrix Consumer Services and Savers Merchandising, Inc. Website Concept.<br>
+      <span style="font-size: 0.65rem; color: rgba(198, 207, 188, 0.4);">Front-end Prototype Sandbox Sandbox Mode.</span>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="matrix-db.js"></script>
+  <script src="js/portal.js"></script>
+</body>
+</html>
