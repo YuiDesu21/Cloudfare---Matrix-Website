@@ -62,6 +62,8 @@ That file is generated at runtime and ignored by Git.
 
 ## Production tracking release
 
+Live site: https://matrix-consumer-services.pages.dev
+
 The static production build uses Supabase Auth, PostgreSQL transactions, Row Level Security, member/admin sessions, Owner-only finances, administrator invitations, Products Plus claims, non-expiring vouchers, and partial voucher redemptions. Payment verification, placement, approvals, GCash payouts, and voucher fulfillment remain intentionally manual for the local-business phase.
 
 The production database is linked to Supabase project `rvylugnfclguwhdvxprn`. All migrations through `202607220004` are applied. James is the original Owner; invited administrators can process requests but cannot access Owner finances or review their own requests.

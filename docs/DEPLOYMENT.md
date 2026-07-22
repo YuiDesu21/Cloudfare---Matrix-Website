@@ -7,7 +7,8 @@
 - James is verified as the original Owner and administrator.
 - Supabase Auth is reachable and public signup is enabled.
 - `npm run check`, `npm run check:supabase`, and `npm run build` pass.
-- GitHub/Cloudflare Pages connection and the final `pages.dev` redirect URL remain to be configured.
+- Cloudflare Pages is deployed at `https://matrix-consumer-services.pages.dev` from the `main` branch.
+- Supabase Site URL and the `/portal.html` redirect allow-list entry use the production Pages URL.
 
 The repository contains the production Supabase database, browser adapter, Cloudflare security headers, and a clean static build. The sandbox remains available only for local testing.
 
