@@ -29,6 +29,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const tabButtons = document.querySelectorAll(".tab-btn");
   const adminSections = document.querySelectorAll(".admin-section");
   const badgePendingCount = document.getElementById("badge-pending-count");
+  const approvalTabButtons = document.querySelectorAll("[data-approval-tab]");
+  const approvalPanels = document.querySelectorAll("[data-approval-panel]");
 
   // Metrics
   const statActiveMembers = document.getElementById("stat-active-members");
@@ -47,6 +49,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Tables & directory
   const pendingTableBody = document.getElementById("pending-table-body");
+  const exitActionsTableBody = document.getElementById("exit-actions-table-body");
+  const withdrawalsTableBody = document.getElementById("withdrawals-table-body");
+  const productClaimsTableBody = document.getElementById("product-claims-table-body");
+  const upgradeRequestsTableBody = document.getElementById("upgrade-requests-table-body");
   const pendingAlert = document.getElementById("pending-alert");
   const membersTableBody = document.getElementById("members-table-body");
   const memberSearchInput = document.getElementById("member-search");
@@ -56,6 +62,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const viewerPlanSelect = document.getElementById("viewer-plan-select");
   const treeMemberSearchInput = document.getElementById("tree-member-search");
   const globalTreeVisualizer = document.getElementById("global-tree-visualizer");
+  const matrixExitFilter = document.getElementById("matrix-exit-filter");
+  const matrixStatusFilter = document.getElementById("matrix-status-filter");
+  const matrixExpandAll = document.getElementById("matrix-expand-all");
+  const matrixCollapseAll = document.getElementById("matrix-collapse-all");
+  const matrixExplorerCount = document.getElementById("matrix-explorer-count");
+  const matrixExplorerBreadcrumbs = document.getElementById("matrix-explorer-breadcrumbs");
+  const matrixMemberDetails = document.getElementById("matrix-member-details");
+  let matrixExplorerNodes = [];
+  let matrixExplorerExpanded = new Set();
+  let matrixExplorerSelectedId = null;
 
   // Modals
   const placementModal = document.getElementById("placement-modal");
@@ -88,13 +104,12 @@ document.addEventListener("DOMContentLoaded", () => {
     adminLoginAlert.style.display = "none";
     
     const inputPass = adminPasswordInput.value;
-    const settings = MatrixDB.getSettings();
-
-    if (inputPass === settings.adminPassword) {
+    try {
+      MatrixDB.authenticateAdmin(inputPass);
       sessionStorage.setItem(ADMIN_SESSION_KEY, "true");
       enterDashboard();
-    } else {
-      adminLoginAlert.textContent = "Incorrect admin password. Please try again.";
+    } catch (error) {
+      adminLoginAlert.textContent = error.message;
       adminLoginAlert.className = "alert alert-danger";
       adminLoginAlert.style.display = "block";
     }
@@ -116,6 +131,22 @@ document.addEventListener("DOMContentLoaded", () => {
       if (target === "tab-visualizer") {
         renderGlobalTree();
       }
+    });
+  });
+
+  approvalTabButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      const selected = button.dataset.approvalTab;
+      approvalTabButtons.forEach(tab => {
+        const active = tab === button;
+        tab.classList.toggle("active", active);
+        tab.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      approvalPanels.forEach(panel => {
+        const active = panel.dataset.approvalPanel === selected;
+        panel.hidden = !active;
+        panel.classList.toggle("active", active);
+      });
     });
   });
 
@@ -208,15 +239,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Search input events
   memberSearchInput.addEventListener("input", renderMembersDirectory);
-  treeMemberSearchInput.addEventListener("input", filterTreeNodesHighlight);
+  treeMemberSearchInput.addEventListener("input", renderMatrixExplorerRows);
   viewerPlanSelect.addEventListener("change", renderGlobalTree);
+  matrixExitFilter.addEventListener("change", renderMatrixExplorerRows);
+  matrixStatusFilter.addEventListener("change", renderMatrixExplorerRows);
+  matrixExpandAll.addEventListener("click", () => {
+    matrixExplorerNodes.filter(node => node.childIds.length > 0).forEach(node => matrixExplorerExpanded.add(node.id));
+    renderMatrixExplorerRows();
+  });
+  matrixCollapseAll.addEventListener("click", () => {
+    matrixExplorerExpanded.clear();
+    matrixExplorerNodes.filter(node => node.depth === 0).forEach(node => matrixExplorerExpanded.add(node.id));
+    renderMatrixExplorerRows();
+  });
 
   // Modal Placement submission
   placementForm.addEventListener("submit", handlePlacementSubmission);
 
   // Setup Initial State & Functions
   function checkAdminSession() {
-    if (sessionStorage.getItem(ADMIN_SESSION_KEY) === "true") {
+    if (sessionStorage.getItem(ADMIN_SESSION_KEY) === "true" && sessionStorage.getItem("matrix_admin_auth_token")) {
       enterDashboard();
     } else {
       adminAuthSection.style.display = "block";
@@ -235,6 +277,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function logoutAdmin() {
     sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    sessionStorage.removeItem("matrix_admin_auth_token");
     adminPasswordInput.value = "";
     adminAuthSection.style.display = "block";
     adminDashboardSection.style.display = "none";
@@ -243,31 +286,234 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Unified Refresh
   function refreshAll() {
+    updateApprovalCounts();
     renderOverviewStats();
     renderPendingQueue();
+    renderUpgradeQueue();
+    renderExitActionQueue();
+    renderWithdrawalQueue();
+    renderProductClaimQueue();
     renderMembersDirectory();
     renderLogs();
     renderGlobalTree();
+  }
+
+  function updateApprovalCounts() {
+    const counts = {
+      registrations: MatrixDB.getPendingRegistrations().filter(item => item.status === "pending").length,
+      entry: MatrixDB.getUpgradeRequests().filter(item => item.status === "pending").length,
+      exit: MatrixDB.getExitActionRequests().filter(item => item.status === "pending").length,
+      withdrawals: MatrixDB.getWithdrawalRequests().filter(item => item.status === "pending").length,
+      products: MatrixDB.getProductPlusClaims().filter(item => item.status === "pending").length
+    };
+    Object.entries(counts).forEach(([name, count]) => {
+      const badge = document.getElementById(`approval-count-${name}`);
+      if (!badge) return;
+      badge.textContent = count;
+      badge.classList.toggle("has-requests", count > 0);
+    });
+  }
+
+  function renderUpgradeQueue() {
+    if (!upgradeRequestsTableBody) return;
+    const requests = MatrixDB.getUpgradeRequests().filter(item => item.status === "pending");
+    const eligible = MatrixDB.getEligibleParents("power3-passive");
+    upgradeRequestsTableBody.innerHTML = requests.length ? "" : `<tr><td colspan="7" class="empty-state">No pending Entry activations.</td></tr>`;
+    requests.forEach(request => {
+      const row=document.createElement("tr");
+      const options=eligible.map(parent=>`<option value="${parent.memberId}">${escapeHtml(parent.fullName)} (@${escapeHtml(parent.username)}) — ${parent.childrenCount}/${parent.maxChildren}</option>`).join("");
+      const placement=request.fixedParentId
+        ? `<div class="fixed-placement"><strong>${escapeHtml(request.fixedParentName)}</strong><br><small>${escapeHtml(request.fixedParentCode)} · Fixed by referral</small></div>`
+        : `<select class="form-control upgrade-parent"><option value="">${eligible.length ? "Select parent" : "Place as root"}</option>${options}</select>`;
+      row.innerHTML=`<td><strong>${escapeHtml(request.fullName)}</strong><br><small>${escapeHtml(request.accountCode)} · @${escapeHtml(request.username)}</small></td><td>PHP ${Number(request.amount).toLocaleString()}</td><td><strong style="color:var(--gold-soft)">${escapeHtml(request.referenceNumber)}</strong></td><td>${formatDate(request.createdAt)}</td><td>${placement}</td><td><div class="actions"><button class="button btn-success approve-upgrade">Verify & Activate</button><button class="button btn-danger reject-upgrade">Reject</button></div></td>`;
+      const walletCell = document.createElement("td");
+      walletCell.innerHTML = copyField(request.walletAddress);
+      row.insertBefore(walletCell, row.children[2]);
+      walletCell.querySelector(".copy-admin-value").addEventListener("click", event => copyAdminValue(event.currentTarget));
+      row.querySelector(".approve-upgrade").addEventListener("click",()=>{try{const select=row.querySelector(".upgrade-parent");const parent=request.fixedParentId||(select?select.value:null);if(!request.fixedParentId&&eligible.length&&!parent)throw new Error("Select a placement parent.");MatrixDB.approveUpgrade(request.id,parent||null);refreshAll()}catch(error){showPendingAlert(error.message,"danger")}});
+      row.querySelector(".reject-upgrade").addEventListener("click",()=>{if(confirm(`Reject Entry activation for ${request.fullName}?`)){MatrixDB.rejectUpgrade(request.id);refreshAll()}});
+      upgradeRequestsTableBody.appendChild(row);
+    });
+  }
+
+  function renderWithdrawalQueue() {
+    if (!withdrawalsTableBody) return;
+    const requests = MatrixDB.getWithdrawalRequests().filter(request => request.status === "pending");
+    withdrawalsTableBody.innerHTML = "";
+
+    if (requests.length === 0) {
+      withdrawalsTableBody.innerHTML = `<tr><td colspan="8" class="empty-state">No pending withdrawals.</td></tr>`;
+      return;
+    }
+
+    requests.forEach(request => {
+      const originSummary = Array.isArray(request.origins) && request.origins.length
+        ? request.origins.map(origin => `${origin.sourceLabel || "Passive Income"}: PHP ${Number(origin.amount || 0).toLocaleString()}`).join("; ")
+        : "Passive Income Balance";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong>${request.fullName}</strong><br><span style="color: var(--gold-soft); font-size: .72rem;">@${request.username}</span></td>
+        <td><strong style="color: var(--gold-soft);">${request.withdrawalCode || request.referenceNumber || request.id.slice(0, 8).toUpperCase()}</strong></td>
+        <td>PHP ${Number(request.amount || 0).toLocaleString()}</td>
+        <td>${request.accountName || request.fullName || "-"}${request.payoutDetails ? `<br><small style="color: var(--muted);">${request.payoutDetails}</small>` : ""}</td>
+        <td>${copyField(request.gcashNumber)}</td>
+        <td><span style="font-size: .72rem; color: var(--muted);">${originSummary}</span></td>
+        <td>${formatDate(request.createdAt)}</td>
+        <td>
+          <div class="actions">
+            <button class="button btn-success approve-withdrawal-btn" data-id="${request.id}">Approve</button>
+            <button class="button btn-danger reject-withdrawal-btn" data-id="${request.id}">Reject</button>
+          </div>
+        </td>
+      `;
+      tr.querySelector(".copy-admin-value").addEventListener("click", event => copyAdminValue(event.currentTarget));
+      tr.querySelector(".approve-withdrawal-btn").addEventListener("click", () => {
+        try {
+          MatrixDB.approveWithdrawal(request.id);
+          refreshAll();
+        } catch (err) {
+          showPendingAlert(err.message, "danger");
+        }
+      });
+      tr.querySelector(".reject-withdrawal-btn").addEventListener("click", () => {
+        try {
+          MatrixDB.rejectWithdrawal(request.id);
+          refreshAll();
+        } catch (err) {
+          showPendingAlert(err.message, "danger");
+        }
+      });
+      withdrawalsTableBody.appendChild(tr);
+    });
+  }
+
+  function renderProductClaimQueue() {
+    if (!productClaimsTableBody) return;
+    const claims = MatrixDB.getProductPlusClaims().filter(claim => claim.status === "pending");
+    productClaimsTableBody.innerHTML = "";
+
+    if (claims.length === 0) {
+      productClaimsTableBody.innerHTML = `<tr><td colspan="7" class="empty-state">No pending Products Plus claims.</td></tr>`;
+      return;
+    }
+
+    claims.forEach(claim => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong>${claim.fullName}</strong></td>
+        <td><span style="color: var(--gold-soft);">@${claim.username}</span></td>
+        <td>Exit ${claim.exit}</td>
+        <td>PHP ${Number(claim.spendAmount || 0).toLocaleString()}</td>
+        <td>PHP ${Number(claim.bonusAmount || 0).toLocaleString()} (${claim.bonusPercent}%)</td>
+        <td>${formatDate(claim.createdAt)}</td>
+        <td>
+          <div class="actions">
+            <button class="button btn-success approve-product-claim-btn" data-id="${claim.id}">Approve</button>
+            <button class="button btn-danger reject-product-claim-btn" data-id="${claim.id}">Reject</button>
+          </div>
+        </td>
+      `;
+      tr.querySelector(".approve-product-claim-btn").addEventListener("click", () => {
+        try {
+          MatrixDB.approveProductPlusClaim(claim.id);
+          refreshAll();
+        } catch (err) {
+          showPendingAlert(err.message, "danger");
+        }
+      });
+      tr.querySelector(".reject-product-claim-btn").addEventListener("click", () => {
+        try {
+          MatrixDB.rejectProductPlusClaim(claim.id);
+          refreshAll();
+        } catch (err) {
+          showPendingAlert(err.message, "danger");
+        }
+      });
+      productClaimsTableBody.appendChild(tr);
+    });
+  }
+
+  function renderExitActionQueue() {
+    if (!exitActionsTableBody) return;
+    const requests = MatrixDB.getExitActionRequests().filter(request => request.status === "pending");
+    exitActionsTableBody.innerHTML = "";
+
+    if (requests.length === 0) {
+      exitActionsTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="empty-state">No pending exit actions to process.</td>
+        </tr>
+      `;
+      return;
+    }
+
+    requests.forEach(request => {
+      const tr = document.createElement("tr");
+      const actionLabel = request.actionType === "reinvest" ? "Re-Stake" : "Buy";
+      const paymentDetails = request.paymentMethod === "f3_wallet"
+        ? `<div><strong>F3 Wallet</strong>${copyField(request.f3Wallet)}</div>`
+        : request.paymentMethod === "available_balance"
+          ? `<div><strong>Available Balance</strong><br><span style="color:var(--muted);font-size:.72rem">Deduct on approval</span></div>`
+          : `<div style="display:grid;gap:.25rem"><span><strong>GCash Name:</strong> ${escapeHtml(request.gcashName || "-")}</span><span><strong>GCash Number:</strong> ${copyField(request.gcashNumber)}</span><span><strong>Reference:</strong> ${copyField(request.referenceNumber)}</span></div>`;
+      tr.innerHTML = `
+        <td><strong>${escapeHtml(request.fullName)}</strong><br><span style="color:var(--gold-soft);font-size:.72rem">@${escapeHtml(request.username)}</span></td>
+        <td>Exit ${request.exit}</td>
+        <td>${actionLabel}</td>
+        <td>PHP ${Number(request.actionAmount || 0).toLocaleString()}</td>
+        <td>${paymentDetails}</td>
+        <td>${formatDate(request.createdAt)}</td>
+        <td>
+          <div class="actions">
+            <button class="button btn-success approve-exit-action-btn" data-id="${request.id}">Approve</button>
+            <button class="button btn-danger reject-exit-action-btn" data-id="${request.id}">Reject</button>
+          </div>
+        </td>
+      `;
+
+      tr.querySelectorAll(".copy-admin-value").forEach(button => button.addEventListener("click", event => copyAdminValue(event.currentTarget)));
+
+      tr.querySelector(".approve-exit-action-btn").addEventListener("click", () => {
+        try {
+          MatrixDB.approveExitAction(request.id);
+          refreshAll();
+        } catch (err) {
+          showPendingAlert(err.message, "danger");
+        }
+      });
+
+      tr.querySelector(".reject-exit-action-btn").addEventListener("click", () => {
+        try {
+          MatrixDB.rejectExitAction(request.id);
+          refreshAll();
+        } catch (err) {
+          showPendingAlert(err.message, "danger");
+        }
+      });
+
+      exitActionsTableBody.appendChild(tr);
+    });
   }
 
   // Render Stats Card
   function renderOverviewStats() {
     const members = MatrixDB.getMembers();
     const pending = MatrixDB.getPendingRegistrations().filter(p => p.status === "pending");
+    const pendingUpgrades = MatrixDB.getUpgradeRequests().filter(item => item.status === "pending");
+    const pendingTotal = pending.length + pendingUpgrades.length;
     const positions = MatrixDB.getPositions();
 
-    statActiveMembers.textContent = members.length;
-    statPendingRequests.textContent = pending.length;
+    statActiveMembers.textContent = members.filter(member => member.status === "active").length;
+    statPendingRequests.textContent = pendingTotal;
     
     // Pending Tab count badge
-    if (pending.length > 0) {
-      badgePendingCount.textContent = pending.length;
+    if (pendingTotal > 0) {
+      badgePendingCount.textContent = pendingTotal;
       badgePendingCount.style.display = "inline-block";
     } else {
       badgePendingCount.style.display = "none";
     }
 
-    // Estimate Revenue volume (sum of plan prices for all active placements)
+    // Estimate F3 volume (sum of squad prices for all active placements)
     let totalVolume = 0;
     positions.forEach(pos => {
       const plan = MatrixDB.MATRIX_PLANS[pos.planId];
@@ -402,7 +648,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (eligible.length === 0) {
       const opt = document.createElement("option");
       opt.value = "";
-      opt.textContent = "No parents available in this plan. Place as Root instead.";
+      opt.textContent = "No parents available in this squad. Place as Root instead.";
       modalParentSelect.appendChild(opt);
       
       // Auto toggle to root mode if no parents exist
@@ -538,7 +784,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <li><span class="label">Email:</span><span class="val">${member.email}</span></li>
       <li><span class="label">Phone:</span><span class="val">${member.phone}</span></li>
       <li><span class="label">Wallet Address:</span><span class="val">${member.walletAddress}</span></li>
-      <li><span class="label">Matrix Plan:</span><span class="val">${position ? MatrixDB.MATRIX_PLANS[position.planId].name : "None"}</span></li>
+      <li><span class="label">Squad Matrix:</span><span class="val">${position ? MatrixDB.MATRIX_PLANS[position.planId].name : "None"}</span></li>
       <li><span class="label">Parent Placement:</span><span class="val">${parentStr}</span></li>
       <li><span class="label">Invited Sponsor:</span><span class="val">${sponsorStr}</span></li>
       <li><span class="label">Registration Date:</span><span class="val">${formatDate(member.createdAt)}</span></li>
@@ -547,115 +793,163 @@ document.addEventListener("DOMContentLoaded", () => {
     detailsModal.classList.add("active");
   }
 
-  // Render Global Tree Visualizer
+  // Render the scalable text-based Global Matrix Explorer.
   function renderGlobalTree() {
     const planId = viewerPlanSelect.value;
     globalTreeVisualizer.innerHTML = "";
-
     const roots = MatrixDB.getRootMembers(planId);
+    matrixExplorerNodes = [];
+    matrixExplorerExpanded = new Set();
+    matrixExplorerSelectedId = null;
 
     if (roots.length === 0) {
       globalTreeVisualizer.innerHTML = `
         <div class="empty-state">
-          <p>No active matrix placements exist for this plan.</p>
+          <p>No active matrix placements exist for this squad.</p>
           <p style="font-size: 0.8rem; margin-top: 0.5rem; color: var(--muted);">Approve a pending request in the queue to place a root member.</p>
         </div>
       `;
       return;
     }
 
-    // Render each root tree (usually only 1 root per plan, but loop to handle all gracefully)
     roots.forEach(root => {
       const treeData = MatrixDB.getMemberTree(root.id, planId);
       if (!treeData) return;
-
-      const treeWrapper = document.createElement("div");
-      treeWrapper.className = "tree-wrapper";
-      treeWrapper.style.marginBottom = "3rem";
-
-      // Recursive tree builder
-      function buildTreeHtml(node) {
-        if (!node) return "";
-
-        if (node.isOpenSlot) {
-          return `
-            <div class="tree-branch">
-              <div class="tree-node-wrapper">
-                <div class="tree-node-card empty-card">
-                  <div class="tree-node-name">Open Spot</div>
-                  <div class="tree-node-username">Available</div>
-                </div>
-              </div>
-            </div>
-          `;
-        }
-
-        const isRoot = node.id === root.id;
-        const shortWallet = shortenWallet(node.walletAddress);
-
-        let childrenHtml = "";
-        if (node.children && node.children.length > 0) {
-          childrenHtml = `
-            <div class="tree-children-container">
-              ${node.children.map(child => buildTreeHtml(child)).join("")}
-            </div>
-          `;
-        }
-
-        return `
-          <div class="tree-branch" data-username="${node.username.toLowerCase()}" data-name="${node.fullName.toLowerCase()}">
-            <div class="tree-node-wrapper">
-              <div class="tree-node-card ${isRoot ? 'root-card' : ''}" id="node-${node.id}">
-                <div class="tree-node-name" title="${node.fullName}">${node.fullName}</div>
-                <div class="tree-node-username">@${node.username}</div>
-                <div class="tree-node-info">${shortWallet}</div>
-              </div>
-            </div>
-            ${childrenHtml}
-          </div>
-        `;
-      }
-
-      treeWrapper.innerHTML = buildTreeHtml(treeData);
-      globalTreeVisualizer.appendChild(treeWrapper);
+      flattenMatrixTree(treeData, null, 0);
+      matrixExplorerExpanded.add(root.id);
     });
-
-    // Run filter highlight checks immediately after rendering
-    filterTreeNodesHighlight();
+    matrixExplorerSelectedId = matrixExplorerNodes[0] ? matrixExplorerNodes[0].id : null;
+    renderMatrixExplorerRows();
+    renderMatrixMemberDetails();
   }
 
-  // Highlight and focus member node in Global Tree Map
-  function filterTreeNodesHighlight() {
-    const searchVal = treeMemberSearchInput.value.trim().toLowerCase();
-    
-    // Clear previous highlights
-    document.querySelectorAll(".tree-node-card").forEach(card => {
-      card.classList.remove("highlight-node");
+  function flattenMatrixTree(node, parentId, depth) {
+    if (!node || node.isOpenSlot) return;
+    const memberChildren = (node.children || []).filter(child => !child.isOpenSlot);
+    const openSlots = (node.children || []).filter(child => child.isOpenSlot).length;
+    matrixExplorerNodes.push({
+      ...node,
+      parentId,
+      depth,
+      childIds: memberChildren.map(child => child.id),
+      openSlots
     });
+    memberChildren.forEach(child => flattenMatrixTree(child, node.id, depth + 1));
+  }
 
-    if (!searchVal) return;
+  function renderMatrixExplorerRows() {
+    const query = treeMemberSearchInput.value.trim().toLowerCase();
+    const exitFilter = matrixExitFilter.value;
+    const statusFilter = matrixStatusFilter.value;
+    const filteredMode = Boolean(query || exitFilter !== "all" || statusFilter !== "all");
+    const matchingIds = new Set();
 
-    // Search matches
-    const branches = document.querySelectorAll(".tree-branch");
-    let matchedNodeCard = null;
-
-    for (let branch of branches) {
-      const uName = branch.getAttribute("data-username");
-      const fName = branch.getAttribute("data-name");
-
-      if (uName && fName && (uName.includes(searchVal) || fName.includes(searchVal))) {
-        const card = branch.querySelector(".tree-node-card");
-        if (card && !card.classList.contains("empty-card")) {
-          card.classList.add("highlight-node");
-          matchedNodeCard = card;
+    matrixExplorerNodes.forEach(node => {
+      const stage = node.matrixStage || { exit: 0, status: "active" };
+      const matchesQuery = !query || [node.fullName, node.username, node.walletAddress, node.id].some(value => String(value || "").toLowerCase().includes(query));
+      const matchesExit = exitFilter === "all" || Number(exitFilter) === Number(stage.exit || 0);
+      const matchesStatus = statusFilter === "all" || stage.status === statusFilter;
+      if (matchesQuery && matchesExit && matchesStatus) {
+        matchingIds.add(node.id);
+        let parentId = node.parentId;
+        while (parentId) {
+          matchingIds.add(parentId);
+          parentId = matrixExplorerNodes.find(item => item.id === parentId)?.parentId || null;
         }
       }
+    });
+
+    const visibleRows = matrixExplorerNodes.filter(node => {
+      if (filteredMode) return matchingIds.has(node.id);
+      let parentId = node.parentId;
+      while (parentId) {
+        if (!matrixExplorerExpanded.has(parentId)) return false;
+        parentId = matrixExplorerNodes.find(item => item.id === parentId)?.parentId || null;
+      }
+      return true;
+    });
+
+    matrixExplorerCount.textContent = `${matrixExplorerNodes.length} ${matrixExplorerNodes.length === 1 ? "member" : "members"}`;
+    if (!visibleRows.length) {
+      globalTreeVisualizer.innerHTML = `<div class="empty-state"><p>No members match the selected filters.</p></div>`;
+      return;
     }
 
-    // Scroll node card into view if matched
-    if (matchedNodeCard) {
-      matchedNodeCard.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    globalTreeVisualizer.innerHTML = visibleRows.map(node => {
+      const stage = node.matrixStage || { label: "Entry", status: "active", exit: 0 };
+      const hasChildren = node.childIds.length > 0;
+      const expanded = filteredMode || matrixExplorerExpanded.has(node.id);
+      return `
+        <div class="matrix-explorer-row ${node.id === matrixExplorerSelectedId ? "selected" : ""}" role="treeitem" aria-level="${node.depth + 1}" aria-expanded="${hasChildren ? expanded : "false"}">
+          <div class="matrix-explorer-member-cell" style="--tree-depth:${node.depth}">
+            ${hasChildren ? `<button class="matrix-tree-toggle" type="button" data-toggle-id="${node.id}" aria-label="${expanded ? "Collapse" : "Expand"} ${escapeHtml(node.fullName)}">${expanded ? "−" : "+"}</button>` : `<span class="matrix-tree-leaf">•</span>`}
+            <button class="matrix-explorer-member" type="button" data-member-id="${node.id}">
+              <strong>${escapeHtml(node.fullName)}</strong>
+              <span>@${escapeHtml(node.username)} · ${escapeHtml(shortenWallet(node.walletAddress))}</span>
+            </button>
+          </div>
+          <span class="matrix-explorer-stage stage-${escapeHtml(stage.status)}">${escapeHtml(stage.label)} <small>${escapeHtml(capitalizeStatus(stage.status))}</small></span>
+          <span class="matrix-explorer-children">${node.childIds.length}/${node.childIds.length + node.openSlots}</span>
+        </div>`;
+    }).join("");
+
+    globalTreeVisualizer.querySelectorAll("[data-toggle-id]").forEach(button => {
+      button.addEventListener("click", () => {
+        const id = button.dataset.toggleId;
+        if (matrixExplorerExpanded.has(id)) matrixExplorerExpanded.delete(id);
+        else matrixExplorerExpanded.add(id);
+        renderMatrixExplorerRows();
+      });
+    });
+    globalTreeVisualizer.querySelectorAll("[data-member-id]").forEach(button => {
+      button.addEventListener("click", () => {
+        matrixExplorerSelectedId = button.dataset.memberId;
+        renderMatrixExplorerRows();
+        renderMatrixMemberDetails();
+      });
+    });
+  }
+
+  function renderMatrixMemberDetails() {
+    const node = matrixExplorerNodes.find(item => item.id === matrixExplorerSelectedId);
+    if (!node) return;
+    const members = MatrixDB.getMembers();
+    const positions = MatrixDB.getPositions();
+    const member = members.find(item => item.id === node.id) || node;
+    const parent = members.find(item => item.id === node.parentId);
+    const sponsor = members.find(item => item.id === member.sponsorId);
+    const stage = node.matrixStage || { label: "Entry", status: "active" };
+    const path = [];
+    let cursor = node;
+    while (cursor) {
+      path.unshift(cursor.fullName);
+      cursor = matrixExplorerNodes.find(item => item.id === cursor.parentId);
     }
+    matrixExplorerBreadcrumbs.textContent = path.join(" › ");
+    const totalDownlines = countExplorerDescendants(node.id);
+    const position = positions.find(item => item.memberId === node.id && item.planId === viewerPlanSelect.value);
+    matrixMemberDetails.innerHTML = `
+      <span class="withdrawal-eyebrow">Selected member</span>
+      <h3>${escapeHtml(node.fullName)}</h3>
+      <p class="matrix-member-username">@${escapeHtml(node.username)}</p>
+      <div class="matrix-member-stage stage-${escapeHtml(stage.status)}"><strong>${escapeHtml(stage.label)}</strong><span>${escapeHtml(capitalizeStatus(stage.status))}</span></div>
+      <dl class="matrix-member-detail-list">
+        <div><dt>Direct children</dt><dd>${node.childIds.length}</dd></div>
+        <div><dt>Total downline</dt><dd>${totalDownlines}</dd></div>
+        <div><dt>Open positions</dt><dd>${node.openSlots}</dd></div>
+        <div><dt>Parent placement</dt><dd>${parent ? escapeHtml(parent.fullName) : "Root"}</dd></div>
+        <div><dt>Invited sponsor</dt><dd>${sponsor ? `@${escapeHtml(sponsor.username)}` : "None"}</dd></div>
+        <div><dt>Email</dt><dd>${escapeHtml(member.email || "-")}</dd></div>
+        <div><dt>Phone</dt><dd>${escapeHtml(member.phone || "-")}</dd></div>
+        <div><dt>Wallet</dt><dd title="${escapeHtml(member.walletAddress || "")}">${escapeHtml(shortenWallet(member.walletAddress))}</dd></div>
+        <div><dt>Placed</dt><dd>${position ? formatDate(position.placedAt) : "-"}</dd></div>
+      </dl>`;
+  }
+
+  function countExplorerDescendants(memberId) {
+    const node = matrixExplorerNodes.find(item => item.id === memberId);
+    if (!node) return 0;
+    return node.childIds.reduce((total, childId) => total + 1 + countExplorerDescendants(childId), 0);
   }
 
   // Close modals helper
@@ -678,6 +972,38 @@ document.addEventListener("DOMContentLoaded", () => {
       return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
     } catch (e) {
       return isoString;
+    }
+  }
+
+  function capitalizeStatus(value) {
+    const text = String(value || "");
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value).replace(/[&<>'"]/g, character => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "'": "&#39;",
+      '"': "&quot;"
+    }[character]));
+  }
+
+  function copyField(value) {
+    const text = String(value || "").trim();
+    return `<span class="admin-copy-field"><code title="${escapeHtml(text)}">${escapeHtml(text || "-")}</code><button class="copy-admin-value" type="button" data-copy-value="${escapeHtml(text)}" aria-label="Copy ${escapeHtml(text || "value")}" title="Copy to clipboard" ${text ? "" : "disabled"}><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M5.5 1.5h6A1.5 1.5 0 0 1 13 3v8.5h-1.5V3h-6V1.5Zm-2 3h6A1.5 1.5 0 0 1 11 6v7A1.5 1.5 0 0 1 9.5 14.5h-6A1.5 1.5 0 0 1 2 13V6a1.5 1.5 0 0 1 1.5-1.5Zm0 1.5v7h6V6h-6Z"/></svg><span class="copy-feedback" aria-live="polite"></span></button></span>`;
+  }
+
+  async function copyAdminValue(button) {
+    try {
+      await navigator.clipboard.writeText(button.dataset.copyValue || "");
+      const feedback = button.querySelector(".copy-feedback");
+      feedback.textContent = "Copied";
+      button.classList.add("copied");
+      window.setTimeout(() => { feedback.textContent = ""; button.classList.remove("copied"); }, 1200);
+    } catch (error) {
+      showPendingAlert("Unable to copy automatically. Select and copy the value manually.", "danger");
     }
   }
 

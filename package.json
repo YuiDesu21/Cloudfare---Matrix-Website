@@ -1,0 +1,19 @@
+{
+  "name": "matrix-website",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Matrix Consumer Services website prototype with a local API-backed database.",
+  "scripts": {
+    "build": "node scripts/build-static.js",
+    "sandbox": "node scripts/start-sandbox.js",
+    "start": "node server.js",
+    "check": "node --check server.js && node scripts/check-javascript.js",
+    "check:supabase": "node scripts/check-supabase-public.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.7"
+  },
+  "devDependencies": {
+    "supabase": "^2.109.1"
+  }
+}

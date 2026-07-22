@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Request a Matrix member balance withdrawal">
+  <title>Request Withdrawal | Matrix Portal</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body class="portal-body">
+  <header class="portal-header site-header">
+    <div class="container header-wrapper withdrawal-header-wrapper">
+      <a class="brand" href="portal.html">
+        <span class="brand-mark">M</span>
+        <span><strong>Matrix</strong><small>Member Finance</small></span>
+      </a>
+      <nav class="withdrawal-nav" aria-label="Member finance">
+        <a class="active" href="withdrawal-request.html">Request</a>
+        <a href="withdrawal-history.html">History</a>
+        <a href="portal.html">Dashboard</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="portal-container withdrawal-page">
+    <section class="withdrawal-hero">
+      <div>
+        <span class="withdrawal-eyebrow">Member Finance</span>
+        <h1>Request a Withdrawal</h1>
+        <p>Send an accurate payout request for manual verification and GCash processing by the administrator.</p>
+      </div>
+      <a class="button button-outline button-small" href="withdrawal-history.html">View History</a>
+    </section>
+
+    <div id="withdrawal-page-alert" class="alert" style="display:none;"></div>
+
+    <section id="withdrawal-form-layout" class="withdrawal-form-layout" style="display:none;">
+      <aside class="portal-card withdrawal-balance-card">
+        <span class="withdrawal-eyebrow">Available to withdraw</span>
+        <strong id="withdrawal-available-display" class="withdrawal-balance-value">PHP 0</strong>
+        <div class="withdrawal-balance-row"><span>Earned balance</span><strong id="withdrawal-earned-display">PHP 0</strong></div>
+        <div class="withdrawal-balance-row"><span>Pending requests</span><strong id="withdrawal-pending-display">PHP 0</strong></div>
+        <p>Pending requests reserve part of your balance until an administrator approves or rejects them.</p>
+      </aside>
+
+      <section class="portal-card withdrawal-form-card">
+        <div class="withdrawal-section-heading">
+          <div><span class="withdrawal-step">01</span><h2>Payout Details</h2></div>
+          <span class="badge badge-active">GCash</span>
+        </div>
+        <form id="withdrawal-request-form" novalidate>
+          <div class="withdrawal-fields-grid">
+            <div class="form-group">
+              <label for="withdrawal-balance">Available Balance</label>
+              <input id="withdrawal-balance" class="form-control" type="text" readonly>
+            </div>
+            <div class="form-group">
+              <label for="withdrawal-amount">Withdrawal Amount (PHP)</label>
+              <input id="withdrawal-amount" class="form-control" type="number" min="1" step="0.01" inputmode="decimal" required>
+            </div>
+            <div class="form-group">
+              <label for="withdrawal-name">GCash Account Name</label>
+              <input id="withdrawal-name" class="form-control" type="text" autocomplete="name" maxlength="30" pattern="[A-Za-zÀ-ÿÑñ .'-]+" required>
+              <small class="field-limit">Letters and normal name punctuation only</small>
+            </div>
+            <div class="form-group">
+              <label for="withdrawal-gcash">GCash Number</label>
+              <input id="withdrawal-gcash" class="form-control" type="tel" inputmode="numeric" maxlength="11" pattern="09[0-9]{9}" placeholder="09XXXXXXXXX" required>
+              <small class="field-limit">11 digits only, starting with 09</small>
+            </div>
+            <div class="form-group withdrawal-full-width">
+              <label for="withdrawal-notes">Notes for Administrator (Optional)</label>
+              <textarea id="withdrawal-notes" class="form-control" rows="3" maxlength="240" placeholder="Add payout instructions or details the administrator should check."></textarea>
+            </div>
+          </div>
+          <label class="withdrawal-confirmation">
+            <input id="withdrawal-confirm" type="checkbox" required>
+            <span>I confirm that the GCash account name and number are correct. I understand payouts are checked and completed outside this system.</span>
+          </label>
+          <button id="withdrawal-submit" class="button button-primary withdrawal-submit" type="submit">Submit Withdrawal Request</button>
+        </form>
+      </section>
+    </section>
+  </main>
+  <script src="js/runtime-config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="matrix-db.js"></script>
+  <script src="js/withdrawals.js"></script>
+</body>
+</html>

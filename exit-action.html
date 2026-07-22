@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Submit a Matrix Exit Buy or Re-Stake request">
+  <title>Exit Request | Matrix Portal</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body class="portal-body">
+  <header class="portal-header site-header">
+    <div class="container header-wrapper withdrawal-header-wrapper">
+      <a class="brand" href="portal.html"><span class="brand-mark">M</span><span><strong>Matrix</strong><small>Exit Request</small></span></a>
+      <nav class="withdrawal-nav" aria-label="Exit request"><a href="portal.html">Dashboard</a></nav>
+    </div>
+  </header>
+
+  <main class="portal-container withdrawal-page exit-action-page">
+    <section class="withdrawal-hero">
+      <div><span class="withdrawal-eyebrow">Next Qualified Exit</span><h1 id="exit-action-title">Exit Request</h1><p id="exit-action-description">Review the required amount and submit your details for administrator approval.</p></div>
+      <a class="button button-outline button-small" href="portal.html">Back to Dashboard</a>
+    </section>
+
+    <div id="exit-action-alert" class="alert" style="display:none;"></div>
+    <section id="exit-action-layout" class="withdrawal-form-layout" style="display:none;">
+      <aside class="portal-card withdrawal-balance-card">
+        <span class="withdrawal-eyebrow" id="exit-action-label">Required amount</span>
+        <strong id="exit-action-amount" class="withdrawal-balance-value">PHP 0</strong>
+        <div class="withdrawal-balance-row"><span>Exit</span><strong id="exit-action-number">-</strong></div>
+        <div class="withdrawal-balance-row"><span>Action</span><strong id="exit-action-verb">-</strong></div>
+        <p id="exit-action-requirement"></p>
+      </aside>
+
+      <section class="portal-card withdrawal-form-card">
+        <div id="buy-tabs" class="exit-payment-tabs" role="tablist" aria-label="Buy payment method" hidden>
+          <button class="active" type="button" role="tab" data-payment-tab="gcash" aria-selected="true">Buy using GCash</button>
+          <button type="button" role="tab" data-payment-tab="balance" aria-selected="false">Buy Using Available Balance</button>
+        </div>
+
+        <form id="exit-action-form" novalidate>
+          <section id="restake-fields" hidden>
+            <div class="withdrawal-section-heading"><div><span class="withdrawal-step">01</span><h2>F3 Wallet</h2></div><span class="badge badge-active">Re-Stake</span></div>
+            <div class="exit-payment-destination restake-destination"><span>Send F3 Token to this wallet</span><strong>0x70618878d332790093fb6cc0f804169d4fb2f8a5</strong><button id="copy-restake-wallet" type="button" data-copy-value="0x70618878d332790093fb6cc0f804169d4fb2f8a5">Copy Wallet</button></div>
+            <div class="form-group"><label for="restake-wallet">Your F3 Wallet Address</label><input id="restake-wallet" class="form-control" type="text" autocomplete="off" maxlength="52" pattern="[A-Za-z0-9:_-]+" placeholder="Paste the wallet you are sending from"><small class="field-limit">Maximum 52 letters, numbers, colons, underscores, or hyphens</small></div>
+          </section>
+
+          <section id="gcash-fields" hidden>
+            <div class="exit-payment-destination"><span>Send payment to</span><strong>Anelyn Lariba</strong><button id="copy-gcash-number" type="button" data-copy-value="09912054007">09912054007 · Copy</button></div>
+            <div class="withdrawal-fields-grid">
+              <div class="form-group"><label for="buy-gcash-name">Your GCash Name</label><input id="buy-gcash-name" class="form-control" type="text" autocomplete="name" maxlength="30" pattern="[A-Za-zÀ-ÿÑñ .'-]+"><small class="field-limit">Letters and normal name punctuation only</small></div>
+              <div class="form-group"><label for="buy-gcash-number">Your GCash Number</label><input id="buy-gcash-number" class="form-control" type="tel" inputmode="numeric" maxlength="11" pattern="09[0-9]{9}" placeholder="09XXXXXXXXX"><small class="field-limit">Exactly 11 digits</small></div>
+              <div class="form-group withdrawal-full-width"><label for="buy-reference">GCash Reference Number</label><input id="buy-reference" class="form-control" type="text" autocomplete="off" maxlength="40" pattern="[A-Za-z0-9-]{6,40}" placeholder="Paste the transaction reference"><small class="field-limit">6–40 letters, numbers, or hyphens</small></div>
+            </div>
+          </section>
+
+          <section id="balance-fields" hidden>
+            <div class="withdrawal-section-heading"><div><span class="withdrawal-step">01</span><h2>Available Balance</h2></div><span id="balance-sufficiency" class="badge">Checking</span></div>
+            <div class="exit-balance-amount"><span>Your available balance</span><strong id="exit-available-balance">PHP 0</strong></div>
+            <p id="balance-message" class="exit-balance-message"></p>
+          </section>
+
+          <button id="exit-action-submit" class="button button-primary withdrawal-submit" type="submit">Request</button>
+        </form>
+      </section>
+    </section>
+  </main>
+  <script src="js/runtime-config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="matrix-db.js"></script>
+  <script src="js/exit-action.js"></script>
+</body>
+</html>

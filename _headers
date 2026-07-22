@@ -1,0 +1,18 @@
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; upgrade-insecure-requests
+
+/admin.html
+  Cache-Control: no-store
+
+/portal.html
+  Cache-Control: no-store
+
+/withdrawal-*.html
+  Cache-Control: no-store
+
+/passive-income-history.html
+  Cache-Control: no-store

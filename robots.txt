@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /admin.html
+Disallow: /portal.html
+Disallow: /withdrawal-request.html
+Disallow: /withdrawal-history.html
+Disallow: /passive-income-history.html
+Disallow: /upgrade-entry.html

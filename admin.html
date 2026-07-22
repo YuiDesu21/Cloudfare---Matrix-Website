@@ -48,7 +48,7 @@
         </form>
 
         <div class="alert alert-info" style="margin-top: 1.5rem; margin-bottom: 0; padding: 0.8rem; font-size: 0.76rem;">
-          <strong>Demo Security Notice:</strong> This is a local sandbox prototype. The access password is saved locally in `localStorage` and is not encrypted. Do not use production passwords.
+          <strong>Sandbox Security Notice:</strong> This local prototype stores only a one-way password hash. Keep the sandbox database private and do not reuse production passwords.
         </div>
       </div>
     </section>
@@ -76,7 +76,7 @@
             <span id="stat-pending-requests" class="value">0</span>
           </div>
           <div class="metric-card">
-            <span class="title">Total Plan Volume</span>
+            <span class="title">Total F3 Volume</span>
             <span id="stat-revenue" class="value">0 F3</span>
           </div>
         </div>
@@ -127,14 +127,23 @@
       <!-- TAB 2: PENDING APPROVALS -->
       <div id="tab-approvals" class="admin-section">
         <div class="portal-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
-          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 0.5rem;">Pending Registrations Queue</h3>
+          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 0.5rem;">Approval Requests</h3>
           <p style="font-size: 0.82rem; color: var(--muted); margin: 0;">
-            Review incoming registration requests. Click "Approve & Place" to manually select a placement node in the matrix structure.
+            Select a request type below. The badge beside each tab shows its current pending total.
           </p>
         </div>
 
         <div id="pending-alert" style="display: none;" class="alert"></div>
 
+        <nav class="approval-queue-tabs" aria-label="Approval request types" role="tablist">
+          <button class="active" type="button" role="tab" data-approval-tab="registrations" aria-selected="true">Registrations <span id="approval-count-registrations">0</span></button>
+          <button type="button" role="tab" data-approval-tab="entry" aria-selected="false">Entry <span id="approval-count-entry">0</span></button>
+          <button type="button" role="tab" data-approval-tab="exit" aria-selected="false">Exit <span id="approval-count-exit">0</span></button>
+          <button type="button" role="tab" data-approval-tab="withdrawals" aria-selected="false">Withdrawals <span id="approval-count-withdrawals">0</span></button>
+          <button type="button" role="tab" data-approval-tab="products" aria-selected="false">Products Plus <span id="approval-count-products">0</span></button>
+        </nav>
+
+        <section class="approval-queue-panel active" data-approval-panel="registrations" role="tabpanel">
         <div class="table-container">
           <table class="admin-table">
             <thead>
@@ -144,7 +153,7 @@
                 <th>Email / Phone</th>
                 <th>F3 Wallet Address</th>
                 <th>Invited Sponsor</th>
-                <th>Requested Plan</th>
+                <th>Requested Squad</th>
                 <th>Request Date</th>
                 <th>Actions</th>
               </tr>
@@ -154,6 +163,97 @@
             </tbody>
           </table>
         </div>
+        </section>
+
+        <section class="approval-queue-panel" data-approval-panel="entry" role="tabpanel" hidden>
+        <div class="portal-card" style="padding: 1.5rem; margin: 1.5rem 0;"><h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Pending Entry Activations</h3><p style="font-size:.82rem;color:var(--muted);margin:0">Verify the PHP 1,200 GCash payment, select placement, then activate Entry.</p></div>
+        <div class="table-container"><table class="admin-table"><thead><tr><th>Member</th><th>Amount</th><th>F3 Wallet</th><th>GCash Reference</th><th>Requested</th><th>Placement Parent</th><th>Actions</th></tr></thead><tbody id="upgrade-requests-table-body"></tbody></table></div>
+        </section>
+
+        <section class="approval-queue-panel" data-approval-panel="exit" role="tabpanel" hidden>
+        <div class="portal-card" style="padding: 1.5rem; margin: 1.5rem 0;">
+          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 0.5rem;">Pending Exit Actions</h3>
+          <p style="font-size: 0.82rem; color: var(--muted); margin: 0;">
+            Approve verified Buy/Re-Stake requests after checking payment or action outside the system.
+          </p>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Exit</th>
+                <th>Action</th>
+                <th>Amount</th>
+                <th>Payment Details</th>
+                <th>Request Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="exit-actions-table-body">
+              <!-- Exit action rows injected here -->
+            </tbody>
+          </table>
+        </div>
+        </section>
+
+        <section class="approval-queue-panel" data-approval-panel="withdrawals" role="tabpanel" hidden>
+        <div class="portal-card" style="padding: 1.5rem; margin: 1.5rem 0;">
+          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 0.5rem;">Pending Withdrawals</h3>
+          <p style="font-size: 0.82rem; color: var(--muted); margin: 0;">
+            Approve after sending the payout outside the system.
+          </p>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Withdrawal ID</th>
+                <th>Amount</th>
+                <th>GCash Account</th>
+                <th>GCash Number</th>
+                <th>Balance Origin</th>
+                <th>Request Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="withdrawals-table-body">
+              <!-- Withdrawal rows injected here -->
+            </tbody>
+          </table>
+        </div>
+        </section>
+
+        <section class="approval-queue-panel" data-approval-panel="products" role="tabpanel" hidden>
+        <div class="portal-card" style="padding: 1.5rem; margin: 1.5rem 0;">
+          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 0.5rem;">Pending Products Plus Claims</h3>
+          <p style="font-size: 0.82rem; color: var(--muted); margin: 0;">
+            Verify the member's product purchase, then approve the bonus value.
+          </p>
+        </div>
+
+        <div class="table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Username</th>
+                <th>Exit</th>
+                <th>Spend</th>
+                <th>Bonus</th>
+                <th>Request Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="product-claims-table-body">
+              <!-- Products Plus rows injected here -->
+            </tbody>
+          </table>
+        </div>
+        </section>
       </div>
 
       <!-- TAB 3: MEMBERS DIRECTORY -->
@@ -173,7 +273,7 @@
               <tr>
                 <th>Full Name</th>
                 <th>Username</th>
-                <th>Plan Name</th>
+                <th>Squad Matrix</th>
                 <th>Parent ID</th>
                 <th>Sponsor ID</th>
                 <th>Wallet Address</th>
@@ -191,26 +291,62 @@
       <!-- TAB 4: MATRIX VISUALIZER -->
       <div id="tab-visualizer" class="admin-section">
         <div class="portal-card" style="padding: 1.5rem; margin-bottom: 1.5rem;">
-          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 1rem;">Global Matrix Viewer</h3>
-          <div class="search-row" style="flex-wrap: wrap;">
-            <div style="flex-grow: 1; min-width: 200px;">
+          <div class="matrix-explorer-heading">
+            <div>
+              <h3>Global Matrix Explorer</h3>
+              <p>Search, filter, and expand only the branches you need. Select a member to inspect their placement and progress.</p>
+            </div>
+            <span id="matrix-explorer-count" class="badge">0 members</span>
+          </div>
+          <div class="matrix-explorer-controls">
+            <div class="form-group">
+              <label for="viewer-plan-select">Matrix</label>
               <select id="viewer-plan-select" class="form-control">
-                <option value="power3">Power of 3 Matrix Structure</option>
-                <option value="power5">Power of 5 Matrix Structure</option>
-                <option value="power7">Power of 7 Matrix Structure</option>
+                <option value="power3-passive">Power of Three Passive Income</option>
               </select>
             </div>
-            <div style="flex-grow: 2; min-width: 250px;">
-              <input type="text" id="tree-member-search" class="form-control" placeholder="Search and highlight member by username or name...">
+            <div class="form-group matrix-explorer-search">
+              <label for="tree-member-search">Search Members</label>
+              <input type="search" id="tree-member-search" class="form-control" placeholder="Name, username, wallet, or member ID...">
             </div>
+            <div class="form-group">
+              <label for="matrix-exit-filter">Exit</label>
+              <select id="matrix-exit-filter" class="form-control">
+                <option value="all">All exits</option>
+                <option value="0">Entry</option>
+                <option value="1">Exit 1</option><option value="2">Exit 2</option><option value="3">Exit 3</option>
+                <option value="4">Exit 4</option><option value="5">Exit 5</option><option value="6">Exit 6</option>
+                <option value="7">Exit 7</option><option value="8">Exit 8</option><option value="9">Exit 9</option>
+                <option value="10">Exit 10</option><option value="11">Exit 11</option><option value="12">Exit 12</option><option value="13">Exit 13</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="matrix-status-filter">Status</label>
+              <select id="matrix-status-filter" class="form-control">
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="qualified">Qualified</option>
+                <option value="pending">Pending</option>
+              </select>
+            </div>
+          </div>
+          <div class="matrix-explorer-actions">
+            <button id="matrix-expand-all" class="button button-outline button-small" type="button">Expand All</button>
+            <button id="matrix-collapse-all" class="button button-outline button-small" type="button">Collapse All</button>
           </div>
         </div>
 
-        <!-- Global Matrix Visual Canvas -->
-        <div class="portal-card" style="padding: 1.5rem;">
-          <div id="global-tree-visualizer" class="tree-container" style="min-height: 500px;">
-            <!-- Roots & downlines rendered dynamically -->
-          </div>
+        <div class="matrix-explorer-layout">
+          <section class="portal-card matrix-explorer-tree-card">
+            <div id="matrix-explorer-breadcrumbs" class="matrix-explorer-breadcrumbs">Select a member</div>
+            <div class="matrix-explorer-columns" aria-hidden="true">
+              <span>Member / placement</span><span>Exit</span><span>Children</span>
+            </div>
+            <div id="global-tree-visualizer" class="matrix-explorer-tree" role="tree" aria-label="Global matrix hierarchy"></div>
+          </section>
+          <aside id="matrix-member-details" class="portal-card matrix-member-details">
+            <div class="empty-state"><p>Select a member to view their details.</p></div>
+          </aside>
         </div>
       </div>
 
@@ -229,7 +365,7 @@
       <div style="background: #020704; border: 1px solid rgba(255, 201, 28, 0.15); padding: 0.8rem; border-radius: 8px; font-size: 0.82rem; margin-bottom: 1.2rem;">
         <p style="margin: 0 0 0.3rem;"><strong>Applicant:</strong> <span id="modal-applicant-name"></span> (<span id="modal-applicant-username"></span>)</p>
         <p style="margin: 0 0 0.3rem;"><strong>Sponsor Invited:</strong> <span id="modal-applicant-sponsor"></span></p>
-        <p style="margin: 0;"><strong>Plan Requested:</strong> <span id="modal-applicant-plan"></span></p>
+        <p style="margin: 0;"><strong>Squad Requested:</strong> <span id="modal-applicant-plan"></span></p>
       </div>
 
       <form id="placement-form">
@@ -253,12 +389,12 @@
             <!-- Populated dynamically with eligible parent members -->
           </select>
           <p style="font-size: 0.72rem; color: var(--muted); margin-top: 0.4rem;">
-            Lists approved members in this plan who have empty positions remaining.
+            Lists approved members in this squad who have empty positions remaining.
           </p>
         </div>
 
         <div class="alert alert-info" id="root-warn-alert" style="display: none; font-size: 0.76rem; padding: 0.7rem;">
-          <strong>Warning:</strong> Placing this member as a Root will establish them at the very top of the plan tree. Only one root is allowed per plan.
+          <strong>Warning:</strong> Placing this member as a Root will establish them at the very top of the squad tree. Only one root is allowed per squad.
         </div>
 
         <div class="modal-footer">
@@ -289,11 +425,14 @@
   <footer class="site-footer" style="margin-top: auto;">
     <div class="copyright">
       © 2026 Matrix Consumer Services and Savers Merchandising, Inc. Website Concept.<br>
-      <span style="font-size: 0.65rem; color: rgba(198, 207, 188, 0.4);">Administrative Control Sandbox Sandbox Mode.</span>
+      <span style="font-size: 0.65rem; color: rgba(198, 207, 188, 0.4);">Administrative Control Local API Sandbox Mode.</span>
     </div>
   </footer>
 
   <!-- Scripts -->
+  <script src="js/runtime-config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/supabase-client.js"></script>
   <script src="matrix-db.js"></script>
   <script src="js/admin.js"></script>
 </body>

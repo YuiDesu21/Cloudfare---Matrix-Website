@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Matrix member withdrawal history">
+  <title>Withdrawal History | Matrix Portal</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body class="portal-body">
+  <header class="portal-header site-header">
+    <div class="container header-wrapper withdrawal-header-wrapper">
+      <a class="brand" href="portal.html">
+        <span class="brand-mark">M</span>
+        <span><strong>Matrix</strong><small>Member Finance</small></span>
+      </a>
+      <nav class="withdrawal-nav" aria-label="Member finance">
+        <a href="withdrawal-request.html">Request</a>
+        <a class="active" href="withdrawal-history.html">History</a>
+        <a href="portal.html">Dashboard</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="portal-container withdrawal-page">
+    <section class="withdrawal-hero">
+      <div>
+        <span class="withdrawal-eyebrow">Member Finance</span>
+        <h1>Withdrawal History</h1>
+        <p>Track every request, its payout destination, balance origin, withdrawal ID, and review status.</p>
+      </div>
+      <a class="button button-primary button-small" href="withdrawal-request.html">New Request</a>
+    </section>
+
+    <div id="withdrawal-history-alert" class="alert" style="display:none;"></div>
+
+    <section id="withdrawal-history-content" style="display:none;">
+      <div class="withdrawal-history-summary">
+        <article><span>Total Requested</span><strong id="history-total-requested">PHP 0</strong></article>
+        <article><span>Pending</span><strong id="history-total-pending">PHP 0</strong></article>
+        <article><span>Approved</span><strong id="history-total-approved">PHP 0</strong></article>
+      </div>
+
+      <div class="portal-card withdrawal-filters">
+        <div class="form-group">
+          <label for="history-time-filter">Time Period</label>
+          <select id="history-time-filter" class="form-control">
+            <option value="all">All time</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="year">This year</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="history-status-filter">Status</label>
+          <select id="history-status-filter" class="form-control">
+            <option value="all">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div id="history-result-count" class="history-result-count"></div>
+      </div>
+
+      <div id="withdrawal-history-list" class="withdrawal-history-list"></div>
+    </section>
+  </main>
+  <script src="js/runtime-config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="matrix-db.js"></script>
+  <script src="js/withdrawals.js"></script>
+</body>
+</html>

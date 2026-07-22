@@ -1,0 +1,12 @@
+data/*.json
+node_modules/
+.env
+.env.*
+!.env.example
+server-output.log
+server-error.log
+.wrangler/
+.supabase/
+supabase/.temp/
+.dev.vars
+dist/

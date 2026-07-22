@@ -22,8 +22,21 @@
         </span>
       </a>
       <div id="header-user-status" class="user-status-strip" style="display: none;">
-        <span id="header-user-name" class="label"></span>
-        <button id="logout-btn-header" class="button button-outline button-small">Logout</button>
+        <button id="account-menu-toggle" class="account-menu-toggle" type="button" aria-label="Open member menu" aria-expanded="false" aria-controls="account-menu">
+          <span id="header-avatar-letter" class="header-avatar">M</span>
+          <span class="account-menu-copy">
+            <small>My account</small>
+            <strong id="header-user-name"></strong>
+          </span>
+          <span class="account-chevron" aria-hidden="true">&#9662;</span>
+        </button>
+        <nav id="account-menu" class="account-menu" aria-label="Member account" hidden>
+          <button type="button" data-account-action="profile">Profile</button>
+          <button type="button" data-account-action="withdraw">Balance Withdrawal</button>
+          <button type="button" data-account-action="history">Withdrawal History</button>
+          <button type="button" data-account-action="admin" hidden>Admin Portal</button>
+          <button id="logout-btn-header" type="button" class="account-menu-signout">Sign Out</button>
+        </nav>
       </div>
     </div>
   </header>
@@ -43,8 +56,12 @@
 
         <form id="login-form">
           <div class="form-group">
-            <label for="login-credential">Email or Wallet Address</label>
-            <input type="text" id="login-credential" class="form-control" placeholder="e.g. arthur@matrix.io or 0xRoot..." required>
+            <label for="login-credential">Email Address</label>
+            <input type="email" id="login-credential" class="form-control" placeholder="you@example.com" autocomplete="email" required>
+          </div>
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" class="form-control" autocomplete="current-password" minlength="8" required>
           </div>
           <button type="submit" class="button button-primary btn-block">Access Dashboard</button>
         </form>
@@ -53,67 +70,69 @@
           Not a member? <a href="#" id="go-to-register">Request Registration</a>
         </p>
         
-        <div class="alert alert-info" style="margin-top: 1.5rem; margin-bottom: 0; padding: 0.8rem; font-size: 0.76rem;">
-          <strong>Demo Sandbox Note:</strong> Secure passwords are not used in this MVP. Use any approved member's email or F3 wallet address to log in. You can seed mock users on the admin panel.
-        </div>
+        <p class="auth-security-note">Secure password-protected access.</p>
       </div>
 
       <!-- REGISTRATION VIEW -->
       <div id="register-view" class="portal-card" style="display: none;">
         <h2>Join the Matrix</h2>
-        <p class="subtitle">Submit a request to register your membership</p>
+        <p class="subtitle">Create a free account—no plan selection or approval required</p>
 
         <div id="register-alert" style="display: none;"></div>
 
         <form id="register-form" novalidate>
           <div class="form-group">
             <label for="reg-fullname">Full Name</label>
-            <input type="text" id="reg-fullname" class="form-control" placeholder="e.g. Mordred Orkney" required>
+            <input type="text" id="reg-fullname" class="form-control" placeholder="e.g. Mordred Orkney" maxlength="30" autocomplete="name" pattern="[A-Za-zÀ-ÿÑñ .'-]+" required>
+            <small class="field-limit">Letters, spaces, apostrophes, periods, and hyphens only</small>
             <div class="form-error" id="err-fullname"></div>
           </div>
           
           <div class="form-group">
             <label for="reg-username">Username</label>
-            <input type="text" id="reg-username" class="form-control" placeholder="e.g. mordred" required>
+            <input type="text" id="reg-username" class="form-control" placeholder="e.g. mordred" maxlength="30" pattern="[A-Za-z0-9_-]+" required>
             <div class="form-error" id="err-username"></div>
           </div>
 
           <div class="form-group">
             <label for="reg-email">Email Address</label>
-            <input type="email" id="reg-email" class="form-control" placeholder="e.g. mordred@matrix.io" required>
+            <input type="email" id="reg-email" class="form-control" placeholder="e.g. mordred@matrix.io" maxlength="254" required>
             <div class="form-error" id="err-email"></div>
           </div>
 
           <div class="form-group">
+            <label for="reg-password">Password</label>
+            <input type="password" id="reg-password" class="form-control" autocomplete="new-password" minlength="8" required>
+            <div class="form-error" id="err-password"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="reg-password-confirm">Confirm Password</label>
+            <input type="password" id="reg-password-confirm" class="form-control" autocomplete="new-password" minlength="8" required>
+            <div class="form-error" id="err-password-confirm"></div>
+          </div>
+
+          <div class="form-group">
             <label for="reg-phone">Phone Number</label>
-            <input type="text" id="reg-phone" class="form-control" placeholder="e.g. +639123456789" required>
+            <input type="tel" id="reg-phone" class="form-control" placeholder="09XXXXXXXXX" inputmode="numeric" maxlength="11" pattern="09[0-9]{9}" required>
+            <small class="field-limit">11 digits only, starting with 09</small>
             <div class="form-error" id="err-phone"></div>
           </div>
 
           <div class="form-group">
             <label for="reg-wallet">F3 Wallet Address</label>
-            <input type="text" id="reg-wallet" class="form-control" placeholder="e.g. 0x51A... or F3 wallet public key" required>
+            <input type="text" id="reg-wallet" class="form-control" placeholder="F3 wallet public key" maxlength="52" pattern="[A-Za-z0-9:_-]+" autocomplete="off" required>
+            <small class="field-limit">Maximum 52 letters, numbers, colons, underscores, or hyphens</small>
             <div class="form-error" id="err-wallet"></div>
           </div>
 
           <div class="form-group">
-            <label for="reg-sponsor">Sponsor Username (Optional)</label>
-            <input type="text" id="reg-sponsor" class="form-control" placeholder="e.g. arthur">
+            <label for="reg-sponsor">Upline Account ID / Referral Code (Optional)</label>
+            <input type="text" id="reg-sponsor" class="form-control" placeholder="e.g. MCS-12AB34CD" autocomplete="off" maxlength="30">
             <div class="form-error" id="err-sponsor"></div>
           </div>
 
-          <div class="form-group">
-            <label for="reg-plan">Select Matrix Plan</label>
-            <select id="reg-plan" class="form-control" required>
-              <option value="" disabled selected>Choose plan...</option>
-              <option value="power3">Power of 3 (Price: 500 F3)</option>
-              <option value="power5">Power of 5 (Price: 1000 F3)</option>
-              <option value="power7">Power of 7 (Price: 1500 F3)</option>
-            </select>
-            <div class="form-error" id="err-plan"></div>
-          </div>
-
-          <button type="submit" class="button button-primary btn-block">Submit Registration</button>
+          <button type="submit" class="button button-primary btn-block">Create Account</button>
         </form>
 
         <p class="form-footer">
@@ -125,10 +144,10 @@
       <div id="success-view" class="portal-card" style="display: none; text-align: center;">
         <span style="font-size: 3rem;" aria-hidden="true">⏳</span>
         <h2 style="margin-top: 1rem; color: var(--gold);">Request Submitted!</h2>
-        <p class="subtitle">Your registration is now pending review</p>
+        <p class="subtitle">Your account is ready</p>
         
         <div class="alert alert-success">
-          Your request has been saved under ID: <strong id="success-req-id"></strong>. An admin will review and manually place you in the matrix structure.
+          Your free account has been created under ID: <strong id="success-req-id"></strong>. You can now sign in and unlock Entry from your dashboard.
         </div>
 
         <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1.5rem;">
@@ -143,12 +162,14 @@
     <!-- MEMBER DASHBOARD -->
     <section id="dashboard-section" class="dashboard-grid" style="display: none;">
       
-      <!-- Left Column: Member Card -->
-      <aside class="dashboard-sidebar">
-        <div class="portal-card">
+      <!-- Membership details are kept in a compact profile drawer opened from the account menu. -->
+      <aside id="profile-drawer" class="profile-drawer" aria-hidden="true">
+        <button id="profile-drawer-backdrop" class="profile-drawer-backdrop" type="button" aria-label="Close profile"></button>
+        <div class="portal-card profile-drawer-card" role="dialog" aria-modal="true" aria-labelledby="profile-drawer-title">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
-            <h3 style="margin: 0; font-family: Georgia, serif; color: var(--gold); text-transform: uppercase; font-size: 1.3rem;">Membership</h3>
+            <h3 id="profile-drawer-title" style="margin: 0; font-family: Georgia, serif; color: var(--gold); text-transform: uppercase; font-size: 1.3rem;">Membership</h3>
             <span id="db-status-badge" class="badge">PENDING</span>
+            <button id="profile-drawer-close" class="profile-drawer-close" type="button" aria-label="Close profile">&times;</button>
           </div>
 
           <div style="text-align: center; margin: 1rem 0 1.5rem;">
@@ -160,6 +181,10 @@
           </div>
 
           <ul class="details-list">
+            <li>
+              <span class="label">Account ID</span>
+              <span id="db-account-id" class="val"></span>
+            </li>
             <li>
               <span class="label">Wallet</span>
               <span id="db-wallet" class="val"></span>
@@ -207,17 +232,115 @@
         <!-- Metrics Cards (Active only) -->
         <div id="active-metrics-row" class="metrics-row" style="display: none;">
           <div class="metric-card">
-            <span class="title">Active Matrix Plan</span>
-            <span id="metric-plan" class="value">-</span>
-          </div>
-          <div class="metric-card">
-            <span class="title">Sponsor Referrals</span>
+            <span class="title">Personal Referrals <span class="metric-help" tabindex="0" aria-label="Members who created their account using your referral code." data-tooltip="Members who created their account using your referral code.">?</span></span>
             <span id="metric-referrals" class="value">0</span>
           </div>
           <div class="metric-card">
-            <span class="title">Direct Tree Children</span>
+            <span class="title">Members Under Your Node <span class="metric-help" tabindex="0" aria-label="All members beneath you in the matrix, including members at deeper levels." data-tooltip="All members beneath you in the matrix, including members at deeper levels.">?</span></span>
             <span id="metric-children" class="value">0</span>
           </div>
+        </div>
+
+        <!-- Matrix Squad Tabs -->
+        <div id="matrix-overview-card" class="portal-card matrix-overview-card" style="display: none;">
+          <div class="matrix-card-header">
+            <div>
+              <h3>Power of Three Exit Status</h3>
+              <p>Select an exit to review your downline requirement, required Buy/Re-Stake action, passive income, and Products Plus benefit.</p>
+            </div>
+            <span id="matrix-selected-badge" class="badge">Entry</span>
+          </div>
+
+          <div id="matrix-tabs" class="matrix-tabs" role="tablist" aria-label="Matrix exits"></div>
+
+          <div class="matrix-detail-layout">
+            <section class="matrix-status-panel">
+              <div class="matrix-status-heading">
+                <h4 id="matrix-title">Power of Three</h4>
+                <span id="matrix-qualification" class="matrix-qualification">Not Qualified</span>
+              </div>
+              <p id="matrix-summary" class="matrix-action-copy"></p>
+              <p id="matrix-requirement" class="matrix-requirement-copy"></p>
+              <div class="matrix-action-row">
+                <a id="matrix-action-link" class="button button-primary matrix-action-link" href="exit-action.html" hidden>Continue</a>
+                <span id="matrix-action-message" class="matrix-action-message" aria-live="polite"></span>
+              </div>
+
+              <dl class="matrix-facts">
+                <div id="matrix-date-fact">
+                  <dt id="matrix-date-label">Entry Date</dt>
+                  <dd id="matrix-placed-time">-</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section>
+              <div class="exit-header-row">
+                <h4>Exit Rewards</h4>
+                <span id="matrix-exit-note"></span>
+              </div>
+              <div id="matrix-exits" class="matrix-exits"></div>
+            </section>
+          </div>
+        </div>
+
+        <!-- Balance and Claim Controls -->
+        <div id="balance-card" class="portal-card matrix-overview-card" style="display: none;" tabindex="-1">
+          <div class="matrix-card-header">
+            <div>
+              <h3>Balance &amp; Claims</h3>
+              <p>Review passive income that has become due, request withdrawal, and track where each balance came from.</p>
+            </div>
+            <span id="balance-total-badge" class="badge">PHP 0</span>
+          </div>
+
+          <div class="balance-actions-grid balance-actions-compact">
+            <section class="matrix-status-panel">
+              <span class="matrix-qualification qualified">Available Balance</span>
+              <h4 id="balance-total">PHP 0</h4>
+              <p id="balance-summary">Passive income is added here when due. Withdrawal requests are checked and paid manually by admin.</p>
+              <div class="balance-card-buttons">
+                <button id="request-withdrawal-btn" class="button button-primary button-small">Request Withdrawal</button>
+                <a id="passive-income-history-link" class="button button-outline button-small" href="passive-income-history.html">Passive Income History</a>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div id="products-plus-card" class="portal-card matrix-overview-card" style="display: none;">
+          <div class="matrix-card-header">
+            <div>
+              <h3>Products Plus</h3>
+              <p>Monthly purchase amounts unlock for three months and remain available until used. Select an exit to review its accumulated entitlement.</p>
+            </div>
+            <span id="products-plus-badge" class="badge">PHP 0 Available</span>
+          </div>
+
+          <div id="products-plus-tabs" class="matrix-tabs product-plus-tabs" role="tablist" aria-label="Products Plus exits"></div>
+
+          <div class="balance-actions-grid products-plus-detail-layout">
+            <section class="matrix-status-panel">
+              <span id="products-plus-status" class="matrix-qualification locked">Locked</span>
+              <h4 id="products-plus-available">PHP 0</h4>
+              <p id="products-plus-summary">Select an exit to review its monthly Products Plus schedule.</p>
+              <dl class="matrix-facts products-plus-facts">
+                <div><dt>Monthly Purchase</dt><dd id="products-plus-monthly">PHP 0</dd></div>
+                <div><dt>Months Vested</dt><dd id="products-plus-vested">0 / 3</dd></div>
+                <div><dt>Bonus Rate</dt><dd id="products-plus-rate">0%</dd></div>
+                <div><dt>Already Used</dt><dd id="products-plus-used">PHP 0</dd></div>
+              </dl>
+              <button id="products-plus-request-btn" class="button button-primary button-small" type="button" disabled>Request Products Plus Claim</button>
+            </section>
+
+            <section>
+              <div class="exit-header-row">
+                <h4>Vesting Progress</h4>
+                <span id="products-plus-schedule-note"></span>
+              </div>
+              <div id="products-plus-list" class="product-plus-schedule"></div>
+            </section>
+          </div>
+          <section class="products-plus-vouchers"><div class="exit-header-row"><h4>Voucher Wallet</h4><strong id="voucher-balance">PHP 0</strong></div><p>Approved Products Plus bonuses appear here. Vouchers do not expire, are not withdrawable as cash, and may be redeemed partially.</p><div id="voucher-history" class="product-plus-schedule"></div></section>
         </div>
 
         <!-- Pending Status Message -->
@@ -227,7 +350,7 @@
             Your registration request has been submitted to the manual review queue. The admin will check your information and manually select an appropriate parent node in the matrix tree.
           </p>
           <div class="alert alert-info" style="margin-bottom: 0;">
-            <strong>Plan Requested:</strong> <span id="pending-card-plan"></span><br>
+            <strong>Squad Requested:</strong> <span id="pending-card-plan"></span><br>
             <strong>Date Submitted:</strong> <span id="pending-card-date"></span><br>
             <strong>Required Deposit:</strong> <span id="pending-card-price"></span> F3 Token
           </div>
@@ -235,9 +358,9 @@
 
         <!-- Active Matrix Tree Structure -->
         <div id="active-tree-card" class="portal-card" style="display: none;">
-          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 1.5rem;">Your Downline Matrix Tree</h3>
+          <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 1.5rem;">Downline Matrix Explorer</h3>
           <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 1.5rem; margin-top: -1rem;">
-            This tree shows members manually placed underneath you. Share your referral link above to invite new members to register.
+            Only direct matrix downlines are shown. Select an active member to open their direct downlines, then use the navigation buttons to go back.
           </p>
 
           <div id="member-tree-visualizer" class="tree-container">
@@ -251,15 +374,22 @@
 
   </main>
 
+  <div id="products-plus-claim-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="products-plus-claim-title" style="display:none">
+    <div class="modal-content portal-card"><button id="products-plus-claim-close" class="modal-close" type="button" aria-label="Close">&times;</button><h2 id="products-plus-claim-title">Products Plus Purchase Claim</h2><p id="products-plus-claim-limit" class="subtitle"></p><div id="products-plus-claim-alert" class="alert" style="display:none"></div><form id="products-plus-claim-form"><div class="form-group"><label for="products-plus-claim-amount">Product purchase amount</label><input id="products-plus-claim-amount" class="form-control" type="number" min="0.01" step="0.01" max="1000000" required></div><div class="form-group"><label for="products-plus-claim-reference">Receipt or purchase reference</label><input id="products-plus-claim-reference" class="form-control" type="text" minlength="3" maxlength="60" pattern="[A-Za-z0-9][A-Za-z0-9 _./#-]{2,59}" required><small>3–60 letters, numbers, spaces, or . / # -</small></div><div class="form-group"><label for="products-plus-claim-notes">Notes (optional)</label><textarea id="products-plus-claim-notes" class="form-control" rows="3" maxlength="240"></textarea><small><span id="products-plus-notes-count">0</span>/240 characters</small></div><button id="products-plus-claim-submit" class="button button-primary" type="submit">Submit for Review</button></form></div>
+  </div>
+
   <!-- Footer -->
   <footer class="site-footer" style="margin-top: auto;">
     <div class="copyright">
       © 2026 Matrix Consumer Services and Savers Merchandising, Inc. Website Concept.<br>
-      <span style="font-size: 0.65rem; color: rgba(198, 207, 188, 0.4);">Front-end Prototype Sandbox Sandbox Mode.</span>
+      <span style="font-size: 0.65rem; color: rgba(198, 207, 188, 0.4);">Local API Prototype Sandbox Mode.</span>
     </div>
   </footer>
 
   <!-- Scripts -->
+  <script src="js/runtime-config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/supabase-client.js"></script>
   <script src="matrix-db.js"></script>
   <script src="js/portal.js"></script>
 </body>
