@@ -16,7 +16,7 @@ const publicFiles = [
   "robots.txt"
 ];
 const publicDirectories = ["assets"];
-const publicJavaScript = ["portal.js", "runtime-config.js", "supabase-client.js", "withdrawals.js", "passive-income-history.js", "exit-action.js"];
+const publicJavaScript = ["index.js", "portal.js", "runtime-config.js", "supabase-client.js", "withdrawals.js", "passive-income-history.js", "exit-action.js"];
 const mappedProductionFiles = [
   ["upgrade-entry-production.html", "upgrade-entry.html"],
   ["admin-production.html", "admin.html"],
