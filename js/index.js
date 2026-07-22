@@ -48,4 +48,40 @@ document.addEventListener("DOMContentLoaded", () => {
   carousel.addEventListener("mouseenter", () => window.clearInterval(timer));
   carousel.addEventListener("mouseleave", restart);
   render(); restart();
+
+  const mobileGallery = document.querySelector(".mobile-plan-gallery");
+  if (!mobileGallery) return;
+  const mobileTrack = mobileGallery.querySelector(".mobile-plan-gallery-track");
+  const mobileSlides = [...mobileGallery.querySelectorAll(".mobile-plan-image-slide")];
+  const mobileDots = mobileGallery.querySelector(".mobile-plan-gallery-dots");
+  let mobilePage = 0;
+  let scrollTimer;
+  mobileDots.innerHTML = mobileSlides.map((_, index) => `<button type="button" aria-label="Show plan image ${index + 1}" data-mobile-plan-page="${index}"></button>`).join("");
+  const renderMobile = (scroll = true) => {
+    mobileDots.querySelectorAll("button").forEach((dot, index) => {
+      dot.classList.toggle("active", index === mobilePage);
+      dot.setAttribute("aria-current", index === mobilePage ? "true" : "false");
+    });
+    if (scroll) mobileTrack.scrollTo({ left: mobilePage * mobileTrack.clientWidth, behavior: "smooth" });
+  };
+  const moveMobile = direction => {
+    mobilePage = (mobilePage + direction + mobileSlides.length) % mobileSlides.length;
+    renderMobile();
+  };
+  mobileGallery.querySelector("[data-mobile-plan-prev]").addEventListener("click", () => moveMobile(-1));
+  mobileGallery.querySelector("[data-mobile-plan-next]").addEventListener("click", () => moveMobile(1));
+  mobileDots.addEventListener("click", event => {
+    const button = event.target.closest("[data-mobile-plan-page]");
+    if (!button) return;
+    mobilePage = Number(button.dataset.mobilePlanPage);
+    renderMobile();
+  });
+  mobileTrack.addEventListener("scroll", () => {
+    window.clearTimeout(scrollTimer);
+    scrollTimer = window.setTimeout(() => {
+      mobilePage = Math.round(mobileTrack.scrollLeft / mobileTrack.clientWidth);
+      renderMobile(false);
+    }, 80);
+  }, { passive: true });
+  renderMobile(false);
 });

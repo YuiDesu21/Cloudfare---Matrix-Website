@@ -143,6 +143,18 @@ h1, h2, h3, p { margin-top: 0; }
 .plan-title { padding: .58rem .8rem; color: #171100; background: linear-gradient(135deg, #ffe977, #ffc40d 60%, #e29d00); font-size: .95rem; font-weight: 950; text-align: center; text-transform: uppercase; }
 .plan-note { padding: .75rem .85rem; color: #dfe8d6; border-top: 1px solid rgba(255, 201, 28, .28); font-size: .75rem; line-height: 1.45; }
 .plan-note strong { color: var(--gold-soft); }
+.mobile-plan-gallery { display: none; overflow: hidden; border: 1px solid rgba(255, 201, 28, .7); border-radius: 14px; background: #071f0e; box-shadow: var(--shadow); }
+.mobile-plan-gallery-track { display: flex; overflow-x: auto; scroll-behavior: smooth; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.mobile-plan-gallery-track::-webkit-scrollbar { display: none; }
+.mobile-plan-image-slide { min-width: 100%; margin: 0; scroll-snap-align: start; }
+.mobile-plan-image-slide img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; }
+.mobile-plan-gallery-controls { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: .8rem; border-top: 1px solid rgba(255,201,28,.25); }
+.mobile-plan-gallery-controls > button, .mobile-plan-gallery-dots button { border: 1px solid rgba(255,201,28,.55); background: #0b2a13; color: #ffd43b; cursor: pointer; }
+.mobile-plan-gallery-controls > button { width: 42px; height: 36px; border-radius: 8px; font-size: 1.2rem; }
+.mobile-plan-gallery-dots { display: flex; gap: .55rem; }
+.mobile-plan-gallery-dots button { width: 11px; height: 11px; padding: 0; border-radius: 999px; }
+.mobile-plan-gallery-dots button.active { width: 30px; background: #ffc91c; }
+.mobile-swipe-hint { margin: 0; padding: 0 0 .85rem; color: var(--muted); font-size: .68rem; text-align: center; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; text-align: center; font-size: .72rem; }
 th, td { min-width: 72px; padding: .48rem .33rem; border: 1px solid rgba(15, 25, 11, .82); }
@@ -217,6 +229,8 @@ address { display: grid; gap: .55rem; font-style: normal; }
   .hero-copy { padding: 4rem 0 1.1rem; }
   .hero h1 { max-width: 12ch; }
   .hero-visual { min-height: 360px; }
+  .plan-carousel { display: none; }
+  .mobile-plan-gallery { display: block; }
   .matrix-plan-table { min-width: 0; padding: .55rem; }
   .matrix-plan-table tbody tr { grid-template-columns: .8fr 1.2fr; gap: .45rem; padding: .45rem; }
   .matrix-plan-table tbody tr::after { display: none; }
