@@ -26,6 +26,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   const loginCredentialInput = document.getElementById("login-credential");
   const loginPasswordInput = document.getElementById("login-password");
   const loginAlert = document.getElementById("login-alert");
+  const forgotPasswordView = document.getElementById("forgot-password-view");
+  const forgotPasswordForm = document.getElementById("forgot-password-form");
+  const forgotPasswordEmail = document.getElementById("forgot-password-email");
+  const forgotPasswordAlert = document.getElementById("forgot-password-alert");
+  const forgotPasswordSubmit = document.getElementById("forgot-password-submit");
+  const resetPasswordView = document.getElementById("reset-password-view");
+  const resetPasswordForm = document.getElementById("reset-password-form");
+  const resetPasswordNew = document.getElementById("reset-password-new");
+  const resetPasswordConfirm = document.getElementById("reset-password-confirm");
+  const resetPasswordAlert = document.getElementById("reset-password-alert");
+  const resetPasswordSubmit = document.getElementById("reset-password-submit");
 
   const registerForm = document.getElementById("register-form");
   const regFullName = document.getElementById("reg-fullname");
@@ -129,6 +140,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Navigation handlers
   const goToRegister = document.getElementById("go-to-register");
   const goToLogin = document.getElementById("go-to-login");
+  const goToForgotPassword = document.getElementById("go-to-forgot-password");
+  const forgotPasswordBack = document.getElementById("forgot-password-back");
 
   // Form errors
   const errFullName = document.getElementById("err-fullname");
@@ -160,9 +173,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   regWallet.addEventListener("input", () => { regWallet.value = regWallet.value.replace(/[^A-Za-z0-9:_-]/g, "").slice(0, 52); });
 
   // Initial State Check
-  const sessionRestored = await checkSession();
+  const passwordRecoveryRequested = params.get("mode") === "reset-password" || window.location.hash.includes("type=recovery");
+  const sessionRestored = passwordRecoveryRequested ? false : await checkSession();
 
-  if (sessionRestored) {
+  if (params.get("mode") === "forgot-password") {
+    showForgotPassword();
+  } else if (passwordRecoveryRequested) {
+    showResetPassword();
+  } else if (sessionRestored) {
     if (window.MATRIX_USES_SUPABASE && params.get("admin_invite")) {
       try {
         await MatrixDB.acceptAdminInvitation(params.get("admin_invite"));
@@ -192,12 +210,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     showLogin();
   });
 
+  goToForgotPassword.addEventListener("click", (e) => {
+    e.preventDefault();
+    showForgotPassword();
+  });
+
+  forgotPasswordBack.addEventListener("click", (e) => {
+    e.preventDefault();
+    showLogin();
+  });
+
   successOkBtn.addEventListener("click", () => {
     successView.style.display = "none";
     showLogin();
   });
 
   loginForm.addEventListener("submit", handleLogin);
+  forgotPasswordForm.addEventListener("submit", handleForgotPassword);
+  resetPasswordForm.addEventListener("submit", handleResetPassword);
   registerForm.addEventListener("submit", handleRegister);
 
   logoutBtnHeader.addEventListener("click", logout);
@@ -260,12 +290,41 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Helper Functions for View Switching
   function showLogin() {
     loginView.style.display = "block";
+    forgotPasswordView.style.display = "none";
+    resetPasswordView.style.display = "none";
     registerView.style.display = "none";
     successView.style.display = "none";
     authSection.style.display = "block";
     dashboardSection.style.display = "none";
     headerUserStatus.style.display = "none";
     clearForms();
+  }
+
+  function showForgotPassword() {
+    loginView.style.display = "none";
+    forgotPasswordView.style.display = "block";
+    resetPasswordView.style.display = "none";
+    registerView.style.display = "none";
+    successView.style.display = "none";
+    authSection.style.display = "block";
+    dashboardSection.style.display = "none";
+    headerUserStatus.style.display = "none";
+    forgotPasswordForm.reset();
+    forgotPasswordAlert.style.display = "none";
+    if (loginCredentialInput.value.trim()) forgotPasswordEmail.value = loginCredentialInput.value.trim();
+  }
+
+  function showResetPassword() {
+    loginView.style.display = "none";
+    forgotPasswordView.style.display = "none";
+    resetPasswordView.style.display = "block";
+    registerView.style.display = "none";
+    successView.style.display = "none";
+    authSection.style.display = "block";
+    dashboardSection.style.display = "none";
+    headerUserStatus.style.display = "none";
+    resetPasswordForm.reset();
+    resetPasswordAlert.style.display = "none";
   }
 
   function openProductClaimModal(memberId, exit, available, bonusPercent) {
@@ -287,6 +346,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function showRegister() {
     loginView.style.display = "none";
+    forgotPasswordView.style.display = "none";
+    resetPasswordView.style.display = "none";
     registerView.style.display = "block";
     successView.style.display = "none";
     authSection.style.display = "block";
@@ -339,6 +400,63 @@ document.addEventListener("DOMContentLoaded", async () => {
     loginAlert.className = "alert alert-danger";
     loginAlert.textContent = msg;
     loginAlert.style.display = "block";
+  }
+
+  async function handleForgotPassword(event) {
+    event.preventDefault();
+    forgotPasswordAlert.style.display = "none";
+    forgotPasswordSubmit.disabled = true;
+    try {
+      if (!window.MATRIX_USES_SUPABASE || !MatrixDB.requestPasswordReset) {
+        throw new Error("Password recovery is only available on the live website.");
+      }
+      await MatrixDB.requestPasswordReset(forgotPasswordEmail.value.trim());
+      forgotPasswordAlert.className = "alert alert-success";
+      forgotPasswordAlert.textContent = "If an account exists for that email, a password reset link has been sent. Check your inbox and spam folder.";
+      forgotPasswordAlert.style.display = "block";
+    } catch (error) {
+      forgotPasswordAlert.className = "alert alert-danger";
+      forgotPasswordAlert.textContent = error.message;
+      forgotPasswordAlert.style.display = "block";
+    } finally {
+      forgotPasswordSubmit.disabled = false;
+    }
+  }
+
+  async function handleResetPassword(event) {
+    event.preventDefault();
+    resetPasswordAlert.style.display = "none";
+    if (resetPasswordNew.value.length < 8) {
+      resetPasswordAlert.className = "alert alert-danger";
+      resetPasswordAlert.textContent = "Your new password must contain at least 8 characters.";
+      resetPasswordAlert.style.display = "block";
+      return;
+    }
+    if (resetPasswordNew.value !== resetPasswordConfirm.value) {
+      resetPasswordAlert.className = "alert alert-danger";
+      resetPasswordAlert.textContent = "The passwords do not match.";
+      resetPasswordAlert.style.display = "block";
+      return;
+    }
+    resetPasswordSubmit.disabled = true;
+    try {
+      const { data, error } = await window.matrixSupabase.auth.getSession();
+      if (error) throw error;
+      if (!data.session) throw new Error("This reset link is invalid or has expired. Request a new password reset email.");
+      await MatrixDB.updatePassword(resetPasswordNew.value);
+      await MatrixDB.signOut();
+      window.history.replaceState({}, document.title, "portal.html");
+      showLogin();
+      loginAlert.className = "alert alert-success";
+      loginAlert.textContent = "Your password has been updated. You can now sign in with your new password.";
+      loginAlert.style.display = "block";
+    } catch (error) {
+      resetPasswordAlert.className = "alert alert-danger";
+      resetPasswordAlert.textContent = error.message;
+      resetPasswordAlert.style.display = "block";
+    } finally {
+      resetPasswordSubmit.disabled = false;
+    }
   }
 
   // Handle Register

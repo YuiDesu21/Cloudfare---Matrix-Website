@@ -45,6 +45,17 @@ const MatrixDB = {
     if (error) throw error;
     return this.refreshSessionData();
   },
+  async requestPasswordReset(email) {
+    const redirectTo = `${window.location.origin}/portal.html?mode=reset-password`;
+    const { error } = await window.matrixSupabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) throw error;
+    return true;
+  },
+  async updatePassword(password) {
+    const { error } = await window.matrixSupabase.auth.updateUser({ password });
+    if (error) throw error;
+    return true;
+  },
   async signUp(memberData, password) {
     const { data, error } = await window.matrixSupabase.auth.signUp({
       email: memberData.email,

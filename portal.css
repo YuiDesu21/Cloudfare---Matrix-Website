@@ -132,6 +132,11 @@ body.portal-body {
   color: var(--muted);
 }
 
+.form-footer-compact {
+  margin-top: 0.85rem;
+  margin-bottom: 0;
+}
+
 .form-footer a {
   color: var(--gold);
   font-weight: 800;

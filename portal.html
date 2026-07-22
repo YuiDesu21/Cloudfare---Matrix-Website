@@ -65,12 +65,56 @@
           </div>
           <button type="submit" class="button button-primary btn-block">Access Dashboard</button>
         </form>
+
+        <p class="form-footer form-footer-compact">
+          <a href="#" id="go-to-forgot-password">Forgot your password?</a>
+        </p>
         
         <p class="form-footer">
           Not a member? <a href="#" id="go-to-register">Request Registration</a>
         </p>
         
         <p class="auth-security-note">Secure password-protected access.</p>
+      </div>
+
+      <!-- FORGOT PASSWORD VIEW -->
+      <div id="forgot-password-view" class="portal-card" style="display: none;">
+        <h2>Forgot Password</h2>
+        <p class="subtitle">Enter your account email and we will send you a secure reset link.</p>
+
+        <div id="forgot-password-alert" style="display: none;"></div>
+
+        <form id="forgot-password-form">
+          <div class="form-group">
+            <label for="forgot-password-email">Email Address</label>
+            <input type="email" id="forgot-password-email" class="form-control" placeholder="you@example.com" autocomplete="email" maxlength="254" required>
+          </div>
+          <button id="forgot-password-submit" type="submit" class="button button-primary btn-block">Send Reset Link</button>
+        </form>
+
+        <p class="form-footer">
+          Remembered your password? <a href="#" id="forgot-password-back">Return to Login</a>
+        </p>
+      </div>
+
+      <!-- RESET PASSWORD VIEW -->
+      <div id="reset-password-view" class="portal-card" style="display: none;">
+        <h2>Set New Password</h2>
+        <p class="subtitle">Choose a new password with at least 8 characters.</p>
+
+        <div id="reset-password-alert" style="display: none;"></div>
+
+        <form id="reset-password-form">
+          <div class="form-group">
+            <label for="reset-password-new">New Password</label>
+            <input type="password" id="reset-password-new" class="form-control" autocomplete="new-password" minlength="8" required>
+          </div>
+          <div class="form-group">
+            <label for="reset-password-confirm">Confirm New Password</label>
+            <input type="password" id="reset-password-confirm" class="form-control" autocomplete="new-password" minlength="8" required>
+          </div>
+          <button id="reset-password-submit" type="submit" class="button button-primary btn-block">Update Password</button>
+        </form>
       </div>
 
       <!-- REGISTRATION VIEW -->
