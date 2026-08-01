@@ -393,6 +393,11 @@ body.portal-body {
   padding: 1.5rem;
 }
 
+.timeline-dashboard-stack {
+  display: grid;
+  gap: 1.5rem;
+}
+
 .matrix-card-header {
   display: flex;
   justify-content: space-between;

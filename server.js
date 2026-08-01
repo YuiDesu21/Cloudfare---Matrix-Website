@@ -4,16 +4,25 @@ const path = require("path");
 const crypto = require("crypto");
 
 const PORT = Number(process.env.PORT || 3000);
+const MIN_WITHDRAWAL_AMOUNT = 1000;
 const PUBLIC_DIR = __dirname;
 const DATA_DIR = path.join(__dirname, "data");
 const DB_FILE = path.join(DATA_DIR, "matrix-db.json");
+const BACKUP_DIR = path.join(DATA_DIR, "backups");
+const AUDIT_LOG_FILE = path.join(DATA_DIR, "operational-audit.ndjson");
+const MAX_DATABASE_BACKUPS = 50;
 const MATRIX_RULES_FILE = path.join(DATA_DIR, "matrix-rules.json");
 const SUPABASE_BROWSER_FILE = path.join(__dirname, "node_modules", "@supabase", "supabase-js", "dist", "umd", "supabase.js");
 const SANDBOX_RUNTIME_CONFIG = path.join(__dirname, "js", "runtime-config.sandbox.js");
 const PRODUCTION_ENTRY_PAGE = path.join(__dirname, "upgrade-entry-production.html");
 const PRODUCTION_ADMIN_PAGE = path.join(__dirname, "admin-production.html");
 const AUTH_SESSIONS = new Map();
+const LOGIN_ATTEMPTS = new Map();
 const LEGACY_SANDBOX_PASSWORD = "member123";
+const MEMBER_SESSION_MS = 4 * 60 * 60 * 1000;
+const ADMIN_SESSION_MS = 2 * 60 * 60 * 1000;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_FAILURES = 5;
 
 function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
   return `${salt}:${crypto.scryptSync(String(password), salt, 64).toString("hex")}`;
@@ -27,10 +36,63 @@ function passwordMatches(password, storedHash) {
   return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
 }
 
-function createAuthSession(role, memberId = null) {
+function validatePassword(value, label = "Password") {
+  const password = boundedText(value, label, 128, 10);
+  if (!/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+    throw new Error(`${label} must contain at least one letter and one number.`);
+  }
+  return password;
+}
+
+function createAuthSession(role, memberId = null, operatorName = null, authVersion = 0) {
   const token = crypto.randomBytes(32).toString("hex");
-  AUTH_SESSIONS.set(token, { role, memberId, expiresAt: Date.now() + 8 * 60 * 60 * 1000 });
+  AUTH_SESSIONS.set(token, {
+    role,
+    memberId,
+    operatorName: operatorName || null,
+    sessionRef: crypto.createHash("sha256").update(token).digest("hex").slice(0, 12),
+    authVersion: Number(authVersion || 0),
+    expiresAt: Date.now() + (role === "admin" ? ADMIN_SESSION_MS : MEMBER_SESSION_MS)
+  });
   return token;
+}
+
+function requestClientKey(request) {
+  const address = String(request.socket?.remoteAddress || "local");
+  return address.replace(/^::ffff:/, "");
+}
+
+function loginAttemptKey(context, role, credential) {
+  return `${role}:${context?.clientKey || "unknown"}:${String(credential || "").trim().toLowerCase()}`;
+}
+
+function assertLoginAllowed(context, role, credential) {
+  const key = loginAttemptKey(context, role, credential);
+  const attempt = LOGIN_ATTEMPTS.get(key);
+  if (!attempt) return;
+  if (Date.now() - attempt.firstFailureAt > LOGIN_WINDOW_MS) {
+    LOGIN_ATTEMPTS.delete(key);
+    return;
+  }
+  if (attempt.count >= LOGIN_MAX_FAILURES) {
+    const waitMinutes = Math.max(1, Math.ceil((LOGIN_WINDOW_MS - (Date.now() - attempt.firstFailureAt)) / 60000));
+    throw new Error(`Too many sign-in attempts. Try again in about ${waitMinutes} minute${waitMinutes === 1 ? "" : "s"}.`);
+  }
+}
+
+function recordLoginFailure(context, role, credential) {
+  const key = loginAttemptKey(context, role, credential);
+  const now = Date.now();
+  const previous = LOGIN_ATTEMPTS.get(key);
+  const attempt = !previous || now - previous.firstFailureAt > LOGIN_WINDOW_MS
+    ? { count: 0, firstFailureAt: now }
+    : previous;
+  attempt.count += 1;
+  LOGIN_ATTEMPTS.set(key, attempt);
+}
+
+function clearLoginFailures(context, role, credential) {
+  LOGIN_ATTEMPTS.delete(loginAttemptKey(context, role, credential));
 }
 
 function getAuthSession(request) {
@@ -43,8 +105,60 @@ function getAuthSession(request) {
   return session;
 }
 
+function invalidateAuthSession(auth) {
+  for (const [token, session] of AUTH_SESSIONS) {
+    if (session === auth || (auth.sessionRef && session.sessionRef === auth.sessionRef)) {
+      AUTH_SESSIONS.delete(token);
+      return;
+    }
+  }
+}
+
+function assertSessionCurrent(db, auth) {
+  const expectedVersion = auth.role === "admin"
+    ? Number(db.settings.adminAuthVersion || 0)
+    : Number((db.members || []).find(member => member.id === auth.memberId)?.authVersion || 0);
+  if (Number(auth.authVersion || 0) !== expectedVersion) {
+    invalidateAuthSession(auth);
+    throw new Error("Your session has expired. Please sign in again.");
+  }
+}
+
 const MATRIX_PLANS = {
-  "power3-passive": { id: "power3-passive", name: "Power of Three Passive Income", maxChildren: 3, price: 20, pesoValue: 1200 }
+  "power3-passive": { id: "power3-passive", name: "Power of Three Passive Income", maxChildren: 3, price: 20, pesoValue: 1200 },
+  "timeline-power3": { id: "timeline-power3", name: "Power of Three Timeline Matrix", maxChildren: 3, price: 693, pesoValue: 693 }
+};
+
+const TIMELINE_RULES = {
+  programName: "Power of Three Timeline Matrix",
+  matrixId: "timeline-power3",
+  matrixName: "Power of Three Timeline Matrix",
+  maxDirectDownlines: 3,
+  entry: { name: "Timeline Entry", price: 693, startsOn: "Admin activation approval" },
+  exits: [
+    { exit: 1, requiredDownlineExit: 0, productSpend: 856, productBonusAmount: 185, productMonths: 1, matrixIncome: 100, matrixMonths: 3 },
+    { exit: 2, requiredDownlineExit: 1, productSpend: 1633, productBonusAmount: 404, productMonths: 1, matrixIncome: 195, matrixMonths: 3 },
+    { exit: 3, requiredDownlineExit: 2, productSpend: 1838, productBonusAmount: 525, productMonths: 1, matrixIncome: 236, matrixMonths: 4 },
+    { exit: 4, requiredDownlineExit: 3, productSpend: 1607.65, productBonusAmount: 470, productMonths: 2, matrixIncome: 324, matrixMonths: 5 },
+    { exit: 5, requiredDownlineExit: 4, productSpend: 2143, productBonusAmount: 626, productMonths: 3, matrixIncome: 607, matrixMonths: 6 },
+    { exit: 6, requiredDownlineExit: 5, productSpend: 2481, productBonusAmount: 747, productMonths: 6, matrixIncome: 729, matrixMonths: 10 },
+    { exit: 7, requiredDownlineExit: 6, productSpend: 2437, productBonusAmount: 818, productMonths: 10, matrixIncome: 1166, matrixMonths: 15 },
+    { exit: 8, requiredDownlineExit: 7, productSpend: 2815, productBonusAmount: 974, productMonths: 20, matrixIncome: 2296, matrixMonths: 20 },
+    { exit: 9, requiredDownlineExit: 8, productSpend: 4079, productBonusAmount: 1451, productMonths: 30, matrixIncome: 3936, matrixMonths: 30 },
+    { exit: 10, requiredDownlineExit: 9, productSpend: 4634, productBonusAmount: 1721, productMonths: 50, matrixIncome: 5904, matrixMonths: 60 },
+    { exit: 11, requiredDownlineExit: 10, productSpend: 4312, productBonusAmount: 1695, productMonths: 75, matrixIncome: 8857, matrixMonths: 100 },
+    { exit: 12, requiredDownlineExit: 11, productSpend: 6467, productBonusAmount: 2542, productMonths: 100, matrixIncome: 14171, matrixMonths: 150 },
+    { exit: 13, requiredDownlineExit: 12, productSpend: 9700, productBonusAmount: 3814, productMonths: 300, matrixIncome: 15943, matrixMonths: 300 }
+  ].map(rule => ({
+    ...rule,
+    requirementRank: rule.exit === 1 ? "3 direct timeline downlines active" : `3 direct timeline downlines completed Exit ${rule.exit - 1}`,
+    actionType: "auto",
+    actionLabel: "Automatic Unlock",
+    actionAmount: 0,
+    passiveIncome: 0,
+    passiveMonths: 0,
+    productBonusPercent: rule.productSpend ? Number(((rule.productBonusAmount / rule.productSpend) * 100).toFixed(4)) : 0
+  }))
 };
 
 function normalizePlanId(planId) {
@@ -77,6 +191,112 @@ function validateF3Wallet(value) {
   return wallet;
 }
 
+function normalizePhoneNumber(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (/^639\d{9}$/.test(digits)) return `0${digits.slice(2)}`;
+  return digits;
+}
+
+function normalizePaymentReference(value) {
+  const reference = String(value || "").trim().toUpperCase();
+  if (!/^[A-Z0-9-]{6,40}$/.test(reference)) throw new Error("Enter a valid GCash reference number.");
+  return reference;
+}
+
+function validateDecisionNote(value, label = "Decision note") {
+  const note = boundedText(value, label, 240, 5);
+  if (!/[\p{L}\p{N}]/u.test(note)) throw new Error(`${label} must include a meaningful verification detail.`);
+  return note;
+}
+
+function adminActor(auth) {
+  return auth && auth.role === "admin" ? (auth.operatorName || "Local administrator") : "System";
+}
+
+function recordDecision(record, status, note, auth, metadata = {}) {
+  const decision = {
+    id: generateUUID(),
+    status,
+    note: validateDecisionNote(note),
+    decidedAt: new Date().toISOString(),
+    decidedBy: adminActor(auth),
+    sessionRef: auth && auth.sessionRef ? auth.sessionRef : null,
+    ...metadata
+  };
+  record.decisionHistory = [...(record.decisionHistory || []), decision].slice(-20);
+  record.latestDecision = decision;
+  return decision;
+}
+
+function getPaymentReferenceEntries(db) {
+  return [
+    ...(db.upgradeRequests || []).map(request => ({ request, workflow: "entry", referenceNumber: request.referenceNumber })),
+    ...(db.timelineRequests || []).filter(request => request.paymentMethod === "gcash").map(request => ({ request, workflow: "timeline", referenceNumber: request.referenceNumber })),
+    ...(db.exitActions || []).filter(request => request.paymentMethod === "gcash").map(request => ({ request, workflow: "exit", referenceNumber: request.referenceNumber }))
+  ].filter(item => String(item.referenceNumber || "").trim());
+}
+
+function assertPaymentReferenceAvailable(db, referenceNumber, memberId, workflow) {
+  const matching = getPaymentReferenceEntries(db).find(item =>
+    String(item.referenceNumber || "").trim().toUpperCase() === referenceNumber &&
+    (item.request.status !== "rejected" || item.request.memberId !== memberId || item.workflow !== workflow)
+  );
+  if (matching) throw new Error("This payment reference is already associated with another request.");
+}
+
+function syncPaymentReferenceRegistry(db) {
+  const grouped = new Map();
+  for (const item of getPaymentReferenceEntries(db)) {
+    const reference = String(item.referenceNumber || "").trim().toUpperCase();
+    if (!reference) continue;
+    const entries = grouped.get(reference) || [];
+    entries.push({ requestId: item.request.id, memberId: item.request.memberId, workflow: item.workflow, status: item.request.status });
+    grouped.set(reference, entries);
+  }
+  const registry = [...grouped.entries()].map(([referenceNumber, entries]) => ({
+    referenceNumber,
+    entries,
+    collision: entries.length > 1
+  }));
+  const changed = JSON.stringify(db.paymentReferences || []) !== JSON.stringify(registry);
+  db.paymentReferences = registry;
+  return changed;
+}
+
+function syncIdentityReviews(db) {
+  const reviews = [];
+  const members = db.members || [];
+  const phones = new Map();
+  for (const member of members) {
+    const normalizedPhone = normalizePhoneNumber(member.phone);
+    if (!/^09\d{9}$/.test(normalizedPhone)) {
+      reviews.push({ id: `invalid-phone:${member.id}`, type: "invalid-phone", value: String(member.phone || ""), memberIds: [member.id], status: "open" });
+      continue;
+    }
+    const linkedMembers = phones.get(normalizedPhone) || [];
+    linkedMembers.push(member.id);
+    phones.set(normalizedPhone, linkedMembers);
+  }
+  for (const [phone, memberIds] of phones) {
+    if (memberIds.length > 1) reviews.push({ id: `shared-phone:${phone}`, type: "shared-phone", value: phone, memberIds, status: "open" });
+  }
+  for (const paymentReference of db.paymentReferences || []) {
+    if (paymentReference.collision) {
+      reviews.push({
+        id: `payment-reference:${paymentReference.referenceNumber}`,
+        type: "duplicate-payment-reference",
+        value: paymentReference.referenceNumber,
+        memberIds: [...new Set(paymentReference.entries.map(entry => entry.memberId))],
+        status: "open"
+      });
+    }
+  }
+  reviews.sort((a, b) => a.type.localeCompare(b.type) || a.value.localeCompare(b.value));
+  const changed = JSON.stringify(db.identityReviews || []) !== JSON.stringify(reviews);
+  db.identityReviews = reviews;
+  return changed;
+}
+
 const DEFAULT_DB = {
   pending: [],
   members: [],
@@ -85,7 +305,13 @@ const DEFAULT_DB = {
   rewardLedger: [],
   withdrawalRequests: [],
   upgradeRequests: [],
+  timelineRequests: [],
+  timelineExitProgress: [],
   productPlusClaims: [],
+  voucherLedger: [],
+  paymentReferences: [],
+  identityReviews: [],
+  approvalReversals: [],
   logs: [],
   settings: {}
 };
@@ -112,6 +338,85 @@ function publicAccount(account) {
   return safe;
 }
 
+function publicMemberPreview(member) {
+  if (!member) return null;
+  return {
+    id: member.id,
+    accountCode: member.accountCode,
+    fullName: member.fullName,
+    username: member.username,
+    status: member.status
+  };
+}
+
+function getAccountById(db, memberId) {
+  return [...(db.members || []), ...(db.pending || [])].find(account => account.id === memberId) || null;
+}
+
+function canViewMatrixTree(db, viewerMemberId, rootMemberId, planId) {
+  if (viewerMemberId === rootMemberId) return true;
+  let parentMemberId = (db.positions || []).find(position =>
+    position.memberId === viewerMemberId && position.planId === planId
+  )?.parentMemberId;
+  while (parentMemberId) {
+    if (parentMemberId === rootMemberId) return true;
+    parentMemberId = (db.positions || []).find(position =>
+      position.memberId === parentMemberId && position.planId === planId
+    )?.parentMemberId;
+  }
+  const visited = new Set();
+  const stack = [viewerMemberId];
+  while (stack.length) {
+    const currentMemberId = stack.pop();
+    if (visited.has(currentMemberId)) continue;
+    visited.add(currentMemberId);
+    const children = (db.positions || []).filter(position =>
+      position.planId === planId && position.parentMemberId === currentMemberId
+    );
+    for (const child of children) {
+      if (child.memberId === rootMemberId) return true;
+      stack.push(child.memberId);
+    }
+  }
+  return false;
+}
+
+function assertActionAuthorization(db, action, payload, auth) {
+  const publicActions = new Set([
+    "initializeDatabase", "authenticateMember", "authenticateAdmin", "getMatrixRules",
+    "getMemberByAccountCode", "registerPending"
+  ]);
+  if (publicActions.has(action)) return;
+  if (!auth) throw new Error("Sign in is required.");
+  assertSessionCurrent(db, auth);
+  if (auth.role === "admin") return;
+  if (auth.role !== "member") throw new Error("Your session is not authorized for this action.");
+  if (action === "signOut") return;
+
+  const ownMemberActions = new Set([
+    "getMemberMatrixSummary", "getMemberWithdrawalRequests", "getPositionByMemberId",
+    "requestUpgrade", "requestTimelineActivation", "requestExitAction", "requestWithdrawal",
+    "requestProductPlusClaim"
+  ]);
+  if (ownMemberActions.has(action)) {
+    if (!payload.memberId || payload.memberId !== auth.memberId) throw new Error("You may only access your own account.");
+    return;
+  }
+
+  if (action === "getMemberById") {
+    const viewer = getAccountById(db, auth.memberId);
+    if (payload.memberId === auth.memberId || viewer?.sponsorId === payload.memberId) return;
+    throw new Error("You may only view your own profile or direct sponsor.");
+  }
+
+  if (action === "getMemberTree") {
+    if (canViewMatrixTree(db, auth.memberId, payload.memberId, payload.planId)) return;
+    throw new Error("You may only view your own matrix branch.");
+  }
+
+  throw new Error("Administrator access is required.");
+}
+
 function ensureDatabase() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -135,6 +440,10 @@ function ensureDatabase() {
     delete db.settings.adminPassword;
     changed = true;
   }
+  if (!Number.isInteger(db.settings.adminAuthVersion)) {
+    db.settings.adminAuthVersion = 0;
+    changed = true;
+  }
   if (normalizeStoredPlans(db)) changed = true;
   const usedAccountCodes = new Set();
   for (const member of db.members || []) {
@@ -150,10 +459,18 @@ function ensureDatabase() {
       member.passwordHash = hashPassword(LEGACY_SANDBOX_PASSWORD);
       changed = true;
     }
+    if (!Number.isInteger(member.authVersion)) {
+      member.authVersion = 0;
+      changed = true;
+    }
   }
   for (const pending of db.pending || []) {
     if (!pending.passwordHash) {
       pending.passwordHash = hashPassword(LEGACY_SANDBOX_PASSWORD);
+      changed = true;
+    }
+    if (!Number.isInteger(pending.authVersion)) {
+      pending.authVersion = 0;
       changed = true;
     }
   }
@@ -171,6 +488,7 @@ function ensureDatabase() {
     if ((db.rewardLedger || []).length !== beforeCount) changed = true;
   }
   if (migrateSandboxRewardSchedule(db)) changed = true;
+  if (ensureTimelineProgression(db)) changed = true;
   for (const request of db.upgradeRequests || []) {
     if (request.status === "pending" && Number(request.amount) !== 1200) {
       request.amount = 1200;
@@ -184,29 +502,90 @@ function ensureDatabase() {
     db.rewardLedger = validRewardLedger;
     changed = true;
   }
-  for (const collectionName of ["upgradeRequests", "exitActions", "withdrawalRequests", "productPlusClaims"]) {
+  for (const collectionName of ["upgradeRequests", "timelineRequests", "timelineExitProgress", "exitActions", "withdrawalRequests", "productPlusClaims", "voucherLedger"]) {
     const validRecords = (db[collectionName] || []).filter(record => memberIds.has(record.memberId));
     if (validRecords.length !== (db[collectionName] || []).length) {
       db[collectionName] = validRecords;
       changed = true;
     }
   }
+  if (syncPaymentReferenceRegistry(db)) changed = true;
+  if (syncIdentityReviews(db)) changed = true;
   if (changed) writeDatabase(db);
 }
 
 function readDatabase() {
   ensureDataDirectoryOnly();
   try {
-    const raw = fs.readFileSync(DB_FILE, "utf8");
-    return { ...clone(DEFAULT_DB), ...JSON.parse(raw) };
+    return normalizeDatabasePayload(JSON.parse(fs.readFileSync(DB_FILE, "utf8")));
   } catch (error) {
-    return clone(DEFAULT_DB);
+    const recovered = recoverLatestDatabaseBackup();
+    if (recovered) return recovered;
+    throw new Error(`Matrix database could not be read: ${error.message}`);
   }
 }
 
-function writeDatabase(db) {
+function normalizeDatabasePayload(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Database payload must be an object.");
+  const normalized = { ...clone(DEFAULT_DB), ...value };
+  for (const key of Object.keys(DEFAULT_DB)) {
+    if (key === "settings") {
+      if (!normalized.settings || typeof normalized.settings !== "object" || Array.isArray(normalized.settings)) throw new Error("Database settings are invalid.");
+      continue;
+    }
+    if (!Array.isArray(normalized[key])) throw new Error(`Database collection ${key} is invalid.`);
+  }
+  return normalized;
+}
+
+function recoverLatestDatabaseBackup() {
   ensureDataDirectoryOnly();
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
+  const backups = fs.readdirSync(BACKUP_DIR)
+    .filter(name => name.endsWith(".json"))
+    .sort()
+    .reverse();
+  for (const backupName of backups) {
+    const backupPath = path.join(BACKUP_DIR, backupName);
+    try {
+      const recovered = normalizeDatabasePayload(JSON.parse(fs.readFileSync(backupPath, "utf8")));
+      fs.copyFileSync(backupPath, DB_FILE);
+      appendOperationalAudit({ action: "database-recovery", actor: { role: "system" }, metadata: { backup: backupName } });
+      return recovered;
+    } catch (error) {
+      // Try the next older backup when this snapshot is incomplete or corrupt.
+    }
+  }
+  return null;
+}
+
+function backupCurrentDatabase() {
+  if (!fs.existsSync(DB_FILE)) return null;
+  const current = fs.readFileSync(DB_FILE, "utf8");
+  normalizeDatabasePayload(JSON.parse(current));
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const backupName = `matrix-db-${timestamp}-${crypto.randomBytes(3).toString("hex")}.json`;
+  fs.writeFileSync(path.join(BACKUP_DIR, backupName), current, "utf8");
+  const backups = fs.readdirSync(BACKUP_DIR).filter(name => name.endsWith(".json")).sort();
+  while (backups.length > MAX_DATABASE_BACKUPS) {
+    fs.unlinkSync(path.join(BACKUP_DIR, backups.shift()));
+  }
+  return backupName;
+}
+
+function writeDatabase(db, auditRecord = null) {
+  ensureDataDirectoryOnly();
+  const serialized = JSON.stringify(normalizeDatabasePayload(db), null, 2);
+  const backupName = backupCurrentDatabase();
+  const tempFile = `${DB_FILE}.${process.pid}.${crypto.randomBytes(4).toString("hex")}.tmp`;
+  const descriptor = fs.openSync(tempFile, "w");
+  try {
+    fs.writeFileSync(descriptor, serialized, "utf8");
+    fs.fsyncSync(descriptor);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+  fs.renameSync(tempFile, DB_FILE);
+  if (auditRecord) appendOperationalAudit({ ...auditRecord, metadata: { ...(auditRecord.metadata || {}), backup: backupName } });
 }
 
 function getMatrixRules() {
@@ -225,6 +604,120 @@ function getMatrixRules() {
   }
 }
 
+function getRulesForPlan(planId) {
+  return planId === "timeline-power3" ? TIMELINE_RULES : getMatrixRules();
+}
+
+function getMemberPosition(db, memberId, planId = null) {
+  return (db.positions || []).find(position => position.memberId === memberId && (!planId || position.planId === planId));
+}
+
+function getApprovedExitLevelForPlan(db, memberId, planId) {
+  if (planId === "timeline-power3") {
+    return (db.timelineExitProgress || [])
+      .filter(action => action.memberId === memberId && action.status === "active")
+      .reduce((highest, action) => Math.max(highest, Number(action.exit || 0)), 0);
+  }
+  return getApprovedExitLevel(db, memberId);
+}
+
+function countQualifiedDirectDownlinesForPlan(db, memberId, requiredDownlineExit, planId) {
+  const directChildren = (db.positions || []).filter(position => position.parentMemberId === memberId && position.planId === planId);
+  return directChildren.filter(position => getApprovedExitLevelForPlan(db, position.memberId, planId) >= requiredDownlineExit).length;
+}
+
+function createTimelineExitRewardLedger(db, memberId, exitRule, unlockedAt = new Date().toISOString()) {
+  const matrixExists = (db.rewardLedger || []).some(entry => entry.memberId === memberId && entry.sourceType === "timeline-matrix" && entry.exit === exitRule.exit);
+  if (!matrixExists && Number(exitRule.matrixIncome || 0) > 0) {
+    for (let month = 1; month <= Number(exitRule.matrixMonths || 0); month += 1) {
+      db.rewardLedger.push({
+        id: generateUUID(),
+        memberId,
+        planId: "timeline-power3",
+        sourceType: "timeline-matrix",
+        sourceLabel: `Timeline Exit ${exitRule.exit} Matrix Income`,
+        exit: exitRule.exit,
+        amount: exitRule.matrixIncome,
+        dueAt: monthlyAnniversary(unlockedAt, month).toISOString(),
+        status: "due",
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+}
+
+function ensureTimelineProgression(db) {
+  let changed = false;
+  db.timelineExitProgress = db.timelineExitProgress || [];
+  db.rewardLedger = db.rewardLedger || [];
+  const timelinePositions = (db.positions || []).filter(position => position.planId === "timeline-power3");
+  const byMember = new Map(db.timelineExitProgress.map(progress => [`${progress.memberId}:${progress.exit}`, progress]));
+
+  let progressed = true;
+  while (progressed) {
+    progressed = false;
+    for (const position of timelinePositions) {
+      for (const exitRule of TIMELINE_RULES.exits) {
+        const key = `${position.memberId}:${exitRule.exit}`;
+        if (byMember.has(key)) continue;
+        const previousExitActive = exitRule.exit === 1 || byMember.has(`${position.memberId}:${exitRule.exit - 1}`);
+        const qualifiedDownlines = countQualifiedDirectDownlinesForPlan(db, position.memberId, exitRule.requiredDownlineExit, "timeline-power3");
+        if (!previousExitActive || qualifiedDownlines < TIMELINE_RULES.maxDirectDownlines) continue;
+        const progress = {
+          id: generateUUID(),
+          memberId: position.memberId,
+          exit: exitRule.exit,
+          status: "active",
+          qualifiedDownlines,
+          requiredDownlines: TIMELINE_RULES.maxDirectDownlines,
+          approvedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        };
+        db.timelineExitProgress.push(progress);
+        byMember.set(key, progress);
+        createTimelineExitRewardLedger(db, position.memberId, exitRule, progress.approvedAt);
+        changed = true;
+        progressed = true;
+      }
+    }
+  }
+
+  return changed;
+}
+
+function getTimelineExitStatuses(db, memberId) {
+  ensureTimelineProgression(db);
+  return TIMELINE_RULES.exits.map(exitRule => {
+    const qualifiedDownlines = countQualifiedDirectDownlinesForPlan(db, memberId, exitRule.requiredDownlineExit, "timeline-power3");
+    const activeAction = (db.timelineExitProgress || []).find(action => action.memberId === memberId && action.exit === exitRule.exit && action.status === "active");
+    const previousExitIsActive = exitRule.exit === 1 || (db.timelineExitProgress || []).some(action =>
+      action.memberId === memberId && action.exit === exitRule.exit - 1 && action.status === "active"
+    );
+    let status = "locked";
+    if (activeAction) status = "active";
+    else if (previousExitIsActive && qualifiedDownlines >= TIMELINE_RULES.maxDirectDownlines) status = "qualified";
+    return {
+      ...exitRule,
+      qualifiedDownlines,
+      requiredDownlines: TIMELINE_RULES.maxDirectDownlines,
+      status,
+      approvedAt: activeAction ? activeAction.approvedAt : null
+    };
+  });
+}
+
+function getNextTimelineParentId(db) {
+  const positions = (db.positions || [])
+    .filter(position => position.planId === "timeline-power3")
+    .sort((a, b) => new Date(a.placedAt || 0) - new Date(b.placedAt || 0));
+  if (!positions.length) return null;
+  const parent = positions.find(position =>
+    (db.positions || []).filter(child => child.planId === "timeline-power3" && child.parentMemberId === position.memberId).length < MATRIX_PLANS["timeline-power3"].maxChildren
+  );
+  if (!parent) throw new Error("No available Timeline Matrix placement slot was found.");
+  return parent.memberId;
+}
+
 function getApprovedExitLevel(db, memberId) {
   return (db.exitActions || [])
     .filter(action => action.memberId === memberId && action.status === "approved")
@@ -232,7 +725,9 @@ function getApprovedExitLevel(db, memberId) {
 }
 
 function countQualifiedDirectDownlines(db, memberId, requiredDownlineExit) {
-  const directChildren = (db.positions || []).filter(position => position.parentMemberId === memberId);
+  const directChildren = (db.positions || []).filter(position =>
+    position.parentMemberId === memberId && position.planId === "power3-passive"
+  );
   return directChildren.filter(position => getApprovedExitLevel(db, position.memberId) >= requiredDownlineExit).length;
 }
 
@@ -285,6 +780,12 @@ function ensureEntryRewardLedger(db, member) {
 function endOfFollowingMonth(approvalAt, monthNumber) {
   const approved = new Date(approvalAt || new Date().toISOString());
   return new Date(Date.UTC(approved.getUTCFullYear(), approved.getUTCMonth() + monthNumber + 1, 0, 23, 59, 59, 999));
+}
+
+function monthlyAnniversary(approvalAt, monthNumber) {
+  const dueDate = new Date(approvalAt || new Date().toISOString());
+  dueDate.setMonth(dueDate.getMonth() + monthNumber);
+  return dueDate;
 }
 
 function createExitRewardLedger(db, memberId, exitRule, approvalAt = new Date().toISOString()) {
@@ -351,15 +852,19 @@ function migrateSandboxRewardSchedule(db) {
   return true;
 }
 
-function getProductPlusEntitlements(db, memberId) {
-  const rules = getMatrixRules();
+function getProductPlusEntitlements(db, memberId, planId = "power3-passive") {
+  const rules = getRulesForPlan(planId);
+  const statuses = planId === "timeline-power3" ? getTimelineExitStatuses(db, memberId) : getExitStatuses(db, memberId);
   const claims = db.productPlusClaims || [];
   return (rules.exits || [])
     .filter(exitRule => exitRule.productSpend > 0)
     .map(exitRule => {
-      const approvedAction = (db.exitActions || []).find(action => action.memberId === memberId && action.exit === exitRule.exit && action.status === "approved");
+      const status = statuses.find(item => item.exit === exitRule.exit);
+      const approvedAction = planId === "timeline-power3"
+        ? (db.timelineExitProgress || []).find(action => action.memberId === memberId && action.exit === exitRule.exit && action.status === "active")
+        : (db.exitActions || []).find(action => action.memberId === memberId && action.exit === exitRule.exit && action.status === "approved");
       const productBaseSpend = Number(exitRule.productSpend || 0);
-      const monthlyBonus = productBaseSpend * (Number(exitRule.productBonusPercent || 0) / 100);
+      const monthlyBonus = Number(exitRule.productBonusAmount || 0) || productBaseSpend * (Number(exitRule.productBonusPercent || 0) / 100);
       const monthlySpend = productBaseSpend;
       const productMonths = Number(exitRule.productMonths || 0);
       const totalSpend = monthlySpend * productMonths;
@@ -374,18 +879,22 @@ function getProductPlusEntitlements(db, memberId) {
       }
       const vestedSpend = monthlySpend * vestedMonths;
       const memberClaims = claims.filter(claim => claim.memberId === memberId && claim.exit === exitRule.exit);
+      const planClaims = memberClaims.filter(claim => (claim.planId || "power3-passive") === planId);
       const approvedSpend = memberClaims
+        .filter(claim => (claim.planId || "power3-passive") === planId)
         .filter(claim => claim.status === "approved")
         .reduce((total, claim) => total + Number(claim.spendAmount || 0), 0);
-      const pendingSpend = memberClaims
+      const pendingSpend = planClaims
         .filter(claim => claim.status === "pending")
         .reduce((total, claim) => total + Number(claim.spendAmount || 0), 0);
       return {
+        planId,
         exit: exitRule.exit,
         active: Boolean(approvedAction),
         productSpend: monthlySpend,
         productBaseSpend,
         monthlyBonus,
+        productBonusAmount: monthlyBonus,
         monthlySpend,
         productMonths,
         productBonusPercent: exitRule.productBonusPercent,
@@ -398,7 +907,7 @@ function getProductPlusEntitlements(db, memberId) {
         pendingSpend,
         remainingSpend: Math.max(totalSpend - approvedSpend - pendingSpend, 0),
         availableVestedSpend: Math.max(vestedSpend - approvedSpend - pendingSpend, 0),
-        status: approvedAction ? "active" : "locked"
+        status: approvedAction || status && status.status === "active" ? "active" : "locked"
       };
     });
 }
@@ -412,8 +921,29 @@ function getAvailableBalance(db, memberId) {
   const pendingExitBuys = (db.exitActions || [])
     .filter(request => request.memberId === memberId && request.status === "pending" && request.paymentMethod === "available_balance")
     .reduce((total, request) => total + Number(request.actionAmount || 0), 0);
-  const available = dueRewards.reduce((total, entry) => total + Math.max(Number(entry.amount || 0) - Number(entry.withdrawnAmount || 0), 0), 0) - pendingWithdrawals - pendingExitBuys;
+  const pendingTimelineActivations = (db.timelineRequests || [])
+    .filter(request => request.memberId === memberId && request.status === "pending" && request.paymentMethod === "available_balance")
+    .reduce((total, request) => total + Number(request.amount || 0), 0);
+  const available = dueRewards.reduce((total, entry) => total + Math.max(Number(entry.amount || 0) - Number(entry.withdrawnAmount || 0), 0), 0) - pendingWithdrawals - pendingExitBuys - pendingTimelineActivations;
   return Math.max(available, 0);
+}
+
+function getVoucherWallet(db, memberId) {
+  const history = (db.voucherLedger || [])
+    .filter(entry => entry.memberId === memberId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const balance = history.reduce((total, entry) => total + Number(entry.amount || 0), 0);
+  return {
+    balance,
+    history: history.map(entry => ({
+      id: entry.id,
+      type: entry.entryType || entry.type,
+      amount: entry.amount,
+      reference: entry.reference,
+      notes: entry.notes,
+      createdAt: entry.createdAt
+    }))
+  };
 }
 
 function applyBalancePayment(db, memberId, amount) {
@@ -485,6 +1015,158 @@ function ensureDataDirectoryOnly() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
+  if (!fs.existsSync(BACKUP_DIR)) {
+    fs.mkdirSync(BACKUP_DIR, { recursive: true });
+  }
+}
+
+function getLastAuditHash() {
+  if (!fs.existsSync(AUDIT_LOG_FILE)) return "";
+  const entries = fs.readFileSync(AUDIT_LOG_FILE, "utf8").trim().split("\n").filter(Boolean);
+  if (!entries.length) return "";
+  try {
+    return String(JSON.parse(entries[entries.length - 1]).hash || "");
+  } catch (error) {
+    return "";
+  }
+}
+
+function appendOperationalAudit(entry) {
+  ensureDataDirectoryOnly();
+  const record = {
+    id: generateUUID(),
+    createdAt: new Date().toISOString(),
+    previousHash: getLastAuditHash(),
+    ...entry
+  };
+  const hashPayload = JSON.stringify({ ...record, hash: undefined });
+  record.hash = crypto.createHash("sha256").update(hashPayload).digest("hex");
+  const descriptor = fs.openSync(AUDIT_LOG_FILE, "a");
+  try {
+    fs.writeFileSync(descriptor, `${JSON.stringify(record)}\n`, "utf8");
+    fs.fsyncSync(descriptor);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+function readOperationalAudit() {
+  if (!fs.existsSync(AUDIT_LOG_FILE)) return [];
+  return fs.readFileSync(AUDIT_LOG_FILE, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map(line => JSON.parse(line));
+}
+
+function getAuditIntegritySummary() {
+  try {
+    const entries = readOperationalAudit();
+    let previousHash = "";
+    for (const entry of entries) {
+      const expectedHash = crypto.createHash("sha256")
+        .update(JSON.stringify({ ...entry, hash: undefined }))
+        .digest("hex");
+      if (entry.previousHash !== previousHash || entry.hash !== expectedHash) {
+        return { valid: false, entries: entries.length, issue: `Audit chain mismatch at ${entry.id || "an unknown record"}.` };
+      }
+      previousHash = entry.hash;
+    }
+    return { valid: true, entries: entries.length, issue: null };
+  } catch (error) {
+    return { valid: false, entries: 0, issue: "Audit log could not be read." };
+  }
+}
+
+function getOperationsReport(db) {
+  const now = new Date();
+  const rewards = db.rewardLedger || [];
+  const withdrawals = db.withdrawalRequests || [];
+  const approvalCollections = [
+    ["Entry", db.upgradeRequests || []],
+    ["Timeline", db.timelineRequests || []],
+    ["Exit", db.exitActions || []],
+    ["Withdrawal", withdrawals]
+  ];
+  const dueRewards = rewards.filter(entry => entry.status === "due" && new Date(entry.dueAt) <= now);
+  const availableRewards = dueRewards.reduce((sum, entry) => sum + Math.max(Number(entry.amount || 0) - Number(entry.withdrawnAmount || 0), 0), 0);
+  const scheduledRewards = rewards
+    .filter(entry => entry.status !== "paid" && new Date(entry.dueAt) > now)
+    .reduce((sum, entry) => sum + Math.max(Number(entry.amount || 0) - Number(entry.withdrawnAmount || 0), 0), 0);
+  const approvedWithdrawals = withdrawals.filter(request => request.status === "approved");
+  const pendingWithdrawals = withdrawals.filter(request => request.status === "pending");
+  const activationVolume = [...(db.upgradeRequests || []), ...(db.timelineRequests || [])]
+    .filter(request => request.status === "approved")
+    .reduce((sum, request) => sum + Number(request.amount || 0), 0);
+  const exceptions = [];
+
+  for (const entry of rewards) {
+    if (Number(entry.withdrawnAmount || 0) > Number(entry.amount || 0)) {
+      exceptions.push({ category: "Reward ledger", severity: "high", reference: entry.id, detail: "Withdrawn amount exceeds the scheduled reward amount." });
+    }
+    if (entry.status === "paid" && Number(entry.withdrawnAmount || 0) < Number(entry.amount || 0)) {
+      exceptions.push({ category: "Reward ledger", severity: "high", reference: entry.id, detail: "Reward is marked paid before its full amount was recorded." });
+    }
+  }
+  for (const request of approvedWithdrawals) {
+    const originTotal = (request.origins || []).reduce((sum, origin) => sum + Number(origin.amount || 0), 0);
+    if (Math.abs(originTotal - Number(request.amount || 0)) > 0.009) {
+      exceptions.push({ category: "Withdrawal", severity: "high", reference: request.withdrawalCode || request.id, detail: "Recorded withdrawal origins do not equal the approved amount." });
+    }
+    if (!request.latestDecision?.note) {
+      exceptions.push({ category: "Withdrawal", severity: "medium", reference: request.withdrawalCode || request.id, detail: "Approved payout has no recorded decision evidence." });
+    }
+  }
+  for (const [workflow, records] of approvalCollections) {
+    for (const record of records.filter(item => item.status === "approved" || item.status === "rejected")) {
+      if (!record.latestDecision?.note) {
+        exceptions.push({ category: "Approval evidence", severity: "medium", reference: record.id, detail: `${workflow} record has no recorded decision evidence.` });
+      }
+    }
+  }
+  const activeMemberIds = new Set((db.members || []).filter(member => member.status === "active").map(member => member.id));
+  for (const position of db.positions || []) {
+    if (!activeMemberIds.has(position.memberId)) {
+      exceptions.push({ category: "Matrix placement", severity: "high", reference: position.id, detail: "Placement belongs to a member that is not active." });
+    }
+  }
+  for (const review of db.identityReviews || []) {
+    if (review.status === "open") {
+      exceptions.push({ category: "Identity review", severity: "medium", reference: review.id, detail: `${review.type.replace(/-/g, " ")} requires administrator review.` });
+    }
+  }
+  const audit = getAuditIntegritySummary();
+  if (!audit.valid) exceptions.push({ category: "Audit trail", severity: "high", reference: "operational-audit", detail: audit.issue });
+  const decisionCount = approvalCollections.reduce((sum, [, records]) => sum + records.filter(record => (record.decisionHistory || []).length > 0).length, 0);
+  return {
+    generatedAt: now.toISOString(),
+    metrics: {
+      availableRewards,
+      scheduledRewards,
+      approvedPayouts: approvedWithdrawals.reduce((sum, request) => sum + Number(request.amount || 0), 0),
+      pendingPayouts: pendingWithdrawals.reduce((sum, request) => sum + Number(request.amount || 0), 0),
+      activationVolume,
+      activeMembers: activeMemberIds.size,
+      recordedDecisions: decisionCount,
+      auditEntries: audit.entries
+    },
+    audit,
+    exceptions: exceptions.sort((a, b) => a.severity.localeCompare(b.severity) || a.category.localeCompare(b.category))
+  };
+}
+
+function buildAuditRecord(action, payload, auth) {
+  const targetId = payload.memberId || payload.requestId || payload.pendingId || payload.claimId || null;
+  return {
+    action,
+    actor: auth ? {
+      role: auth.role,
+      memberId: auth.memberId || null,
+      operatorName: auth.role === "admin" ? adminActor(auth) : null,
+      sessionRef: auth.sessionRef || null
+    } : { role: "system" },
+    targetId: targetId ? String(targetId) : null,
+    metadata: {}
+  };
 }
 
 function generateUUID() {
@@ -499,6 +1181,78 @@ function addActivityLog(db, type, message) {
     createdAt: new Date().toISOString()
   });
   if (db.logs.length > 100) db.logs.length = 100;
+}
+
+function getApprovalRequest(db, workflow, requestId) {
+  const collections = {
+    entry: db.upgradeRequests || [],
+    timeline: db.timelineRequests || [],
+    exit: db.exitActions || [],
+    withdrawal: db.withdrawalRequests || []
+  };
+  const request = (collections[workflow] || []).find(item => item.id === requestId);
+  if (!request) throw new Error("Approval record was not found.");
+  return request;
+}
+
+function hasIrreversibleEntryHistory(db, memberId, planId) {
+  const hasChildren = (db.positions || []).some(position => position.planId === planId && position.parentMemberId === memberId);
+  const hasPaidReward = (db.rewardLedger || []).some(entry =>
+    entry.memberId === memberId && entry.planId === planId && (Number(entry.withdrawnAmount || 0) > 0 || entry.status === "paid")
+  );
+  const hasApprovedExit = planId === "power3-passive" && (db.exitActions || []).some(action =>
+    action.memberId === memberId && action.status === "approved"
+  );
+  return hasChildren || hasPaidReward || hasApprovedExit;
+}
+
+function reverseApprovedRequest(db, workflow, request, reason, auth) {
+  const member = db.members.find(item => item.id === request.memberId);
+  if (workflow === "withdrawal") {
+    throw new Error("Approved withdrawals cannot be reversed here because payout may already have been sent. Record a reconciliation adjustment instead.");
+  }
+  if (workflow === "entry" || workflow === "timeline") {
+    const planId = workflow === "entry" ? "power3-passive" : "timeline-power3";
+    if (hasIrreversibleEntryHistory(db, request.memberId, planId)) {
+      throw new Error("This activation has descendants or paid rewards and must be handled through reconciliation, not automatic reversal.");
+    }
+    db.positions = (db.positions || []).filter(position => !(position.memberId === request.memberId && position.planId === planId));
+    db.rewardLedger = (db.rewardLedger || []).filter(entry => !(entry.memberId === request.memberId && entry.planId === planId));
+    if (workflow === "entry" && member) {
+      member.status = "registered";
+      member.approvedAt = null;
+      member.cumulativeF3Tokens = 0;
+    }
+    if (workflow === "timeline") {
+      db.timelineExitProgress = (db.timelineExitProgress || []).filter(entry => entry.memberId !== request.memberId);
+    }
+  }
+  if (workflow === "exit") {
+    const hasLaterExit = (db.exitActions || []).some(item =>
+      item.memberId === request.memberId && item.status === "approved" && Number(item.exit) > Number(request.exit)
+    );
+    const exitRewards = (db.rewardLedger || []).filter(entry =>
+      entry.memberId === request.memberId && entry.planId === "power3-passive" && Number(entry.exit) === Number(request.exit)
+    );
+    if (hasLaterExit || exitRewards.some(entry => Number(entry.withdrawnAmount || 0) > 0 || entry.status === "paid")) {
+      throw new Error("This Exit approval has later activity or paid rewards and must be handled through reconciliation, not automatic reversal.");
+    }
+    db.rewardLedger = (db.rewardLedger || []).filter(entry => !exitRewards.includes(entry));
+  }
+  request.status = "reversed";
+  request.reversedAt = new Date().toISOString();
+  recordDecision(request, "reversed", reason, auth, { reversedDecisionId: request.latestDecision ? request.latestDecision.id : null });
+  db.approvalReversals.push({
+    id: generateUUID(),
+    workflow,
+    requestId: request.id,
+    memberId: request.memberId,
+    status: "completed",
+    reason: request.latestDecision.note,
+    reversedAt: request.reversedAt,
+    reversedBy: adminActor(auth)
+  });
+  return request;
 }
 
 function findMemberByUsername(db, username) {
@@ -556,25 +1310,24 @@ function getMemberTree(db, memberId, planId) {
         .filter(Boolean)
       : [];
 
-    for (const referredMember of includeChildren ? getReservedChildren(db, currentMemberId, planId) : []) {
+    for (const referredMember of includeChildren && planId !== "timeline-power3" ? getReservedChildren(db, currentMemberId, planId) : []) {
       children.push({
         id: referredMember.id,
         fullName: referredMember.fullName,
         username: referredMember.username,
         accountCode: referredMember.accountCode,
-        walletAddress: referredMember.walletAddress,
         isReferralPending: true,
         matrixStage: { label: "Not Registered", status: "registered", exit: 0 },
         children: []
       });
     }
 
-    const openSlots = includeChildren ? Math.max(plan.maxChildren - children.length, 0) : 0;
+    const openSlots = includeChildren && planId !== "timeline-power3" ? Math.max(plan.maxChildren - children.length, 0) : 0;
     for (let index = 0; index < openSlots; index += 1) {
       children.push({ isOpenSlot: true, label: "Open Spot" });
     }
 
-    const progressedExits = getExitStatuses(db, currentMemberId)
+    const progressedExits = (planId === "timeline-power3" ? getTimelineExitStatuses(db, currentMemberId) : getExitStatuses(db, currentMemberId))
       .filter(exit => exit.status !== "locked")
       .sort((a, b) => Number(b.exit) - Number(a.exit));
     const currentExit = progressedExits[0] || null;
@@ -583,7 +1336,6 @@ function getMemberTree(db, memberId, planId) {
       id: currentMember.id,
       fullName: currentMember.fullName,
       username: currentMember.username,
-      walletAddress: currentMember.walletAddress,
       planId,
       parent: parentMember ? {
         id: parentMember.id,
@@ -644,30 +1396,46 @@ function seedSampleData(db) {
   addActivityLog(db, "system", "Power of Three sample matrix established.");
 }
 
-function handleAction(action, payload, auth = null) {
+function handleAction(action, payload, auth = null, context = {}) {
   ensureDatabase();
   const db = readDatabase();
+  assertActionAuthorization(db, action, payload, auth);
   let shouldWrite = false;
   let data;
 
   switch (action) {
     case "authenticateMember": {
       const credential = String(payload.credential || "").trim().toLowerCase();
+      assertLoginAllowed(context, "member", credential);
       const account = [...(db.members || []), ...(db.pending || [])].find(item =>
         String(item.email || "").toLowerCase() === credential ||
         String(item.walletAddress || "").toLowerCase() === credential
       );
-      if (!account || !passwordMatches(payload.password, account.passwordHash)) throw new Error("Incorrect email, wallet address, or password.");
-      data = { token: createAuthSession("member", account.id), account: { ...account, passwordHash: undefined } };
+      if (!account || !passwordMatches(payload.password, account.passwordHash)) {
+        recordLoginFailure(context, "member", credential);
+        throw new Error("Incorrect email, wallet address, or password.");
+      }
+      clearLoginFailures(context, "member", credential);
+      data = { token: createAuthSession("member", account.id, null, account.authVersion), account: { ...account, passwordHash: undefined } };
       break;
     }
     case "authenticateAdmin": {
+      assertLoginAllowed(context, "admin", "control-panel");
       if (!passwordMatches(payload.password, db.settings.adminPasswordHash)) {
+        recordLoginFailure(context, "admin", "control-panel");
         throw new Error("Incorrect admin password. Please try again.");
       }
-      data = { token: createAuthSession("admin") };
+      clearLoginFailures(context, "admin", "control-panel");
+      const operatorName = payload.operatorName
+        ? validatePersonName(payload.operatorName, "Operator name")
+        : "Local administrator";
+      data = { token: createAuthSession("admin", null, operatorName, db.settings.adminAuthVersion), operatorName };
       break;
     }
+    case "signOut":
+      invalidateAuthSession(auth);
+      data = true;
+      break;
     case "initializeDatabase":
       data = true;
       break;
@@ -678,6 +1446,8 @@ function handleAction(action, payload, auth = null) {
       data = getMatrixRules();
       break;
     case "getMemberMatrixSummary": {
+      if (ensureTimelineProgression(db)) shouldWrite = true;
+      const planId = payload.planId || "power3-passive";
       const member = db.members.find(item => item.id === payload.memberId);
       if (!member) {
         data = null;
@@ -692,10 +1462,19 @@ function handleAction(action, payload, auth = null) {
       const pendingExitBalance = (db.exitActions || [])
         .filter(request => request.memberId === member.id && request.status === "pending" && request.paymentMethod === "available_balance")
         .reduce((total, request) => total + Number(request.actionAmount || 0), 0);
-      const memberPosition = db.positions.find(position => position.memberId === member.id);
+      const pendingTimelineBalance = (db.timelineRequests || [])
+        .filter(request => request.memberId === member.id && request.status === "pending" && request.paymentMethod === "available_balance")
+        .reduce((total, request) => total + Number(request.amount || 0), 0);
+      const memberPosition = db.positions.find(position => position.memberId === member.id && position.planId === planId);
+      const positionNumber = memberPosition
+        ? db.positions
+          .filter(position => position.planId === planId)
+          .sort((a, b) => new Date(a.placedAt || 0) - new Date(b.placedAt || 0))
+          .findIndex(position => position.memberId === member.id) + 1
+        : 0;
       const childrenByParent = new Map();
       db.positions.forEach(position => {
-        if (!memberPosition || position.planId !== memberPosition.planId || !position.parentMemberId) return;
+        if (!memberPosition || position.planId !== planId || !position.parentMemberId) return;
         const children = childrenByParent.get(position.parentMemberId) || [];
         children.push(position.memberId);
         childrenByParent.set(position.parentMemberId, children);
@@ -711,17 +1490,25 @@ function handleAction(action, payload, auth = null) {
         pendingDescendants.push(...(childrenByParent.get(descendantId) || []));
       }
       data = {
-        rules: getMatrixRules(),
-        exits: getExitStatuses(db, member.id),
-        rewardLedger: ledger.filter(entry => entry.memberId === member.id),
+        rules: getRulesForPlan(planId),
+        planId,
+        isTimelineActive: Boolean(getMemberPosition(db, member.id, "timeline-power3")),
+        pendingTimelineRequest: (db.timelineRequests || []).find(request => request.memberId === member.id && request.status === "pending") || null,
+        exits: planId === "timeline-power3" ? getTimelineExitStatuses(db, member.id) : getExitStatuses(db, member.id),
+        rewardLedger: ledger.filter(entry => entry.memberId === member.id && (planId === "power3-passive" ? !entry.planId || entry.planId === "power3-passive" : entry.planId === planId)),
         earnedBalance,
         pendingExitBalance,
+        pendingTimelineBalance,
         descendantCount,
+        referralCount: (db.members || []).filter(account => account.sponsorId === member.id).length,
+        position: memberPosition || null,
+        positionNumber,
         pendingWithdrawal: (db.withdrawalRequests || [])
           .filter(request => request.memberId === member.id && request.status === "pending")
           .reduce((total, request) => total + Number(request.amount || 0), 0),
-        productPlusClaims: (db.productPlusClaims || []).filter(claim => claim.memberId === member.id),
-        productPlusEntitlements: getProductPlusEntitlements(db, member.id)
+        productPlusClaims: (db.productPlusClaims || []).filter(claim => claim.memberId === member.id && (claim.planId || "power3-passive") === planId),
+        productPlusEntitlements: getProductPlusEntitlements(db, member.id, planId),
+        vouchers: getVoucherWallet(db, member.id)
       };
       break;
     }
@@ -729,7 +1516,8 @@ function handleAction(action, payload, auth = null) {
       {
         const updates = { ...(payload.settings || payload) };
         if (updates.adminPassword) {
-          updates.adminPasswordHash = hashPassword(boundedText(updates.adminPassword, "Admin password", 128, 8));
+          updates.adminPasswordHash = hashPassword(validatePassword(updates.adminPassword, "Admin password"));
+          updates.adminAuthVersion = Number(db.settings.adminAuthVersion || 0) + 1;
           delete updates.adminPassword;
         }
         db.settings = { ...db.settings, ...updates };
@@ -764,6 +1552,18 @@ function handleAction(action, payload, auth = null) {
     case "getUpgradeRequests":
       data = (db.upgradeRequests || []).map(request => { const member = db.members.find(item => item.id === request.memberId); const sponsor = member && member.sponsorId ? db.members.find(item => item.id === member.sponsorId) : null; return { ...request, fullName: member ? member.fullName : "Unknown", username: member ? member.username : "unknown", accountCode: member ? member.accountCode : "", walletAddress: member ? member.walletAddress : "", fixedParentId: sponsor ? sponsor.id : null, fixedParentName: sponsor ? sponsor.fullName : null, fixedParentCode: sponsor ? sponsor.accountCode : null }; });
       break;
+    case "getTimelineRequests":
+      data = (db.timelineRequests || []).map(request => {
+        const member = db.members.find(item => item.id === request.memberId);
+        return {
+          ...request,
+          fullName: member ? member.fullName : "Unknown",
+          username: member ? member.username : "unknown",
+          accountCode: member ? member.accountCode : "",
+          availableBalance: member ? getAvailableBalance(db, member.id) + (request.status === "pending" && request.paymentMethod === "available_balance" ? Number(request.amount || 0) : 0) : 0
+        };
+      });
+      break;
     case "getMemberWithdrawalRequests":
       data = (db.withdrawalRequests || [])
         .filter(request => request.memberId === payload.memberId)
@@ -779,6 +1579,48 @@ function handleAction(action, payload, auth = null) {
         };
       });
       break;
+    case "getIdentityReviews":
+      data = (db.identityReviews || []).map(review => ({
+        ...review,
+        members: review.memberIds.map(memberId => {
+          const member = db.members.find(item => item.id === memberId);
+          return member ? {
+            id: member.id,
+            accountCode: member.accountCode,
+            fullName: member.fullName,
+            username: member.username,
+            phone: member.phone
+          } : null;
+        }).filter(Boolean)
+      }));
+      break;
+    case "getApprovalDecisionHistory": {
+      const records = [
+        ["entry", db.upgradeRequests || []],
+        ["timeline", db.timelineRequests || []],
+        ["exit", db.exitActions || []],
+        ["withdrawal", db.withdrawalRequests || []]
+      ].flatMap(([workflow, requests]) => requests
+        .filter(request => (request.decisionHistory || []).length > 0)
+        .map(request => {
+          const member = db.members.find(item => item.id === request.memberId);
+          return {
+            workflow,
+            requestId: request.id,
+            status: request.status,
+            amount: Number(request.amount || request.actionAmount || 0),
+            exit: request.exit || null,
+            createdAt: request.createdAt,
+            latestDecision: request.latestDecision || null,
+            fullName: member ? member.fullName : "Unknown member",
+            accountCode: member ? member.accountCode : "",
+            username: member ? member.username : ""
+          };
+        }))
+        .sort((a, b) => new Date(b.latestDecision?.decidedAt || b.createdAt) - new Date(a.latestDecision?.decidedAt || a.createdAt));
+      data = records.slice(0, 100);
+      break;
+    }
     case "getMembers":
       data = db.members.map(publicAccount);
       break;
@@ -786,13 +1628,18 @@ function handleAction(action, payload, auth = null) {
       data = db.positions;
       break;
     case "getMemberById":
-      data = publicAccount(db.members.find(item => item.id === payload.memberId));
+      {
+        const account = getAccountById(db, payload.memberId);
+        data = auth && auth.role === "member" && payload.memberId !== auth.memberId
+          ? publicMemberPreview(account)
+          : publicAccount(account);
+      }
       break;
     case "getMemberByUsername":
-      data = publicAccount(findMemberByUsername(db, payload.username));
+      data = publicMemberPreview(findMemberByUsername(db, payload.username));
       break;
     case "getMemberByAccountCode":
-      data = publicAccount(findMemberByAccountCode(db, payload.accountCode));
+      data = publicMemberPreview(findMemberByAccountCode(db, payload.accountCode));
       break;
     case "getMemberByCredential": {
       const cleanCred = String(payload.emailOrWallet || "").trim().toLowerCase();
@@ -808,7 +1655,7 @@ function handleAction(action, payload, auth = null) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email address.");
       const phone = validateGcashNumber(memberData.phone);
       const wallet = validateF3Wallet(memberData.walletAddress);
-      const password = boundedText(payload.password, "Password", 128, 8);
+      const password = validatePassword(payload.password);
       const existsInMembers = db.members.some(item => item.username.toLowerCase() === username.toLowerCase() || item.email.toLowerCase() === email.toLowerCase() || item.walletAddress.toLowerCase() === wallet.toLowerCase());
       const existsInPending = db.pending.some(item => (item.status === "pending" || item.status === "active") && (item.username.toLowerCase() === username.toLowerCase() || item.email.toLowerCase() === email.toLowerCase() || item.walletAddress.toLowerCase() === wallet.toLowerCase()));
       if (existsInMembers || existsInPending) throw new Error("Username, Email, or Wallet Address is already registered or has a pending request.");
@@ -829,6 +1676,7 @@ function handleAction(action, payload, auth = null) {
         phone,
         walletAddress: wallet,
         passwordHash: hashPassword(password),
+        authVersion: 0,
         sponsorId: sponsor ? sponsor.id : null,
         status: "registered",
         cumulativeF3Tokens: 0,
@@ -837,20 +1685,87 @@ function handleAction(action, payload, auth = null) {
       db.members.push(newRequest);
       addActivityLog(db, "registration", `New free account for ${newRequest.fullName} (${newRequest.username})`);
       shouldWrite = true;
-      data = newRequest;
+      data = { account: publicAccount(newRequest), token: createAuthSession("member", newRequest.id, null, newRequest.authVersion) };
       break;
     }
     case "requestUpgrade": {
       const member = db.members.find(item => item.id === payload.memberId);
       if (!member) throw new Error("Member not found.");
       if (member.status === "active") throw new Error("Entry is already active.");
-      const referenceNumber = String(payload.referenceNumber || "").trim().toUpperCase();
-      if (!/^[A-Z0-9-]{6,40}$/.test(referenceNumber)) throw new Error("Enter a valid GCash reference number.");
-      if ((db.upgradeRequests || []).some(item => item.referenceNumber === referenceNumber)) throw new Error("This reference number is already in use.");
+      const referenceNumber = normalizePaymentReference(payload.referenceNumber);
+      assertPaymentReferenceAvailable(db, referenceNumber, member.id, "entry");
       if ((db.upgradeRequests || []).some(item => item.memberId === member.id && item.status === "pending")) throw new Error("You already have a pending Entry request.");
       const request = { id: generateUUID(), memberId: member.id, planId: "power3-passive", amount: 1200, referenceNumber, status: "pending", createdAt: new Date().toISOString() };
       db.upgradeRequests.push(request); shouldWrite = true; data = request;
       addActivityLog(db, "upgrade-request", `${member.fullName} requested Entry activation.`);
+      break;
+    }
+    case "requestTimelineActivation": {
+      const member = db.members.find(item => item.id === payload.memberId);
+      if (!member) throw new Error("Member not found.");
+      if (getMemberPosition(db, member.id, "timeline-power3")) throw new Error("Timeline Matrix is already active for this account.");
+      if ((db.timelineRequests || []).some(item => item.memberId === member.id && item.status === "pending")) throw new Error("You already have a pending Timeline Matrix request.");
+      const paymentMethod = String(payload.paymentMethod || "gcash").trim();
+      const amount = TIMELINE_RULES.entry.price;
+      const request = {
+        id: generateUUID(),
+        memberId: member.id,
+        planId: "timeline-power3",
+        amount,
+        paymentMethod: paymentMethod === "available_balance" ? "available_balance" : "gcash",
+        gcashName: "",
+        gcashNumber: "",
+        referenceNumber: "",
+        status: "pending",
+        createdAt: new Date().toISOString()
+      };
+      if (request.paymentMethod === "available_balance") {
+        if (getAvailableBalance(db, member.id) < amount) throw new Error("Not enough available balance for Timeline activation.");
+      } else {
+        request.gcashName = validatePersonName(payload.gcashName, "GCash name");
+        request.gcashNumber = validateGcashNumber(payload.gcashNumber);
+        request.referenceNumber = normalizePaymentReference(payload.referenceNumber);
+        assertPaymentReferenceAvailable(db, request.referenceNumber, member.id, "timeline");
+      }
+      db.timelineRequests.push(request);
+      addActivityLog(db, "timeline-request", `${member.fullName} requested Timeline Matrix activation.`);
+      shouldWrite = true;
+      data = request;
+      break;
+    }
+    case "approveTimelineActivation": {
+      const request = (db.timelineRequests || []).find(item => item.id === payload.requestId);
+      if (!request || request.status !== "pending") throw new Error("Timeline request is no longer pending.");
+      const member = db.members.find(item => item.id === request.memberId);
+      if (!member) throw new Error("Member not found.");
+      if (getMemberPosition(db, member.id, "timeline-power3")) throw new Error("Timeline Matrix is already active for this account.");
+      if (request.paymentMethod === "available_balance") {
+        const availableIncludingReservation = getAvailableBalance(db, member.id) + Number(request.amount || 0);
+        if (availableIncludingReservation < Number(request.amount || 0)) throw new Error("Not enough available balance.");
+        applyBalancePayment(db, member.id, request.amount);
+      }
+      const placedAt = new Date().toISOString();
+      const parentMemberId = getNextTimelineParentId(db);
+      db.positions.push({ id: generateUUID(), memberId: member.id, planId: "timeline-power3", parentMemberId, placedAt });
+      request.status = "approved";
+      request.approvedAt = placedAt;
+      request.parentMemberId = parentMemberId;
+      recordDecision(request, "approved", payload.decisionNote, auth);
+      ensureTimelineProgression(db);
+      addActivityLog(db, "timeline-approval", `Approved Timeline Matrix activation for ${member.fullName}.`);
+      shouldWrite = true;
+      data = request;
+      break;
+    }
+    case "rejectTimelineActivation": {
+      const request = (db.timelineRequests || []).find(item => item.id === payload.requestId);
+      if (!request || request.status !== "pending") throw new Error("Timeline request is no longer pending.");
+      request.status = "rejected";
+      request.rejectedAt = new Date().toISOString();
+      recordDecision(request, "rejected", payload.decisionNote, auth);
+      addActivityLog(db, "timeline-rejection", "Rejected Timeline Matrix activation request.");
+      shouldWrite = true;
+      data = request;
       break;
     }
     case "approveUpgrade": {
@@ -865,10 +1780,10 @@ function handleAction(action, payload, auth = null) {
       } else if (db.positions.some(item => item.planId === request.planId && item.parentMemberId === null)) throw new Error("Select a parent because a root already exists.");
       member.status = "active"; member.approvedAt = new Date().toISOString(); member.cumulativeF3Tokens = 20;
       db.positions.push({ id: generateUUID(), memberId: member.id, planId: request.planId, parentMemberId, placedAt: member.approvedAt });
-      ensureEntryRewardLedger(db, member); request.status = "approved"; request.approvedAt = member.approvedAt; shouldWrite = true; data = request;
+      ensureEntryRewardLedger(db, member); request.status = "approved"; request.approvedAt = member.approvedAt; recordDecision(request, "approved", payload.decisionNote, auth); shouldWrite = true; data = request;
       break;
     }
-    case "rejectUpgrade": { const request = (db.upgradeRequests || []).find(item => item.id === payload.requestId); if (!request || request.status !== "pending") throw new Error("Upgrade request is no longer pending."); request.status="rejected"; request.rejectedAt=new Date().toISOString(); shouldWrite=true; data=request; break; }
+    case "rejectUpgrade": { const request = (db.upgradeRequests || []).find(item => item.id === payload.requestId); if (!request || request.status !== "pending") throw new Error("Upgrade request is no longer pending."); request.status="rejected"; request.rejectedAt=new Date().toISOString(); recordDecision(request, "rejected", payload.decisionNote, auth); shouldWrite=true; data=request; break; }
     case "approveAndPlace": {
       const pendingIndex = db.pending.findIndex(item => item.id === payload.pendingId);
       if (pendingIndex === -1) throw new Error("Pending registration request not found.");
@@ -914,6 +1829,7 @@ function handleAction(action, payload, auth = null) {
       db.positions.push({ id: generateUUID(), memberId: newMember.id, planId: plan.id, parentMemberId: isRoot ? null : parentMemberId, placedAt: new Date().toISOString() });
       ensureEntryRewardLedger(db, newMember);
       pending.status = "approved";
+      recordDecision(pending, "approved", payload.decisionNote, auth);
       db.pending[pendingIndex] = pending;
       addActivityLog(db, "approval", `Approved & placed member ${newMember.fullName} (${newMember.username}) in ${plan.name}`);
       shouldWrite = true;
@@ -943,22 +1859,26 @@ function handleAction(action, payload, auth = null) {
       } else {
         validatePersonName(details.gcashName, "GCash name");
         validateGcashNumber(details.gcashNumber);
-        if (!/^[A-Za-z0-9-]{6,40}$/.test(String(details.referenceNumber || "").trim())) throw new Error("Enter a valid 6–40 character GCash reference.");
+        normalizePaymentReference(details.referenceNumber);
       }
+      const resolvedPaymentMethod = exitRule.actionType === "reinvest"
+        ? "f3_wallet"
+        : paymentMethod === "available_balance" ? "available_balance" : "gcash";
       const request = {
         id: generateUUID(),
         memberId: member.id,
         exit,
         actionType: exitRule.actionType,
         actionAmount: exitRule.actionAmount,
-        paymentMethod: exitRule.actionType === "reinvest" ? "f3_wallet" : (paymentMethod === "available_balance" ? "available_balance" : "gcash"),
+        paymentMethod: resolvedPaymentMethod,
         f3Wallet: String(details.f3Wallet || "").trim().slice(0, 52),
         gcashName: String(details.gcashName || "").trim().slice(0, 30),
-        gcashNumber: paymentMethod === "available_balance" ? "" : String(details.gcashNumber || "").replace(/\D/g, ""),
-        referenceNumber: String(details.referenceNumber || "").trim(),
+        gcashNumber: resolvedPaymentMethod === "gcash" ? String(details.gcashNumber || "").replace(/\D/g, "") : "",
+        referenceNumber: resolvedPaymentMethod === "gcash" ? normalizePaymentReference(details.referenceNumber) : "",
         status: "pending",
         createdAt: new Date().toISOString()
       };
+      if (request.paymentMethod === "gcash") assertPaymentReferenceAvailable(db, request.referenceNumber, member.id, "exit");
       db.exitActions.push(request);
       addActivityLog(db, "exit-request", `${member.fullName} requested ${exitRule.actionLabel} for Exit ${exit}.`);
       shouldWrite = true;
@@ -979,6 +1899,7 @@ function handleAction(action, payload, auth = null) {
       }
       request.status = "approved";
       request.approvedAt = new Date().toISOString();
+      recordDecision(request, "approved", payload.decisionNote, auth);
       createExitRewardLedger(db, request.memberId, exitRule, request.approvedAt);
       const member = db.members.find(item => item.id === request.memberId);
       addActivityLog(db, "exit-approval", `Approved Exit ${request.exit} ${exitRule.actionLabel} for ${member ? member.fullName : request.memberId}.`);
@@ -992,6 +1913,7 @@ function handleAction(action, payload, auth = null) {
       if (request.status !== "pending") throw new Error("This request is no longer pending.");
       request.status = "rejected";
       request.rejectedAt = new Date().toISOString();
+      recordDecision(request, "rejected", payload.decisionNote, auth);
       addActivityLog(db, "exit-rejection", `Rejected Exit ${request.exit} action request.`);
       shouldWrite = true;
       data = request;
@@ -1001,7 +1923,7 @@ function handleAction(action, payload, auth = null) {
       const member = db.members.find(item => item.id === payload.memberId);
       if (!member) throw new Error("Member not found.");
       const amount = Number(payload.amount);
-      if (!Number.isFinite(amount) || amount <= 0) throw new Error("Invalid withdrawal amount.");
+      if (!Number.isFinite(amount) || amount < MIN_WITHDRAWAL_AMOUNT) throw new Error(`Withdrawal amount must be at least PHP ${MIN_WITHDRAWAL_AMOUNT.toLocaleString()}.`);
       const availableBalance = getAvailableBalance(db, member.id);
       if (amount > availableBalance) throw new Error("Withdrawal amount exceeds available balance.");
       const accountName = String(payload.accountName || "").trim();
@@ -1054,6 +1976,7 @@ function handleAction(action, payload, auth = null) {
       if (remaining > 0) throw new Error("Not enough due balance remains for this withdrawal.");
       request.status = "approved";
       request.approvedAt = new Date().toISOString();
+      recordDecision(request, "approved", payload.decisionNote, auth);
       addActivityLog(db, "withdrawal-approval", `Approved PHP ${Number(request.amount).toLocaleString()} withdrawal.`);
       shouldWrite = true;
       data = request;
@@ -1065,6 +1988,7 @@ function handleAction(action, payload, auth = null) {
       if (request.status !== "pending") throw new Error("This withdrawal is no longer pending.");
       request.status = "rejected";
       request.rejectedAt = new Date().toISOString();
+      recordDecision(request, "rejected", payload.decisionNote, auth);
       addActivityLog(db, "withdrawal-rejection", "Rejected withdrawal request.");
       shouldWrite = true;
       data = request;
@@ -1074,9 +1998,10 @@ function handleAction(action, payload, auth = null) {
       const member = db.members.find(item => item.id === payload.memberId);
       if (!member) throw new Error("Member not found.");
       const exit = Number(payload.exit);
+      const planId = payload.planId || "power3-passive";
       const spendAmount = Number(payload.spendAmount);
       if (!Number.isFinite(spendAmount) || spendAmount <= 0) throw new Error("Invalid product spend amount.");
-      const entitlement = getProductPlusEntitlements(db, member.id).find(item => item.exit === exit);
+      const entitlement = getProductPlusEntitlements(db, member.id, planId).find(item => item.exit === exit);
       if (!entitlement || !entitlement.active) throw new Error("Products Plus entitlement is not active for this exit.");
       if (spendAmount > entitlement.availableVestedSpend) throw new Error("Claim amount exceeds the Products Plus amount vested so far.");
       const purchaseReference = boundedText(payload.reference, "Purchase reference", 60, 3);
@@ -1086,10 +2011,11 @@ function handleAction(action, payload, auth = null) {
       const claim = {
         id: generateUUID(),
         memberId: member.id,
+        planId,
         exit,
         spendAmount,
         bonusPercent: entitlement.productBonusPercent,
-        bonusAmount: spendAmount * (entitlement.productBonusPercent / 100),
+        bonusAmount: entitlement.productBaseSpend ? spendAmount * (Number(entitlement.productBonusAmount || 0) / Number(entitlement.productBaseSpend || 1)) : spendAmount * (entitlement.productBonusPercent / 100),
         purchaseReference,
         purchaseNotes,
         status: "pending",
@@ -1107,6 +2033,18 @@ function handleAction(action, payload, auth = null) {
       if (claim.status !== "pending") throw new Error("This claim is no longer pending.");
       claim.status = "approved";
       claim.approvedAt = new Date().toISOString();
+      db.voucherLedger = db.voucherLedger || [];
+      db.voucherLedger.push({
+        id: generateUUID(),
+        memberId: claim.memberId,
+        claimId: claim.id,
+        planId: claim.planId || "power3-passive",
+        entryType: "credit",
+        amount: Number(claim.bonusAmount || 0),
+        reference: `${claim.planId === "timeline-power3" ? "Timeline" : "Power"} Products Plus Exit ${claim.exit}`,
+        notes: "Approved purchase bonus",
+        createdAt: claim.approvedAt
+      });
       addActivityLog(db, "products-plus-approval", `Approved Products Plus claim for Exit ${claim.exit}.`);
       shouldWrite = true;
       data = claim;
@@ -1127,9 +2065,33 @@ function handleAction(action, payload, auth = null) {
       const pending = db.pending.find(item => item.id === payload.pendingId);
       if (!pending) throw new Error("Pending registration request not found.");
       pending.status = "rejected";
+      recordDecision(pending, "rejected", payload.decisionNote, auth);
       addActivityLog(db, "rejection", `Rejected registration request for ${pending.fullName} (${pending.username})`);
       shouldWrite = true;
       data = pending;
+      break;
+    }
+    case "reverseApprovalDecision": {
+      const workflow = String(payload.workflow || "").trim();
+      const request = getApprovalRequest(db, workflow, String(payload.requestId || ""));
+      const reason = validateDecisionNote(payload.decisionNote, "Reversal reason");
+      if (request.status === "rejected") {
+        request.status = "pending";
+        request.reopenedAt = new Date().toISOString();
+        recordDecision(request, "reopened", reason, auth, { reversedDecisionId: request.latestDecision ? request.latestDecision.id : null });
+        db.approvalReversals.push({
+          id: generateUUID(), workflow, requestId: request.id, memberId: request.memberId,
+          status: "reopened", reason, reversedAt: request.reopenedAt, reversedBy: adminActor(auth)
+        });
+        addActivityLog(db, "approval-reopened", `Reopened ${workflow} request ${request.id.slice(0, 8)} for review.`);
+      } else if (request.status === "approved") {
+        reverseApprovedRequest(db, workflow, request, reason, auth);
+        addActivityLog(db, "approval-reversed", `Reversed ${workflow} approval ${request.id.slice(0, 8)}.`);
+      } else {
+        throw new Error("Only approved or rejected requests can be reversed.");
+      }
+      shouldWrite = true;
+      data = request;
       break;
     }
     case "deleteMember": {
@@ -1155,7 +2117,7 @@ function handleAction(action, payload, auth = null) {
       break;
     }
     case "getPositionByMemberId":
-      data = db.positions.find(item => item.memberId === payload.memberId) || null;
+      data = db.positions.find(item => item.memberId === payload.memberId && (!payload.planId || item.planId === payload.planId)) || null;
       break;
     case "getEligibleParents": {
       const plan = MATRIX_PLANS[payload.planId];
@@ -1195,6 +2157,9 @@ function handleAction(action, payload, auth = null) {
     case "getActivityLogs":
       data = db.logs;
       break;
+    case "getOperationsReport":
+      data = getOperationsReport(db);
+      break;
     case "resetAllData":
       Object.assign(db, clone(DEFAULT_DB));
       addActivityLog(db, "system", "Database reset complete.");
@@ -1225,7 +2190,11 @@ function handleAction(action, payload, auth = null) {
       throw new Error(`Unknown MatrixDB action: ${action}`);
   }
 
-  if (shouldWrite) writeDatabase(db);
+  if (shouldWrite) {
+    syncPaymentReferenceRegistry(db);
+    syncIdentityReviews(db);
+    writeDatabase(db, buildAuditRecord(action, payload, auth));
+  }
   return data;
 }
 
@@ -1309,11 +2278,11 @@ http.createServer(async (request, response) => {
     try {
       const payload = await readJsonBody(request);
       const auth = getAuthSession(request);
-      const adminActions = new Set(["saveSettings", "approveAndPlace", "rejectPending", "approveUpgrade", "rejectUpgrade", "approveExitAction", "rejectExitAction", "approveWithdrawal", "rejectWithdrawal", "approveProductPlusClaim", "rejectProductPlusClaim", "deleteMember", "resetAllData", "importData", "seedSampleData"]);
-      const memberActions = new Set(["requestUpgrade", "requestExitAction", "requestWithdrawal", "requestProductPlusClaim"]);
+      const adminActions = new Set(["saveSettings", "approveAndPlace", "rejectPending", "approveUpgrade", "rejectUpgrade", "approveTimelineActivation", "rejectTimelineActivation", "approveExitAction", "rejectExitAction", "approveWithdrawal", "rejectWithdrawal", "approveProductPlusClaim", "rejectProductPlusClaim", "reverseApprovalDecision", "deleteMember", "resetAllData", "importData", "seedSampleData"]);
+      const memberActions = new Set(["requestUpgrade", "requestTimelineActivation", "requestExitAction", "requestWithdrawal", "requestProductPlusClaim"]);
       if (adminActions.has(action) && (!auth || auth.role !== "admin")) throw new Error("Administrator authentication is required.");
       if (memberActions.has(action) && (!auth || (auth.role !== "admin" && auth.memberId !== payload.memberId))) throw new Error("Member authentication is required.");
-      const data = handleAction(action, payload, auth);
+      const data = handleAction(action, payload, auth, { clientKey: requestClientKey(request) });
       sendJson(response, 200, { ok: true, data });
     } catch (error) {
       sendJson(response, 400, { ok: false, error: error.message });

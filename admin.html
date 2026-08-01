@@ -44,6 +44,10 @@
             <label for="admin-password">Control Password</label>
             <input type="password" id="admin-password" class="form-control" placeholder="Default: admin123" required>
           </div>
+          <div class="form-group">
+            <label for="admin-operator-name">Operator Name</label>
+            <input type="text" id="admin-operator-name" class="form-control" placeholder="Name recorded on approvals" required maxlength="30">
+          </div>
           <button type="submit" class="button button-primary btn-block">Enter Dashboard</button>
         </form>
 
@@ -60,6 +64,7 @@
       <nav class="admin-tabs" aria-label="Admin tabs menu">
         <button class="tab-btn active" data-target="tab-overview">Overview</button>
         <button class="tab-btn" data-target="tab-approvals">Pending Requests <span id="badge-pending-count" class="badge badge-pending" style="display: none;">0</span></button>
+        <button class="tab-btn" data-target="tab-operations">Operations</button>
         <button class="tab-btn" data-target="tab-members">Members Directory</button>
         <button class="tab-btn" data-target="tab-visualizer">Matrix Viewer</button>
       </nav>
@@ -76,7 +81,7 @@
             <span id="stat-pending-requests" class="value">0</span>
           </div>
           <div class="metric-card">
-            <span class="title">Total F3 Volume</span>
+            <span class="title">Total Activation Volume</span>
             <span id="stat-revenue" class="value">0 F3</span>
           </div>
         </div>
@@ -107,7 +112,7 @@
               <form id="change-pass-form" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
                 <div class="form-group" style="margin-bottom: 0; flex-grow: 1; min-width: 150px;">
                   <label for="new-password" style="font-size: 0.65rem;">New Admin Password</label>
-                  <input type="password" id="new-password" class="form-control" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;" placeholder="New password" required>
+                  <input type="password" id="new-password" class="form-control" style="padding: 0.45rem 0.8rem; font-size: 0.82rem;" placeholder="At least 10 characters, letters and numbers" minlength="10" required>
                 </div>
                 <button type="submit" class="button button-primary button-small">Save Password</button>
               </form>
@@ -121,6 +126,36 @@
               <!-- Logs items injected here -->
             </div>
           </div>
+        </div>
+      </div>
+
+      <div id="tab-operations" class="admin-section">
+        <div class="portal-card" style="padding:1.5rem;margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+          <div>
+            <h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Operations &amp; Reconciliation</h3>
+            <p style="font-size:.82rem;color:var(--muted);margin:0">Local view of reward obligations, payouts, approval evidence, and data exceptions. Products Plus is excluded from this report.</p>
+          </div>
+          <div class="actions">
+            <button id="btn-refresh-operations" class="button button-secondary button-small" type="button">Refresh</button>
+            <button id="btn-export-operations" class="button button-primary button-small" type="button">Export CSV</button>
+          </div>
+        </div>
+        <div class="metrics-row" style="margin-bottom:1.5rem;">
+          <div class="metric-card"><span class="title">Available Rewards</span><span id="ops-available-rewards" class="value">PHP 0</span></div>
+          <div class="metric-card"><span class="title">Scheduled Rewards</span><span id="ops-scheduled-rewards" class="value">PHP 0</span></div>
+          <div class="metric-card"><span class="title">Approved Payouts</span><span id="ops-approved-payouts" class="value">PHP 0</span></div>
+          <div class="metric-card"><span class="title">Pending Payouts</span><span id="ops-pending-payouts" class="value">PHP 0</span></div>
+        </div>
+        <div class="metrics-row" style="margin-bottom:1.5rem;">
+          <div class="metric-card"><span class="title">Activation Volume</span><span id="ops-activation-volume" class="value">PHP 0</span></div>
+          <div class="metric-card"><span class="title">Recorded Decisions</span><span id="ops-recorded-decisions" class="value">0</span></div>
+          <div class="metric-card"><span class="title">Audit Entries</span><span id="ops-audit-entries" class="value">0</span></div>
+          <div class="metric-card"><span class="title">Audit Integrity</span><span id="ops-audit-integrity" class="value">Checking</span></div>
+        </div>
+        <div class="portal-card" style="padding:1.5rem;margin-bottom:1.5rem;">
+          <h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Reconciliation Exceptions <span id="ops-exception-count" class="badge badge-pending">0</span></h3>
+          <p id="ops-report-generated" style="font-size:.78rem;color:var(--muted);margin:0 0 1rem"></p>
+          <div class="table-container"><table class="admin-table"><thead><tr><th>Severity</th><th>Category</th><th>Reference</th><th>Finding</th></tr></thead><tbody id="operations-exceptions-table-body"></tbody></table></div>
         </div>
       </div>
 
@@ -138,9 +173,12 @@
         <nav class="approval-queue-tabs" aria-label="Approval request types" role="tablist">
           <button class="active" type="button" role="tab" data-approval-tab="registrations" aria-selected="true">Registrations <span id="approval-count-registrations">0</span></button>
           <button type="button" role="tab" data-approval-tab="entry" aria-selected="false">Entry <span id="approval-count-entry">0</span></button>
+          <button type="button" role="tab" data-approval-tab="timeline" aria-selected="false">Timeline Matrix <span id="approval-count-timeline">0</span></button>
           <button type="button" role="tab" data-approval-tab="exit" aria-selected="false">Exit <span id="approval-count-exit">0</span></button>
           <button type="button" role="tab" data-approval-tab="withdrawals" aria-selected="false">Withdrawals <span id="approval-count-withdrawals">0</span></button>
           <button type="button" role="tab" data-approval-tab="products" aria-selected="false">Products Plus <span id="approval-count-products">0</span></button>
+          <button type="button" role="tab" data-approval-tab="identity" aria-selected="false">Identity Flags <span id="approval-count-identity">0</span></button>
+          <button type="button" role="tab" data-approval-tab="history" aria-selected="false">Decision History</button>
         </nav>
 
         <section class="approval-queue-panel active" data-approval-panel="registrations" role="tabpanel">
@@ -168,6 +206,11 @@
         <section class="approval-queue-panel" data-approval-panel="entry" role="tabpanel" hidden>
         <div class="portal-card" style="padding: 1.5rem; margin: 1.5rem 0;"><h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Pending Entry Activations</h3><p style="font-size:.82rem;color:var(--muted);margin:0">Verify the PHP 1,200 GCash payment, select placement, then activate Entry.</p></div>
         <div class="table-container"><table class="admin-table"><thead><tr><th>Member</th><th>Amount</th><th>F3 Wallet</th><th>GCash Reference</th><th>Requested</th><th>Placement Parent</th><th>Actions</th></tr></thead><tbody id="upgrade-requests-table-body"></tbody></table></div>
+        </section>
+
+        <section class="approval-queue-panel" data-approval-panel="timeline" role="tabpanel" hidden>
+        <div class="portal-card" style="padding: 1.5rem; margin: 1.5rem 0;"><h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Pending Timeline Matrix Activations</h3><p style="font-size:.82rem;color:var(--muted);margin:0">Verify the PHP 693 request. Approval places the member automatically in the global left-to-right timeline queue.</p></div>
+        <div class="table-container"><table class="admin-table"><thead><tr><th>Member</th><th>Amount</th><th>Payment Method</th><th>Payment Details</th><th>Requested</th><th>Auto Placement</th><th>Actions</th></tr></thead><tbody id="timeline-requests-table-body"></tbody></table></div>
         </section>
 
         <section class="approval-queue-panel" data-approval-panel="exit" role="tabpanel" hidden>
@@ -254,6 +297,16 @@
           </table>
         </div>
         </section>
+
+        <section class="approval-queue-panel" data-approval-panel="identity" role="tabpanel" hidden>
+        <div class="portal-card" style="padding:1.5rem;margin:1.5rem 0;"><h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Identity Review Flags</h3><p style="font-size:.82rem;color:var(--muted);margin:0">Multiple accounts remain allowed. These signals identify shared or invalid details that need an administrator check.</p></div>
+        <div class="table-container"><table class="admin-table"><thead><tr><th>Signal</th><th>Value</th><th>Linked Accounts</th><th>Status</th></tr></thead><tbody id="identity-reviews-table-body"></tbody></table></div>
+        </section>
+
+        <section class="approval-queue-panel" data-approval-panel="history" role="tabpanel" hidden>
+        <div class="portal-card" style="padding:1.5rem;margin:1.5rem 0;"><h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Approval Decision History</h3><p style="font-size:.82rem;color:var(--muted);margin:0">Each decision records the operator, verification note, and time. Rejections may be reopened. An approval can only be reversed while it has no descendants, paid rewards, or later Exit activity.</p></div>
+        <div class="table-container"><table class="admin-table"><thead><tr><th>Workflow</th><th>Member</th><th>Decision</th><th>Operator &amp; Note</th><th>Decided</th><th>Control</th></tr></thead><tbody id="approval-history-table-body"></tbody></table></div>
+        </section>
       </div>
 
       <!-- TAB 3: MEMBERS DIRECTORY -->
@@ -303,6 +356,7 @@
               <label for="viewer-plan-select">Matrix</label>
               <select id="viewer-plan-select" class="form-control">
                 <option value="power3-passive">Power of Three Passive Income</option>
+                <option value="timeline-power3">Power of Three Timeline Matrix</option>
               </select>
             </div>
             <div class="form-group matrix-explorer-search">
@@ -397,9 +451,35 @@
           <strong>Warning:</strong> Placing this member as a Root will establish them at the very top of the squad tree. Only one root is allowed per squad.
         </div>
 
+        <div class="form-group">
+          <label for="modal-decision-note">Verification Note</label>
+          <textarea id="modal-decision-note" class="form-control" rows="3" maxlength="240" required placeholder="What did you verify before approving this registration?"></textarea>
+        </div>
+
         <div class="modal-footer">
           <button type="button" class="button btn-secondary" id="btn-cancel-placement">Cancel</button>
           <button type="submit" class="button button-primary">Confirm Approval</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="decision-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="decision-modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="decision-modal-title">Record Decision</h3>
+        <button class="close-btn" id="btn-close-decision-modal" aria-label="Close modal">&times;</button>
+      </div>
+      <p id="decision-modal-context" style="font-size:.84rem;color:var(--muted);margin-top:0"></p>
+      <div id="decision-modal-alert" style="display:none" class="alert"></div>
+      <form id="decision-form">
+        <div class="form-group">
+          <label for="decision-note">Verification / Decision Note</label>
+          <textarea id="decision-note" class="form-control" rows="4" maxlength="240" required placeholder="State the payment, payout, or request detail you verified."></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="button btn-secondary" id="btn-cancel-decision">Cancel</button>
+          <button type="submit" class="button button-primary" id="btn-confirm-decision">Confirm Decision</button>
         </div>
       </form>
     </div>

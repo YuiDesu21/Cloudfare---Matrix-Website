@@ -99,11 +99,13 @@ h1, h2, h3, p { margin-top: 0; }
 
 .how-to { background: linear-gradient(180deg, rgba(1, 16, 6, .64), rgba(1, 10, 4, .32)); }
 .steps-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: .8rem; margin: 0; padding: 1.1rem; list-style: none; border: 1px solid var(--line); border-radius: var(--radius); background: linear-gradient(90deg, rgba(5, 73, 26, .94), rgba(0, 28, 9, .94)); box-shadow: var(--shadow); }
-.step-card { position: relative; min-height: 150px; display: flex; flex-direction: column; align-items: center; padding: 1.2rem .4rem .75rem; text-align: center; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(180deg, rgba(8, 62, 26, .8), rgba(0, 25, 7, .95)); }
+.step-card { position: relative; min-height: 158px; display: flex; flex-direction: column; align-items: center; padding: 1.35rem .5rem .8rem; text-align: center; border: 1px solid rgba(232, 184, 24, .68); border-radius: 10px; background: linear-gradient(160deg, rgba(12, 78, 33, .95), rgba(0, 27, 9, .98)); box-shadow: inset 0 1px rgba(255, 237, 141, .08), 0 10px 18px rgba(0, 0, 0, .18); }
 .step-card:not(:last-child)::after { position: absolute; z-index: 2; top: 50%; right: -.88rem; width: .9rem; height: 2px; background: var(--gold); content: ""; }
 .step-card:not(:last-child)::before { position: absolute; z-index: 3; top: calc(50% - 4px); right: -.86rem; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 6px solid var(--gold); content: ""; }
-.step-number { position: absolute; top: -15px; display: grid; place-items: center; width: 30px; aspect-ratio: 1; color: #171000; background: var(--gold); border: 2px solid #ffed8d; border-radius: 50%; font-weight: 900; }
-.step-icon { display: grid; place-items: center; width: 48px; aspect-ratio: 1; margin: .2rem 0 .65rem; color: #16130a; background: #f6f2d9; border-radius: 50%; font-size: 1.5rem; font-weight: 900; }
+.step-number { position: absolute; z-index: 1; top: -15px; display: grid; place-items: center; width: 30px; aspect-ratio: 1; color: #171000; background: linear-gradient(145deg, #ffe980, var(--gold)); border: 2px solid #fff1a8; border-radius: 50%; box-shadow: 0 3px 0 #755b00, 0 0 0 4px rgba(0, 28, 9, .92); font-weight: 900; }
+.step-icon { position: relative; display: grid; place-items: center; width: 54px; aspect-ratio: 1; margin: .35rem 0 .72rem; color: #b57900; background: linear-gradient(145deg, #fffdf0, #e7e0bd); border: 1px solid #fff3a7; border-radius: 50%; box-shadow: 0 0 0 4px rgba(211, 161, 15, .2), inset 0 -3px 0 rgba(120, 89, 0, .1); }
+.step-icon::after { position: absolute; inset: 5px; border: 1px solid rgba(174, 125, 0, .26); border-radius: 50%; content: ""; }
+.step-icon svg { position: relative; z-index: 1; width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.9; }
 .step-card strong { font-size: .72rem; line-height: 1.15; text-transform: uppercase; }
 .step-card small { margin-top: .4rem; color: #d4dfcb; font-size: .64rem; line-height: 1.3; }
 
@@ -188,7 +190,7 @@ td { color: #fffdf0; font-weight: 800; }
 .person::before { position: absolute; top: -18px; left: 5px; width: 21px; aspect-ratio: 1; border-radius: 50%; background: #ffe798; content: ""; }
 .p1 { left: 8%; transform: scale(.68); }.p2 { left: 23%; transform: scale(.9); }.p3 { left: 38%; transform: scale(.74); }.p4 { left: 50%; transform: scale(1.1); }.p5 { right: 28%; transform: scale(.83); }.p6 { right: 14%; transform: scale(.94); }.p7 { right: 3%; transform: scale(.62); }
 .products-card { grid-template-columns: 1fr .85fr; }
-.products-card img { position: relative; width: 105%; margin-right: -1rem; filter: drop-shadow(0 15px 16px rgba(0, 0, 0, .38)); }
+.products-card img { position: relative; width: min(100%, 330px); justify-self: end; aspect-ratio: 1; object-fit: contain; border-radius: 18px; filter: drop-shadow(0 15px 18px rgba(0, 0, 0, .34)); -webkit-mask-image: radial-gradient(ellipse 94% 94% at center, #000 68%, rgba(0, 0, 0, .9) 82%, transparent 100%); mask-image: radial-gradient(ellipse 94% 94% at center, #000 68%, rgba(0, 0, 0, .9) 82%, transparent 100%); }
 
 .cta-banner { position: relative; overflow: hidden; padding: 2.3rem 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: radial-gradient(circle at 6% 85%, rgba(255, 203, 30, .36), transparent 12rem), radial-gradient(circle at 96% 35%, rgba(255, 203, 30, .36), transparent 12rem), linear-gradient(90deg, #0a421b, #041508 55%, #0c4119); }
 .cta-banner::before { position: absolute; top: -12rem; left: 0; width: 24rem; height: 24rem; border: 2px solid rgba(255, 219, 100, .6); border-radius: 50%; content: ""; }
@@ -266,7 +268,7 @@ address { display: grid; gap: .55rem; font-style: normal; }
   .benefit-item + .benefit-item, .benefit-item:nth-child(3), .benefit-item:nth-child(4) { border-left: 0; border-top: 1px solid rgba(255, 203, 30, .55); }
   .info-card, .products-card { grid-template-columns: 1fr; padding: 1.4rem; }
   .community-illustration { min-height: 150px; }
-  .products-card img { width: 100%; margin: 0 auto; }
+  .products-card img { width: min(100%, 330px); justify-self: center; margin: 0 auto; }
   .cta-content { align-items: flex-start; flex-direction: column; }
   .footer-grid { grid-template-columns: 1fr; gap: 1.5rem; }
 }

@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const SESSION_KEY = "matrix_logged_in_member_id";
+  const MIN_WITHDRAWAL_AMOUNT = 1000;
   const isRequestPage = Boolean(document.getElementById("withdrawal-request-form"));
   const pageAlert = document.getElementById(isRequestPage ? "withdrawal-page-alert" : "withdrawal-history-alert");
 
@@ -44,25 +45,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("withdrawal-pending-display").textContent = formatMoney(pending);
     document.getElementById("withdrawal-balance").value = formatMoney(available);
     amount.max = String(available);
-    amount.placeholder = available > 0 ? `Up to ${available.toLocaleString()}` : "No balance available";
-    amount.disabled = available <= 0;
-    submit.disabled = available <= 0;
+    amount.min = String(MIN_WITHDRAWAL_AMOUNT);
+    amount.placeholder = available >= MIN_WITHDRAWAL_AMOUNT ? `PHP ${MIN_WITHDRAWAL_AMOUNT.toLocaleString()} to ${available.toLocaleString()}` : "Minimum PHP 1,000";
+    amount.disabled = available < MIN_WITHDRAWAL_AMOUNT;
+    submit.disabled = available < MIN_WITHDRAWAL_AMOUNT;
     accountName.value = memberData.fullName || "";
     gcashNumber.value = validGcashNumber(memberData.phone);
-    if (available <= 0) {
+    if (available < MIN_WITHDRAWAL_AMOUNT) {
       const nextReward = (summary && Array.isArray(summary.rewardLedger) ? summary.rewardLedger : [])
         .filter(entry => entry.status === "due" && new Date(entry.dueAt) > new Date())
         .sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt))[0];
       showAlert(nextReward
-        ? `No balance is available yet. Your next ${nextReward.sourceLabel || "passive income"} of ${formatMoney(nextReward.amount)} becomes withdrawable on ${formatDateTime(nextReward.dueAt)}.`
-        : "No balance is currently available for withdrawal. Passive income becomes withdrawable only after its due date.", "info");
+        ? `Withdrawals require at least PHP ${MIN_WITHDRAWAL_AMOUNT.toLocaleString()} available. Your next ${nextReward.sourceLabel || "passive income"} of ${formatMoney(nextReward.amount)} becomes withdrawable on ${formatDateTime(nextReward.dueAt)}.`
+        : `Withdrawals require at least PHP ${MIN_WITHDRAWAL_AMOUNT.toLocaleString()} available. Passive income becomes withdrawable only after its due date.`, "info");
     }
     form.addEventListener("submit", async event => {
       event.preventDefault();
       hideAlert();
       const requestedAmount = Number(amount.value);
-      if (!Number.isFinite(requestedAmount) || requestedAmount <= 0 || requestedAmount > available) {
-        showAlert(`Enter an amount between PHP 1 and ${formatMoney(available)}.`, "danger");
+      if (!Number.isFinite(requestedAmount) || requestedAmount < MIN_WITHDRAWAL_AMOUNT || requestedAmount > available) {
+        showAlert(`Enter an amount between PHP ${MIN_WITHDRAWAL_AMOUNT.toLocaleString()} and ${formatMoney(available)}.`, "danger");
         return;
       }
       if (!/^[\p{L} .'-]+$/u.test(accountName.value.trim()) || accountName.value.trim().length > 30) {

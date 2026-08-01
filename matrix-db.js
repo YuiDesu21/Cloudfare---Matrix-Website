@@ -4,7 +4,8 @@
  */
 
 const MATRIX_PLANS = {
-  "power3-passive": { id: "power3-passive", name: "Power of Three Passive Income", maxChildren: 3, price: 20, pesoValue: 1200 }
+  "power3-passive": { id: "power3-passive", name: "Power of Three Passive Income", maxChildren: 3, price: 20, pesoValue: 1200 },
+  "timeline-power3": { id: "timeline-power3", name: "Power of Three Timeline Matrix", maxChildren: 3, price: 693, pesoValue: 693 }
 };
 
 function callMatrixApi(action, payload = {}) {
@@ -51,10 +52,19 @@ const LocalMatrixDB = {
     return result.account;
   },
 
-  authenticateAdmin(password) {
-    const result = callMatrixApi("authenticateAdmin", { password });
+  authenticateAdmin(password, operatorName = "") {
+    const result = callMatrixApi("authenticateAdmin", { password, operatorName });
     sessionStorage.setItem("matrix_admin_auth_token", result.token);
     return true;
+  },
+
+  signOut() {
+    try {
+      return callMatrixApi("signOut");
+    } finally {
+      sessionStorage.removeItem("matrix_auth_token");
+      sessionStorage.removeItem("matrix_admin_auth_token");
+    }
   },
 
   getSettings() {
@@ -65,8 +75,8 @@ const LocalMatrixDB = {
     return callMatrixApi("getMatrixRules");
   },
 
-  getMemberMatrixSummary(memberId) {
-    return callMatrixApi("getMemberMatrixSummary", { memberId });
+  getMemberMatrixSummary(memberId, planId) {
+    return callMatrixApi("getMemberMatrixSummary", { memberId, planId });
   },
 
   saveSettings(settings) {
@@ -85,9 +95,13 @@ const LocalMatrixDB = {
     return callMatrixApi("getWithdrawalRequests");
   },
   getUpgradeRequests() { return callMatrixApi("getUpgradeRequests"); },
+  getTimelineRequests() { return callMatrixApi("getTimelineRequests"); },
   requestUpgrade(memberId, referenceNumber) { return callMatrixApi("requestUpgrade", { memberId, referenceNumber }); },
-  approveUpgrade(requestId, parentMemberId) { return callMatrixApi("approveUpgrade", { requestId, parentMemberId }); },
-  rejectUpgrade(requestId) { return callMatrixApi("rejectUpgrade", { requestId }); },
+  requestTimelineActivation(memberId, details = {}) { return callMatrixApi("requestTimelineActivation", { memberId, ...details }); },
+  approveTimelineActivation(requestId, decisionNote) { return callMatrixApi("approveTimelineActivation", { requestId, decisionNote }); },
+  rejectTimelineActivation(requestId, decisionNote) { return callMatrixApi("rejectTimelineActivation", { requestId, decisionNote }); },
+  approveUpgrade(requestId, parentMemberId, decisionNote) { return callMatrixApi("approveUpgrade", { requestId, parentMemberId, decisionNote }); },
+  rejectUpgrade(requestId, decisionNote) { return callMatrixApi("rejectUpgrade", { requestId, decisionNote }); },
 
   getMemberWithdrawalRequests(memberId) {
     return callMatrixApi("getMemberWithdrawalRequests", { memberId });
@@ -95,6 +109,14 @@ const LocalMatrixDB = {
 
   getProductPlusClaims() {
     return callMatrixApi("getProductPlusClaims");
+  },
+
+  getIdentityReviews() {
+    return callMatrixApi("getIdentityReviews");
+  },
+
+  getApprovalDecisionHistory() {
+    return callMatrixApi("getApprovalDecisionHistory");
   },
 
   getMembers() {
@@ -122,43 +144,49 @@ const LocalMatrixDB = {
   },
 
   registerPending(memberData, password) {
-    return callMatrixApi("registerPending", { memberData, password });
+    const result = callMatrixApi("registerPending", { memberData, password });
+    sessionStorage.setItem("matrix_auth_token", result.token);
+    return result.account;
   },
 
-  approveAndPlace(pendingId, parentMemberId) {
-    return callMatrixApi("approveAndPlace", { pendingId, parentMemberId });
+  approveAndPlace(pendingId, parentMemberId, decisionNote) {
+    return callMatrixApi("approveAndPlace", { pendingId, parentMemberId, decisionNote });
   },
 
-  rejectPending(pendingId) {
-    return callMatrixApi("rejectPending", { pendingId });
+  rejectPending(pendingId, decisionNote) {
+    return callMatrixApi("rejectPending", { pendingId, decisionNote });
   },
 
   requestExitAction(memberId, exit, details = {}) {
     return callMatrixApi("requestExitAction", { memberId, exit, details });
   },
 
-  approveExitAction(requestId) {
-    return callMatrixApi("approveExitAction", { requestId });
+  approveExitAction(requestId, decisionNote) {
+    return callMatrixApi("approveExitAction", { requestId, decisionNote });
   },
 
-  rejectExitAction(requestId) {
-    return callMatrixApi("rejectExitAction", { requestId });
+  rejectExitAction(requestId, decisionNote) {
+    return callMatrixApi("rejectExitAction", { requestId, decisionNote });
   },
 
   requestWithdrawal(memberId, amount, payoutDetails = "", payoutMethod = "GCash", accountName = "", gcashNumber = "") {
     return callMatrixApi("requestWithdrawal", { memberId, amount, payoutDetails, payoutMethod, accountName, gcashNumber });
   },
 
-  approveWithdrawal(requestId) {
-    return callMatrixApi("approveWithdrawal", { requestId });
+  approveWithdrawal(requestId, decisionNote) {
+    return callMatrixApi("approveWithdrawal", { requestId, decisionNote });
   },
 
-  rejectWithdrawal(requestId) {
-    return callMatrixApi("rejectWithdrawal", { requestId });
+  rejectWithdrawal(requestId, decisionNote) {
+    return callMatrixApi("rejectWithdrawal", { requestId, decisionNote });
+  },
+
+  reverseApprovalDecision(workflow, requestId, decisionNote) {
+    return callMatrixApi("reverseApprovalDecision", { workflow, requestId, decisionNote });
   },
 
   requestProductPlusClaim(memberId, exit, spendAmount, details = {}) {
-    return callMatrixApi("requestProductPlusClaim", { memberId, exit, spendAmount, reference: details.reference || "", notes: details.notes || "" });
+    return callMatrixApi("requestProductPlusClaim", { memberId, exit, spendAmount, planId: details.planId || "power3-passive", reference: details.reference || "", notes: details.notes || "" });
   },
 
   approveProductPlusClaim(claimId) {
@@ -173,8 +201,8 @@ const LocalMatrixDB = {
     return callMatrixApi("deleteMember", { memberId });
   },
 
-  getPositionByMemberId(memberId) {
-    return callMatrixApi("getPositionByMemberId", { memberId });
+  getPositionByMemberId(memberId, planId) {
+    return callMatrixApi("getPositionByMemberId", { memberId, planId });
   },
 
   getEligibleParents(planId) {
@@ -191,6 +219,10 @@ const LocalMatrixDB = {
 
   getActivityLogs() {
     return callMatrixApi("getActivityLogs");
+  },
+
+  getOperationsReport() {
+    return callMatrixApi("getOperationsReport");
   },
 
   resetAllData() {

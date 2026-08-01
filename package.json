@@ -8,7 +8,8 @@
     "sandbox": "node scripts/start-sandbox.js",
     "start": "node server.js",
     "check": "node --check server.js && node scripts/check-javascript.js",
-    "check:supabase": "node scripts/check-supabase-public.js"
+    "check:supabase": "node scripts/check-supabase-public.js",
+    "pilot": "node scripts/run-clean-room-pilot.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7"

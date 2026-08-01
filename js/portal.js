@@ -189,6 +189,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       } catch (error) {
         window.alert(error.message);
       }
+    } else if (window.location.hash === "#profile") {
+      openProfileDrawer();
+      window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
     }
   } else if (action === "register") {
     showRegister();
@@ -244,6 +247,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       closeAccountMenu();
       if (button.dataset.accountAction === "profile") {
         openProfileDrawer();
+      } else if (button.dataset.accountAction === "timeline") {
+        window.location.href = "timeline-matrix.html";
       } else if (button.dataset.accountAction === "withdraw") {
         window.location.href = "withdrawal-request.html";
       } else if (button.dataset.accountAction === "history") {
@@ -507,8 +512,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       hasErrors = true;
     }
 
-    if (regPassword.value.length < 8) {
-      errPassword.textContent = "Use at least 8 characters.";
+    if (regPassword.value.length < 10 || !/[A-Za-z]/.test(regPassword.value) || !/\d/.test(regPassword.value)) {
+      errPassword.textContent = "Use at least 10 characters with a letter and a number.";
       hasErrors = true;
     }
     if (regPasswordConfirm.value !== regPassword.value) {
@@ -581,36 +586,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const loggedInId = sessionStorage.getItem(SESSION_KEY);
     if (!loggedInId) return false;
 
-    // Try finding active member
-    const member = MatrixDB.getMemberById(loggedInId);
+    let member = null;
+    try {
+      member = MatrixDB.getMemberById(loggedInId);
+    } catch (error) {
+      logout();
+      return false;
+    }
     if (member) {
       renderDashboard(member);
       return true;
     }
 
-    // Try finding pending member
-    const pendingList = MatrixDB.getPendingRegistrations();
-    const pendingReq = pendingList.find(p => p.id === loggedInId);
-    if (pendingReq) {
-      if (pendingReq.status === "approved") {
-        // Was approved in another tab/action
-        const activeMem = MatrixDB.getMemberById(pendingReq.id);
-        if (activeMem) {
-          renderDashboard(activeMem);
-          return true;
-        } else {
-          logout();
-        }
-      } else if (pendingReq.status === "rejected") {
-        logout();
-      } else {
-        renderPendingDashboard(pendingReq);
-        return true;
-      }
-      return false;
-    }
-
-    // Session invalid
     logout();
     return false;
   }
@@ -711,10 +698,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     activeTreeCard.style.display = "block";
 
     // Find position detail
-    const pos = MatrixDB.getPositionByMemberId(member.id);
-    const positions = MatrixDB.getPositions();
-    const allMembers = MatrixDB.getMembers();
     const summary = MatrixDB.getMemberMatrixSummary(member.id);
+    const pos = summary && summary.position ? summary.position : MatrixDB.getPositionByMemberId(member.id);
+    const positions = pos ? [pos] : [];
     const adminMenuButton = accountMenu.querySelector('[data-account-action="admin"]');
     if (adminMenuButton) adminMenuButton.hidden = !(FEATURES.adminPortal && summary && summary.isAdmin);
     renderMatrixOverview(member, positions, summary);
@@ -723,22 +709,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (pos) {
       // Calculate referrals & downline children
-      const referrals = window.MATRIX_USES_SUPABASE
-        ? Number(summary.referralCount || 0)
-        : allMembers.filter(m => m.sponsorId === member.id).length;
-      metricReferrals.textContent = referrals;
-
-      const membersUnderNode = window.MATRIX_USES_SUPABASE
-        ? Number(summary.descendantCount ?? summary.directChildrenCount ?? 0)
-        : countMatrixDescendants(member.id, pos.planId, positions);
-      metricChildren.textContent = membersUnderNode;
+      metricReferrals.textContent = Number(summary.referralCount || 0);
+      metricChildren.textContent = Number(summary.descendantCount || 0);
 
       // Render matrix tree
       renderDownlineTree(member.id, pos.planId, member);
     } else {
-      metricReferrals.textContent = window.MATRIX_USES_SUPABASE
-        ? Number(summary.referralCount || 0)
-        : allMembers.filter(m => m.sponsorId === member.id).length;
+      metricReferrals.textContent = Number(summary.referralCount || 0);
       metricChildren.textContent = "0";
       treeVisualizer.innerHTML = `<div class="empty-state"><p>Matrix position is not established. Contact admin.</p></div>`;
     }
@@ -829,7 +806,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function renderMatrixDetail(member, positions, summary, matrixId, nextExitNumber) {
     const rules = summary && summary.rules ? summary.rules : MATRIX_RULES;
-    const placement = getMatrixPlacement(member, positions);
+    const placement = getMatrixPlacement(member, positions, summary);
 
     if (matrixId === "entry") {
       matrixSelectedBadge.textContent = "Entry";
@@ -1028,15 +1005,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  function getMatrixPlacement(member, positions) {
+  function getMatrixPlacement(member, positions, summary) {
     const position = positions.find(item => item.memberId === member.id);
 
     if (!position) return null;
 
-    const sameMatrixPositions = positions
-      .filter(item => item.planId === position.planId)
-      .sort((a, b) => new Date(a.placedAt || 0) - new Date(b.placedAt || 0));
-    const positionNumber = sameMatrixPositions.findIndex(item => item.memberId === member.id) + 1;
+    const positionNumber = Number(summary && summary.positionNumber) || 0;
 
     return {
       label: positionNumber > 0 ? `Position #${positionNumber}` : "Placed",
@@ -1053,7 +1027,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         return `<div class="tree-branch"><div class="tree-node-wrapper"><div class="tree-node-card empty-card"><div class="tree-node-name">Open Spot</div><div class="tree-node-username">Available</div></div></div></div>`;
       }
       const isRoot = node.id === loggedInUser.id;
-      const shortW = shortenWallet(node.walletAddress);
       const stage = node.matrixStage || { label: "Entry", status: "active" };
       const canOpen = !isFocusedRoot && !node.isReferralPending && node.canTraverse !== false;
       const tag = canOpen ? "button" : "div";
@@ -1069,7 +1042,6 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <span>${escapeHtml(stage.label)}</span>
                 ${node.isReferralPending ? "" : `<small>${capitalizeStatus(stage.status)}</small>`}
               </div>
-              <div class="tree-node-info">${escapeHtml(shortW)}</div>
               ${canOpen ? `<div class="tree-node-open-hint">View direct downlines →</div>` : ""}
             </${tag}>
           </div>
@@ -1231,6 +1203,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function logout() {
     if (window.MATRIX_USES_SUPABASE) {
       try { await MatrixDB.signOut(); } catch (error) { console.error(error); }
+    } else if (MatrixDB.signOut) {
+      try { MatrixDB.signOut(); } catch (error) { console.error(error); }
     }
     sessionStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem("matrix_auth_token");

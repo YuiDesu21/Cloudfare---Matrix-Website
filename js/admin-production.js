@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const loginAlert = document.getElementById("admin-login-alert");
   const alertBox = document.getElementById("admin-alert");
   const list = document.getElementById("admin-entry-list");
+  const timelineList = document.getElementById("admin-timeline-list");
   const exitList = document.getElementById("admin-exit-list");
   const withdrawalList = document.getElementById("admin-withdrawal-list");
   const productsList = document.getElementById("admin-products-list");
@@ -13,18 +14,33 @@ document.addEventListener("DOMContentLoaded", async () => {
   const memberSearch = document.getElementById("admin-member-search");
   const memberStatus = document.getElementById("admin-member-status");
   const signout = document.getElementById("admin-signout");
-  const ownerTabs = document.getElementById("owner-tabs");
+  const adminUserStatus = document.getElementById("admin-user-status");
+  const ownerFinancesTab = document.getElementById("admin-owner-finances-tab");
   const financeSummary = document.getElementById("finance-summary");
-  const financeSection = document.getElementById("owner-finances");
-  const operationsSection = document.getElementById("admin-operations");
+  const statMembers = document.getElementById("stat-members");
+  const statPendingRequests = document.getElementById("stat-pending-requests");
+  const statAdminAccess = document.getElementById("stat-admin-access");
+  const pendingBadge = document.getElementById("badge-pending-count");
   const voucherModal = document.getElementById("voucher-redemption-modal");
   const voucherForm = document.getElementById("voucher-redemption-form");
   const voucherAlert = document.getElementById("voucher-redemption-alert");
+  const timelineDecisionModal = document.getElementById("timeline-decision-modal");
+  const timelineDecisionForm = document.getElementById("timeline-decision-form");
+  const timelineDecisionAlert = document.getElementById("timeline-decision-alert");
   let voucherMemberId = null;
+  let timelineDecision = null;
   let memberPage = 1;
   let currentUserId = null;
   let ownerMode = false;
   let memberRoles = new Map();
+  const pendingCounts = {};
+
+  document.querySelectorAll("[data-production-tab]").forEach(button => button.addEventListener("click", async () => {
+    const target = button.dataset.productionTab;
+    document.querySelectorAll("[data-production-tab]").forEach(tab => tab.classList.toggle("active", tab === button));
+    document.querySelectorAll(".admin-section").forEach(section => section.classList.toggle("active", section.id === target));
+    if (target === "tab-finances") await loadFinances();
+  }));
   document.querySelectorAll("[data-production-approval-tab]").forEach(button => button.addEventListener("click", () => {
     const selected = button.dataset.productionApprovalTab;
     document.querySelectorAll("[data-production-approval-tab]").forEach(tab => { const active = tab === button; tab.classList.toggle("active", active); tab.setAttribute("aria-selected", active ? "true" : "false"); });
@@ -43,6 +59,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   memberStatus.addEventListener("change", async () => { memberPage = 1; await loadMembers(); });
   document.getElementById("voucher-redemption-close").addEventListener("click", closeVoucherModal);
   voucherModal.addEventListener("click", event => { if (event.target === voucherModal) closeVoucherModal(); });
+  document.getElementById("timeline-decision-close").addEventListener("click", closeTimelineDecision);
+  timelineDecisionModal.addEventListener("click", event => { if (event.target === timelineDecisionModal) closeTimelineDecision(); });
+  timelineDecisionForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!timelineDecision) return;
+    const submit = document.getElementById("timeline-decision-submit");
+    const note = document.getElementById("timeline-decision-note").value.trim();
+    if (note.length < 3) return show(timelineDecisionAlert, "Enter a short decision note.", "danger");
+    submit.disabled = true;
+    const { error } = await window.matrixSupabase.rpc(timelineDecision.rpc, { p_request_id: timelineDecision.requestId, p_decision_note: note });
+    submit.disabled = false;
+    if (error) return show(timelineDecisionAlert, error.message, "danger");
+    closeTimelineDecision(); show(alertBox, "Timeline request updated successfully.", "success"); await loadAll();
+  });
   voucherForm.addEventListener("submit", async event => {
     event.preventDefault(); voucherAlert.style.display = "none";
     const submit = document.getElementById("voucher-redemption-submit"); submit.disabled = true;
@@ -51,12 +81,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (error) { voucherAlert.className="alert alert-danger"; voucherAlert.textContent=error.message; voucherAlert.style.display="block"; return; }
     closeVoucherModal(); show(alertBox, `Voucher redemption recorded. Remaining balance: ${money(data.balance)}.`, "success");
   });
-  ownerTabs.querySelectorAll("[data-owner-view]").forEach(button => button.addEventListener("click", async () => {
-    const finances = button.dataset.ownerView === "finances";
-    ownerTabs.querySelectorAll("button").forEach(item => item.classList.toggle("active", item === button));
-    operationsSection.hidden = finances; financeSection.hidden = !finances;
-    if (finances) await loadFinances();
-  }));
   signout.addEventListener("click", async () => { await window.matrixSupabase.auth.signOut(); location.reload(); });
   const { data } = await window.matrixSupabase.auth.getSession();
   if (data.session) await enter();
@@ -69,11 +93,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (error) { await window.matrixSupabase.auth.signOut(); return show(loginAlert, "This account does not have administrator access.", "danger"); }
     currentUserId = userData.user && userData.user.id;
     ownerMode = Boolean(isOwner);
-    ownerTabs.hidden = !ownerMode;
+    ownerFinancesTab.hidden = !ownerMode;
+    statAdminAccess.textContent = ownerMode ? "Owner" : "Admin";
     memberRoles = new Map((roles || []).map(item => [item.memberId, item]));
-    loginSection.style.display = "none"; content.style.display = "block"; signout.hidden = false; await loadAll();
+    loginSection.style.display = "none"; content.style.display = "block"; adminUserStatus.style.display = "flex"; await loadAll();
   }
-  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadExits(), loadWithdrawals(), loadProducts()]); }
+  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts()]); }
   async function loadMembers() {
     memberList.innerHTML = `<div class="portal-card withdrawal-empty"><p>Loading member directory...</p></div>`;
     const { data, error } = await window.matrixSupabase.rpc("admin_get_members", {
@@ -86,6 +111,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const members = data.members || [];
     memberSummary.textContent = `${Number(data.total).toLocaleString()} member${Number(data.total) === 1 ? "" : "s"} found`;
+    statMembers.textContent = Number(data.total).toLocaleString();
     if (!members.length) {
       memberList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No matching members</strong><p>Try a different search or account status.</p></div>`;
     } else {
@@ -146,6 +172,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       card.querySelector(".reject-exit").addEventListener("click", async () => act("admin_reject_exit", { p_request_id: card.dataset.exitRequestId }));
     });
   }
+  async function loadTimeline() {
+    const { data: requests, error } = await window.matrixSupabase.rpc("admin_get_timeline_requests");
+    if (error) return show(alertBox, error.message, "danger");
+    const pending = (requests || []).filter(request => request.status === "pending");
+    updateCount("timeline", pending.length);
+    if (!pending.length) { timelineList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No pending Timeline requests</strong><p>Approved members enter the automatic left-to-right timeline queue.</p></div>`; return; }
+    timelineList.innerHTML = pending.map(request => {
+      const payment = request.paymentMethod === "available_balance"
+        ? `<div><span>Payment</span><strong>Available Balance</strong></div>`
+        : `<div><span>GCash account</span><strong>${escapeHtml(request.gcashName)} &middot; ${escapeHtml(request.gcashNumber)}</strong></div><div><span>Reference</span><strong>${escapeHtml(request.referenceNumber)}</strong></div>`;
+      return `<article class="portal-card withdrawal-history-item" data-timeline-request-id="${escapeHtml(request.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(request.accountCode)} &middot; Timeline Matrix</span><h2>${escapeHtml(request.fullName)}</h2></div><span class="withdrawal-status status-pending">Pending</span></div><div class="withdrawal-history-details"><div><span>Username</span><strong>@${escapeHtml(request.username)}</strong></div><div><span>Activation</span><strong>${money(request.amount)}</strong></div>${payment}<div><span>Requested</span><strong>${new Date(request.createdAt).toLocaleString()}</strong></div></div><div class="balance-card-buttons" style="margin-top:1rem"><button class="button button-primary button-small approve-timeline" type="button">Approve &amp; Place</button><button class="button button-outline button-small reject-timeline" type="button">Reject</button></div></article>`;
+    }).join("");
+    timelineList.querySelectorAll("[data-timeline-request-id]").forEach(card => {
+      const request = pending.find(item => item.id === card.dataset.timelineRequestId);
+      card.querySelector(".approve-timeline").addEventListener("click", () => openTimelineDecision(request, "approve"));
+      card.querySelector(".reject-timeline").addEventListener("click", () => openTimelineDecision(request, "reject"));
+    });
+  }
   async function loadWithdrawals() {
     const { data: requests, error } = await window.matrixSupabase.rpc("admin_get_withdrawals");
     if (error) return show(alertBox, error.message, "danger");
@@ -190,10 +234,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     financeSummary.innerHTML = groups.map(([title, rows]) => `<article class="portal-card withdrawal-history-item"><div class="withdrawal-history-topline"><h2>${title}</h2></div><div class="withdrawal-history-details">${rows.map(([label,value,type]) => `<div><span>${label}</span><strong>${type === "count" ? Number(value).toLocaleString() : money(value)}</strong></div>`).join("")}</div></article>`).join("") + `<p class="withdrawal-history-note">Generated ${new Date(data.generatedAt).toLocaleString()}. Operational tracking only; product costs, taxes, refunds, GCash fees, and other business expenses are not yet recorded.</p>`;
   }
   async function act(name, args) { const { error } = await window.matrixSupabase.rpc(name, args); if (error) return show(alertBox, error.message, "danger"); show(alertBox, "Request updated successfully.", "success"); await loadAll(); }
-  function updateCount(name, count) { const badge = document.getElementById(`production-count-${name}`); if (!badge) return; badge.textContent = count; badge.classList.toggle("has-requests", count > 0); }
+  function updateCount(name, count) {
+    const badge = document.getElementById(`production-count-${name}`);
+    if (badge) {
+      badge.textContent = count;
+      badge.classList.toggle("has-requests", count > 0);
+    }
+    pendingCounts[name] = Number(count || 0);
+    const total = Object.values(pendingCounts).reduce((sum, value) => sum + value, 0);
+    statPendingRequests.textContent = total.toLocaleString();
+    pendingBadge.textContent = total;
+    pendingBadge.style.display = total > 0 ? "inline-flex" : "none";
+  }
   function memberStatusClass(status) { return status === "active" ? "status-approved" : status === "suspended" ? "status-rejected" : "status-pending"; }
   function formatDate(value) { return value ? new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "-"; }
   function money(value) { return `PHP ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
+  function openTimelineDecision(request, action) {
+    timelineDecision = { requestId: request.id, rpc: action === "approve" ? "admin_approve_timeline_request" : "admin_reject_timeline_request" };
+    document.getElementById("timeline-decision-title").textContent = `${action === "approve" ? "Approve" : "Reject"} Timeline Request`;
+    document.getElementById("timeline-decision-summary").textContent = `${request.fullName} | ${money(request.amount)} | ${request.paymentMethod === "available_balance" ? "Available Balance" : request.referenceNumber}`;
+    document.getElementById("timeline-decision-note").value = "";
+    document.getElementById("timeline-decision-submit").textContent = action === "approve" ? "Approve & Place" : "Reject Request";
+    timelineDecisionAlert.style.display = "none";
+    timelineDecisionModal.style.display = "flex";
+    document.getElementById("timeline-decision-note").focus();
+  }
+  function closeTimelineDecision() { timelineDecisionModal.style.display = "none"; timelineDecision = null; }
   function closeVoucherModal() { voucherModal.style.display="none"; voucherMemberId=null; }
   function copyField(value) { const clean = String(value || "").trim(); return `<span class="admin-copy-field"><code title="${escapeHtml(clean)}">${escapeHtml(clean || "-")}</code><button class="copy-admin-value" type="button" data-copy-value="${escapeHtml(clean)}" aria-label="Copy ${escapeHtml(clean || "value")}" title="Copy to clipboard" ${clean ? "" : "disabled"}><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M5.5 1.5h6A1.5 1.5 0 0 1 13 3v8.5h-1.5V3h-6V1.5Zm-2 3h6A1.5 1.5 0 0 1 11 6v7A1.5 1.5 0 0 1 9.5 14.5h-6A1.5 1.5 0 0 1 2 13V6a1.5 1.5 0 0 1 1.5-1.5Zm0 1.5v7h6V6h-6Z"/></svg><span class="copy-feedback" aria-live="polite"></span></button></span>`; }
   function bindCopyButtons(container) { container.querySelectorAll(".copy-admin-value").forEach(button => button.addEventListener("click", async () => { try { await navigator.clipboard.writeText(button.dataset.copyValue || ""); const feedback = button.querySelector(".copy-feedback"); feedback.textContent = "Copied"; button.classList.add("copied"); window.setTimeout(() => { feedback.textContent = ""; button.classList.remove("copied"); }, 1200); } catch (error) { show(alertBox, "Unable to copy automatically. Select and copy the value manually.", "danger"); } })); }

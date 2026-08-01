@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Power of Three Timeline Matrix">
+  <title>Timeline Matrix | Matrix Portal</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body class="portal-body">
+  <header class="portal-header site-header">
+    <div class="container header-wrapper withdrawal-header-wrapper">
+      <a class="brand" href="portal.html">
+        <span class="brand-mark">M</span>
+        <span><strong>Matrix</strong><small>Timeline Matrix</small></span>
+      </a>
+      <div id="timeline-user-status" class="user-status-strip" style="display:none">
+        <button id="timeline-account-menu-toggle" class="account-menu-toggle" type="button" aria-label="Open member menu" aria-expanded="false" aria-controls="timeline-account-menu">
+          <span id="timeline-avatar-letter" class="header-avatar">M</span>
+          <span class="account-menu-copy">
+            <small>Timeline Matrix</small>
+            <strong id="timeline-user-name"></strong>
+          </span>
+          <span class="account-chevron" aria-hidden="true">&#9662;</span>
+        </button>
+        <nav id="timeline-account-menu" class="account-menu" aria-label="Timeline account" hidden>
+          <button type="button" data-timeline-action="profile">Profile</button>
+          <button type="button" data-timeline-action="main">Main Matrix</button>
+          <button type="button" data-timeline-action="withdraw">Balance Withdrawal</button>
+          <button type="button" data-timeline-action="history">Passive Income History</button>
+          <button type="button" data-timeline-action="logout" class="account-menu-signout">Sign Out</button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="portal-container withdrawal-page">
+    <section class="withdrawal-hero">
+      <div>
+        <span class="withdrawal-eyebrow">Power of Three</span>
+        <h1>Timeline Matrix</h1>
+        <p>Activate once for PHP 693. Placement follows the automatic left-to-right timeline queue.</p>
+      </div>
+      <span id="timeline-status-badge" class="badge">Checking</span>
+    </section>
+
+    <div id="timeline-alert" class="alert" style="display:none"></div>
+
+    <section id="timeline-activation-card" class="portal-card matrix-overview-card" style="display:none">
+      <div class="matrix-card-header">
+        <div>
+          <h3>Activate Timeline Matrix</h3>
+          <p>Submit a PHP 693 activation request. Admin approval places your account in the next open timeline slot.</p>
+        </div>
+        <span class="badge">PHP 693</span>
+      </div>
+      <form id="timeline-activation-form" novalidate>
+        <div class="withdrawal-fields-grid">
+          <div class="form-group">
+            <label for="timeline-payment-method">Payment Method</label>
+            <select id="timeline-payment-method" class="form-control" required>
+              <option value="gcash">GCash</option>
+              <option value="available_balance">Available Balance</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="timeline-available-balance">Available Balance</label>
+            <input id="timeline-available-balance" class="form-control" type="text" readonly>
+          </div>
+          <div class="form-group timeline-gcash-field">
+            <label for="timeline-gcash-name">GCash Account Name</label>
+            <input id="timeline-gcash-name" class="form-control" type="text" maxlength="30" pattern="[A-Za-zÀ-ÿÑñ .'-]+">
+          </div>
+          <div class="form-group timeline-gcash-field">
+            <label for="timeline-gcash-number">GCash Number</label>
+            <input id="timeline-gcash-number" class="form-control" type="tel" inputmode="numeric" maxlength="11" pattern="09[0-9]{9}" placeholder="09XXXXXXXXX">
+          </div>
+          <div class="form-group timeline-gcash-field withdrawal-full-width">
+            <label for="timeline-reference">GCash Reference Number</label>
+            <input id="timeline-reference" class="form-control" type="text" maxlength="40" pattern="[A-Za-z0-9-]{6,40}" placeholder="Paste the transaction reference">
+            <small class="field-limit">6-40 letters, numbers, or hyphens</small>
+          </div>
+        </div>
+        <button id="timeline-submit" class="button button-primary withdrawal-submit" type="submit">Submit Timeline Activation</button>
+      </form>
+    </section>
+
+    <section id="timeline-dashboard" class="timeline-dashboard-stack" style="display:none">
+      <div class="metrics-row">
+        <div class="metric-card"><span class="title">Timeline Balance</span><span id="timeline-balance" class="value">PHP 0</span></div>
+        <div class="metric-card"><span class="title">Members Under You</span><span id="timeline-descendants" class="value">0</span></div>
+        <div class="metric-card"><span class="title">Highest Exit</span><span id="timeline-highest-exit" class="value">Entry</span></div>
+      </div>
+
+      <div class="portal-card matrix-overview-card">
+        <div class="matrix-card-header">
+          <div>
+            <h3>Timeline Exit Status</h3>
+            <p>Exits unlock automatically when your direct timeline downlines reach the required level.</p>
+          </div>
+          <span id="timeline-selected-badge" class="badge">Entry</span>
+        </div>
+        <div id="timeline-tabs" class="matrix-tabs" role="tablist" aria-label="Timeline exits"></div>
+        <div id="timeline-exit-detail" class="matrix-exits"></div>
+      </div>
+
+      <div id="timeline-balance-card" class="portal-card matrix-overview-card" tabindex="-1">
+        <div class="matrix-card-header">
+          <div>
+            <h3>Balance &amp; Claims</h3>
+            <p>Review due income from all matrices, request withdrawal, and track where each balance came from.</p>
+          </div>
+          <span id="timeline-balance-total-badge" class="badge">PHP 0</span>
+        </div>
+
+        <div class="balance-actions-grid balance-actions-compact">
+          <section class="matrix-status-panel">
+            <span class="matrix-qualification qualified">Available Balance</span>
+            <h4 id="timeline-balance-total">PHP 0</h4>
+            <p>Income is added here when due. Withdrawal requests are checked and paid manually by admin.</p>
+            <div class="balance-card-buttons">
+              <a class="button button-primary button-small" href="withdrawal-request.html">Request Withdrawal</a>
+              <a class="button button-outline button-small" href="passive-income-history.html">Passive Income History</a>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div id="timeline-products-card" class="portal-card matrix-overview-card">
+        <div class="matrix-card-header">
+          <div>
+            <h3>Products Plus</h3>
+            <p>Monthly purchase amounts unlock and remain available until used. Select an exit to review its accumulated entitlement.</p>
+          </div>
+          <span id="timeline-products-badge" class="badge">PHP 0 Available</span>
+        </div>
+        <div id="timeline-products-tabs" class="matrix-tabs product-plus-tabs" role="tablist" aria-label="Timeline Products Plus exits"></div>
+
+        <div class="balance-actions-grid products-plus-detail-layout">
+          <section class="matrix-status-panel">
+            <span id="timeline-products-status" class="matrix-qualification locked">Locked</span>
+            <h4 id="timeline-products-available">PHP 0</h4>
+            <p id="timeline-products-summary">Select an exit to review its monthly Products Plus schedule.</p>
+            <dl class="matrix-facts products-plus-facts">
+              <div><dt>Monthly Purchase</dt><dd id="timeline-products-monthly">PHP 0</dd></div>
+              <div><dt>Months Vested</dt><dd id="timeline-products-vested">0 / 0</dd></div>
+              <div><dt>Voucher Reward</dt><dd id="timeline-products-reward">PHP 0</dd></div>
+              <div><dt>Already Used</dt><dd id="timeline-products-used">PHP 0</dd></div>
+            </dl>
+            <button id="timeline-products-request-btn" class="button button-primary button-small" type="button" disabled>Request Products Plus Claim</button>
+          </section>
+
+          <section>
+            <div class="exit-header-row">
+              <h4>Vesting Progress</h4>
+              <span id="timeline-products-schedule-note"></span>
+            </div>
+            <div id="timeline-products-detail" class="product-plus-schedule"></div>
+          </section>
+        </div>
+        <section class="products-plus-vouchers">
+          <div class="exit-header-row"><h4>Voucher Wallet</h4><strong id="timeline-voucher-balance">PHP 0</strong></div>
+          <p>Approved Products Plus bonuses appear here. Vouchers do not expire, are not withdrawable as cash, and may be redeemed partially.</p>
+          <div id="timeline-voucher-history" class="product-plus-schedule"></div>
+        </section>
+      </div>
+
+      <div class="portal-card">
+        <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem;">Timeline Downline Matrix Explorer</h3>
+        <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 1.5rem; margin-top: -0.5rem;">View the direct timeline positions under your node.</p>
+        <div id="timeline-tree" class="tree-container"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="timeline-products-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="timeline-products-title" style="display:none">
+    <div class="modal-content portal-card">
+      <button id="timeline-products-close" class="modal-close" type="button" aria-label="Close">&times;</button>
+      <h2 id="timeline-products-title">Timeline Products Plus Claim</h2>
+      <p id="timeline-products-limit" class="subtitle"></p>
+      <div id="timeline-products-alert" class="alert" style="display:none"></div>
+      <form id="timeline-products-form">
+        <div class="form-group"><label for="timeline-products-amount">Product purchase amount</label><input id="timeline-products-amount" class="form-control" type="number" min="0.01" step="0.01" required></div>
+        <div class="form-group"><label for="timeline-products-reference">Receipt or purchase reference</label><input id="timeline-products-reference" class="form-control" type="text" minlength="3" maxlength="60" pattern="[A-Za-z0-9][A-Za-z0-9 _./#-]{2,59}" required></div>
+        <div class="form-group"><label for="timeline-products-notes">Notes (optional)</label><textarea id="timeline-products-notes" class="form-control" rows="3" maxlength="240"></textarea></div>
+        <button id="timeline-products-submit" class="button button-primary" type="submit">Submit for Review</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/runtime-config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="matrix-db.js"></script>
+  <script src="js/timeline-matrix.js"></script>
+  <script src="js/timeline-matrix-production.js"></script>
+</body>
+</html>

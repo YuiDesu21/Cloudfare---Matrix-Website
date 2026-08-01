@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const adminAuthSection = document.getElementById("admin-auth-section");
   const adminLoginForm = document.getElementById("admin-login-form");
   const adminPasswordInput = document.getElementById("admin-password");
+  const adminOperatorNameInput = document.getElementById("admin-operator-name");
   const adminLoginAlert = document.getElementById("admin-login-alert");
 
   const adminDashboardSection = document.getElementById("admin-dashboard-section");
@@ -37,6 +38,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const statPendingRequests = document.getElementById("stat-pending-requests");
   const statRevenue = document.getElementById("stat-revenue");
 
+  const btnRefreshOperations = document.getElementById("btn-refresh-operations");
+  const btnExportOperations = document.getElementById("btn-export-operations");
+  const operationsExceptionsTableBody = document.getElementById("operations-exceptions-table-body");
+  const opsAvailableRewards = document.getElementById("ops-available-rewards");
+  const opsScheduledRewards = document.getElementById("ops-scheduled-rewards");
+  const opsApprovedPayouts = document.getElementById("ops-approved-payouts");
+  const opsPendingPayouts = document.getElementById("ops-pending-payouts");
+  const opsActivationVolume = document.getElementById("ops-activation-volume");
+  const opsRecordedDecisions = document.getElementById("ops-recorded-decisions");
+  const opsAuditEntries = document.getElementById("ops-audit-entries");
+  const opsAuditIntegrity = document.getElementById("ops-audit-integrity");
+  const opsExceptionCount = document.getElementById("ops-exception-count");
+  const opsReportGenerated = document.getElementById("ops-report-generated");
+  let operationsReport = null;
+
   // System Controls
   const btnSeed = document.getElementById("btn-seed");
   const btnReset = document.getElementById("btn-reset");
@@ -53,6 +69,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const withdrawalsTableBody = document.getElementById("withdrawals-table-body");
   const productClaimsTableBody = document.getElementById("product-claims-table-body");
   const upgradeRequestsTableBody = document.getElementById("upgrade-requests-table-body");
+  const timelineRequestsTableBody = document.getElementById("timeline-requests-table-body");
+  const identityReviewsTableBody = document.getElementById("identity-reviews-table-body");
+  const approvalHistoryTableBody = document.getElementById("approval-history-table-body");
   const pendingAlert = document.getElementById("pending-alert");
   const membersTableBody = document.getElementById("members-table-body");
   const memberSearchInput = document.getElementById("member-search");
@@ -89,6 +108,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalAlert = document.getElementById("modal-alert");
   const modeParentRadio = document.getElementById("mode-parent");
   const modeRootRadio = document.getElementById("mode-root");
+  const modalDecisionNote = document.getElementById("modal-decision-note");
+
+  const decisionModal = document.getElementById("decision-modal");
+  const decisionForm = document.getElementById("decision-form");
+  const decisionNote = document.getElementById("decision-note");
+  const decisionModalTitle = document.getElementById("decision-modal-title");
+  const decisionModalContext = document.getElementById("decision-modal-context");
+  const decisionModalAlert = document.getElementById("decision-modal-alert");
+  const btnCloseDecisionModal = document.getElementById("btn-close-decision-modal");
+  const btnCancelDecision = document.getElementById("btn-cancel-decision");
+  const btnConfirmDecision = document.getElementById("btn-confirm-decision");
+  let pendingDecisionAction = null;
 
   const detailsModal = document.getElementById("details-modal");
   const btnCloseDetailsModal = document.getElementById("btn-close-details-modal");
@@ -105,7 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
     const inputPass = adminPasswordInput.value;
     try {
-      MatrixDB.authenticateAdmin(inputPass);
+      MatrixDB.authenticateAdmin(inputPass, adminOperatorNameInput.value);
       sessionStorage.setItem(ADMIN_SESSION_KEY, "true");
       enterDashboard();
     } catch (error) {
@@ -128,9 +159,8 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById(target).classList.add("active");
 
       // Specific tab loads
-      if (target === "tab-visualizer") {
-        renderGlobalTree();
-      }
+      if (target === "tab-visualizer") renderGlobalTree();
+      if (target === "tab-operations") renderOperationsReport();
     });
   });
 
@@ -156,11 +186,15 @@ document.addEventListener("DOMContentLoaded", () => {
   
   btnCloseDetailsModal.addEventListener("click", () => closeModal(detailsModal));
   btnCloseDetailsFooter.addEventListener("click", () => closeModal(detailsModal));
+  btnCloseDecisionModal.addEventListener("click", () => closeModal(decisionModal));
+  btnCancelDecision.addEventListener("click", () => closeModal(decisionModal));
+  decisionForm.addEventListener("submit", submitDecision);
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeModal(placementModal);
       closeModal(detailsModal);
+      closeModal(decisionModal);
     }
   });
 
@@ -172,6 +206,9 @@ document.addEventListener("DOMContentLoaded", () => {
       refreshAll();
     }
   });
+
+  btnRefreshOperations.addEventListener("click", renderOperationsReport);
+  btnExportOperations.addEventListener("click", exportOperationsCsv);
 
   btnReset.addEventListener("click", () => {
     if (confirm("CRITICAL WARNING: This will permanently delete ALL registrations, members, logs and reset settings. Continue?")) {
@@ -224,10 +261,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const settings = MatrixDB.getSettings();
       settings.adminPassword = newPass;
       MatrixDB.saveSettings(settings);
-      
-      newPasswordInput.value = "";
-      showUtilityMessage("Admin access password updated successfully.", "alert-success");
-      refreshAll();
+      logoutAdmin();
+      adminLoginAlert.textContent = "Admin password updated. All control-panel sessions were signed out.";
+      adminLoginAlert.className = "alert alert-success";
+      adminLoginAlert.style.display = "block";
     } catch (err) {
       showUtilityMessage("Password update failed: " + err.message, "alert-danger");
     }
@@ -259,7 +296,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // Setup Initial State & Functions
   function checkAdminSession() {
     if (sessionStorage.getItem(ADMIN_SESSION_KEY) === "true" && sessionStorage.getItem("matrix_admin_auth_token")) {
-      enterDashboard();
+      try {
+        MatrixDB.getSettings();
+        enterDashboard();
+      } catch (error) {
+        logoutAdmin();
+        adminLoginAlert.textContent = "Your admin session has expired. Please sign in again.";
+        adminLoginAlert.className = "alert alert-danger";
+        adminLoginAlert.style.display = "block";
+      }
     } else {
       adminAuthSection.style.display = "block";
       adminDashboardSection.style.display = "none";
@@ -276,9 +321,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function logoutAdmin() {
+    try { MatrixDB.signOut(); } catch (error) { console.error(error); }
     sessionStorage.removeItem(ADMIN_SESSION_KEY);
     sessionStorage.removeItem("matrix_admin_auth_token");
     adminPasswordInput.value = "";
+    adminOperatorNameInput.value = "";
     adminAuthSection.style.display = "block";
     adminDashboardSection.style.display = "none";
     adminUserStatus.style.display = "none";
@@ -288,8 +335,12 @@ document.addEventListener("DOMContentLoaded", () => {
   function refreshAll() {
     updateApprovalCounts();
     renderOverviewStats();
+    renderOperationsReport();
     renderPendingQueue();
     renderUpgradeQueue();
+    renderTimelineQueue();
+    renderIdentityReviewQueue();
+    renderApprovalHistory();
     renderExitActionQueue();
     renderWithdrawalQueue();
     renderProductClaimQueue();
@@ -302,15 +353,94 @@ document.addEventListener("DOMContentLoaded", () => {
     const counts = {
       registrations: MatrixDB.getPendingRegistrations().filter(item => item.status === "pending").length,
       entry: MatrixDB.getUpgradeRequests().filter(item => item.status === "pending").length,
+      timeline: MatrixDB.getTimelineRequests ? MatrixDB.getTimelineRequests().filter(item => item.status === "pending").length : 0,
       exit: MatrixDB.getExitActionRequests().filter(item => item.status === "pending").length,
       withdrawals: MatrixDB.getWithdrawalRequests().filter(item => item.status === "pending").length,
-      products: MatrixDB.getProductPlusClaims().filter(item => item.status === "pending").length
+      products: MatrixDB.getProductPlusClaims().filter(item => item.status === "pending").length,
+      identity: MatrixDB.getIdentityReviews ? MatrixDB.getIdentityReviews().filter(item => item.status === "open").length : 0
     };
     Object.entries(counts).forEach(([name, count]) => {
       const badge = document.getElementById(`approval-count-${name}`);
       if (!badge) return;
       badge.textContent = count;
       badge.classList.toggle("has-requests", count > 0);
+    });
+  }
+
+  function openDecisionModal({ title, context, confirmLabel, onConfirm }) {
+    pendingDecisionAction = onConfirm;
+    decisionModalTitle.textContent = title;
+    decisionModalContext.textContent = context;
+    btnConfirmDecision.textContent = confirmLabel;
+    decisionNote.value = "";
+    decisionModalAlert.style.display = "none";
+    decisionModal.classList.add("active");
+    decisionNote.focus();
+  }
+
+  function submitDecision(event) {
+    event.preventDefault();
+    const note = decisionNote.value.trim();
+    if (note.length < 5) {
+      decisionModalAlert.textContent = "Add a short verification or decision note before continuing.";
+      decisionModalAlert.className = "alert alert-danger";
+      decisionModalAlert.style.display = "block";
+      return;
+    }
+    try {
+      pendingDecisionAction(note);
+      closeModal(decisionModal);
+      refreshAll();
+    } catch (error) {
+      decisionModalAlert.textContent = error.message;
+      decisionModalAlert.className = "alert alert-danger";
+      decisionModalAlert.style.display = "block";
+    }
+  }
+
+  function renderApprovalHistory() {
+    if (!approvalHistoryTableBody || !MatrixDB.getApprovalDecisionHistory) return;
+    const decisions = MatrixDB.getApprovalDecisionHistory();
+    approvalHistoryTableBody.innerHTML = decisions.length ? "" : `<tr><td colspan="6" class="empty-state">No recorded approval decisions yet.</td></tr>`;
+    decisions.forEach(item => {
+      const decision = item.latestDecision || {};
+      const statusLabel = item.status === "approved" ? "Approved" : item.status === "rejected" ? "Rejected" : item.status === "pending" ? "Reopened" : "Reversed";
+      const workflow = item.workflow === "timeline" ? "Timeline" : item.workflow.charAt(0).toUpperCase() + item.workflow.slice(1);
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td><strong>${escapeHtml(workflow)}</strong>${item.exit ? `<br><small>Exit ${item.exit}</small>` : ""}</td>
+        <td><strong>${escapeHtml(item.fullName)}</strong><br><small>${escapeHtml(item.accountCode)} · @${escapeHtml(item.username)}</small></td>
+        <td><span class="badge ${item.status === "approved" ? "badge-active" : "badge-pending"}">${statusLabel}</span></td>
+        <td><strong>${escapeHtml(decision.decidedBy || "Legacy record")}</strong><br><small>${escapeHtml(decision.note || "No decision note recorded")}</small></td>
+        <td>${formatDate(decision.decidedAt || item.createdAt)}</td>
+        <td><div class="actions"></div></td>`;
+      const actions = row.querySelector(".actions");
+      if (item.status === "rejected") {
+        const button = document.createElement("button");
+        button.className = "button btn-secondary";
+        button.textContent = "Reopen";
+        button.addEventListener("click", () => openDecisionModal({
+          title: "Reopen Rejected Request",
+          context: `${workflow} request for ${item.fullName} will return to the pending queue.`,
+          confirmLabel: "Reopen Request",
+          onConfirm: note => MatrixDB.reverseApprovalDecision(item.workflow, item.requestId, note)
+        }));
+        actions.appendChild(button);
+      } else if (item.status === "approved") {
+        const button = document.createElement("button");
+        button.className = "button btn-danger";
+        button.textContent = "Reverse Approval";
+        button.addEventListener("click", () => openDecisionModal({
+          title: "Reverse Approved Request",
+          context: `${workflow} approval for ${item.fullName} will only reverse when no downstream, paid reward, or later Exit dependency exists.`,
+          confirmLabel: "Reverse Approval",
+          onConfirm: note => MatrixDB.reverseApprovalDecision(item.workflow, item.requestId, note)
+        }));
+        actions.appendChild(button);
+      } else {
+        actions.textContent = "Final record";
+      }
+      approvalHistoryTableBody.appendChild(row);
     });
   }
 
@@ -330,9 +460,50 @@ document.addEventListener("DOMContentLoaded", () => {
       walletCell.innerHTML = copyField(request.walletAddress);
       row.insertBefore(walletCell, row.children[2]);
       walletCell.querySelector(".copy-admin-value").addEventListener("click", event => copyAdminValue(event.currentTarget));
-      row.querySelector(".approve-upgrade").addEventListener("click",()=>{try{const select=row.querySelector(".upgrade-parent");const parent=request.fixedParentId||(select?select.value:null);if(!request.fixedParentId&&eligible.length&&!parent)throw new Error("Select a placement parent.");MatrixDB.approveUpgrade(request.id,parent||null);refreshAll()}catch(error){showPendingAlert(error.message,"danger")}});
-      row.querySelector(".reject-upgrade").addEventListener("click",()=>{if(confirm(`Reject Entry activation for ${request.fullName}?`)){MatrixDB.rejectUpgrade(request.id);refreshAll()}});
+      row.querySelector(".approve-upgrade").addEventListener("click",()=>{try{const select=row.querySelector(".upgrade-parent");const parent=request.fixedParentId||(select?select.value:null);if(!request.fixedParentId&&eligible.length&&!parent)throw new Error("Select a placement parent.");openDecisionModal({title:"Approve Entry Activation",context:`Record the PHP 1,200 payment verification for ${request.fullName}.`,confirmLabel:"Verify & Activate",onConfirm:note=>MatrixDB.approveUpgrade(request.id,parent||null,note)})}catch(error){showPendingAlert(error.message,"danger")}});
+      row.querySelector(".reject-upgrade").addEventListener("click",()=>openDecisionModal({title:"Reject Entry Activation",context:`Record why the Entry activation for ${request.fullName} is being rejected.`,confirmLabel:"Reject Request",onConfirm:note=>MatrixDB.rejectUpgrade(request.id,note)}));
       upgradeRequestsTableBody.appendChild(row);
+    });
+  }
+
+  function renderTimelineQueue() {
+    if (!timelineRequestsTableBody || !MatrixDB.getTimelineRequests) return;
+    const requests = MatrixDB.getTimelineRequests().filter(item => item.status === "pending");
+    timelineRequestsTableBody.innerHTML = requests.length ? "" : `<tr><td colspan="7" class="empty-state">No pending Timeline Matrix activations.</td></tr>`;
+    requests.forEach(request => {
+      const row = document.createElement("tr");
+      const paymentDetails = request.paymentMethod === "available_balance"
+        ? `<span style="color:var(--muted);font-size:.72rem">Reserve and deduct from available balance on approval.</span>`
+        : `<div style="display:grid;gap:.25rem"><span><strong>GCash Name:</strong> ${escapeHtml(request.gcashName || "-")}</span><span><strong>GCash Number:</strong> ${copyField(request.gcashNumber)}</span><span><strong>Reference:</strong> ${copyField(request.referenceNumber)}</span></div>`;
+      row.innerHTML = `
+        <td><strong>${escapeHtml(request.fullName)}</strong><br><small>${escapeHtml(request.accountCode)} Â· @${escapeHtml(request.username)}</small></td>
+        <td>PHP ${Number(request.amount || 0).toLocaleString()}</td>
+        <td>${request.paymentMethod === "available_balance" ? "Available Balance" : "GCash"}</td>
+        <td>${paymentDetails}</td>
+        <td>${formatDate(request.createdAt)}</td>
+        <td><span style="color:var(--muted);font-size:.72rem">Next open Timeline slot</span></td>
+        <td><div class="actions"><button class="button btn-success approve-timeline">Approve</button><button class="button btn-danger reject-timeline">Reject</button></div></td>
+      `;
+      row.querySelectorAll(".copy-admin-value").forEach(button => button.addEventListener("click", event => copyAdminValue(event.currentTarget)));
+      row.querySelector(".approve-timeline").addEventListener("click", () => openDecisionModal({title:"Approve Timeline Activation",context:`Record the PHP 693 payment or balance verification for ${request.fullName}.`,confirmLabel:"Approve Activation",onConfirm:note=>MatrixDB.approveTimelineActivation(request.id,note)}));
+      row.querySelector(".reject-timeline").addEventListener("click", () => openDecisionModal({title:"Reject Timeline Activation",context:`Record why the Timeline request for ${request.fullName} is being rejected.`,confirmLabel:"Reject Request",onConfirm:note=>MatrixDB.rejectTimelineActivation(request.id,note)}));
+      timelineRequestsTableBody.appendChild(row);
+    });
+  }
+
+  function renderIdentityReviewQueue() {
+    if (!identityReviewsTableBody || !MatrixDB.getIdentityReviews) return;
+    const reviews = MatrixDB.getIdentityReviews().filter(review => review.status === "open");
+    identityReviewsTableBody.innerHTML = reviews.length ? "" : `<tr><td colspan="4" class="empty-state">No identity review flags.</td></tr>`;
+    reviews.forEach(review => {
+      const accounts = (review.members || []).map(member =>
+        `<strong>${escapeHtml(member.fullName)}</strong><br><small>${escapeHtml(member.accountCode)} Â· @${escapeHtml(member.username)}</small>`
+      ).join("<hr style=\"border:0;border-top:1px solid rgba(255,201,28,.12);margin:.45rem 0\">");
+      const signal = review.type === "shared-phone" ? "Shared phone" : review.type === "invalid-phone" ? "Invalid phone" : "Duplicate payment reference";
+      const row = document.createElement("tr");
+      row.innerHTML = `<td><strong>${signal}</strong></td><td>${copyField(review.value)}</td><td>${accounts || "-"}</td><td><span class="badge badge-pending">Review</span></td>`;
+      row.querySelectorAll(".copy-admin-value").forEach(button => button.addEventListener("click", event => copyAdminValue(event.currentTarget)));
+      identityReviewsTableBody.appendChild(row);
     });
   }
 
@@ -367,22 +538,8 @@ document.addEventListener("DOMContentLoaded", () => {
         </td>
       `;
       tr.querySelector(".copy-admin-value").addEventListener("click", event => copyAdminValue(event.currentTarget));
-      tr.querySelector(".approve-withdrawal-btn").addEventListener("click", () => {
-        try {
-          MatrixDB.approveWithdrawal(request.id);
-          refreshAll();
-        } catch (err) {
-          showPendingAlert(err.message, "danger");
-        }
-      });
-      tr.querySelector(".reject-withdrawal-btn").addEventListener("click", () => {
-        try {
-          MatrixDB.rejectWithdrawal(request.id);
-          refreshAll();
-        } catch (err) {
-          showPendingAlert(err.message, "danger");
-        }
-      });
+      tr.querySelector(".approve-withdrawal-btn").addEventListener("click", () => openDecisionModal({title:"Approve Withdrawal",context:`Confirm the PHP ${Number(request.amount || 0).toLocaleString()} payout has been sent to ${request.accountName || request.fullName}.`,confirmLabel:"Confirm Payout",onConfirm:note=>MatrixDB.approveWithdrawal(request.id,note)}));
+      tr.querySelector(".reject-withdrawal-btn").addEventListener("click", () => openDecisionModal({title:"Reject Withdrawal",context:`Record why the withdrawal for ${request.fullName} is being rejected.`,confirmLabel:"Reject Request",onConfirm:note=>MatrixDB.rejectWithdrawal(request.id,note)}));
       withdrawalsTableBody.appendChild(tr);
     });
   }
@@ -472,23 +629,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       tr.querySelectorAll(".copy-admin-value").forEach(button => button.addEventListener("click", event => copyAdminValue(event.currentTarget)));
 
-      tr.querySelector(".approve-exit-action-btn").addEventListener("click", () => {
-        try {
-          MatrixDB.approveExitAction(request.id);
-          refreshAll();
-        } catch (err) {
-          showPendingAlert(err.message, "danger");
-        }
-      });
+      tr.querySelector(".approve-exit-action-btn").addEventListener("click", () => openDecisionModal({title:`Approve Exit ${request.exit}`,context:`Record the payment or wallet verification for ${request.fullName}.`,confirmLabel:"Approve Exit",onConfirm:note=>MatrixDB.approveExitAction(request.id,note)}));
 
-      tr.querySelector(".reject-exit-action-btn").addEventListener("click", () => {
-        try {
-          MatrixDB.rejectExitAction(request.id);
-          refreshAll();
-        } catch (err) {
-          showPendingAlert(err.message, "danger");
-        }
-      });
+      tr.querySelector(".reject-exit-action-btn").addEventListener("click", () => openDecisionModal({title:`Reject Exit ${request.exit}`,context:`Record why the Exit action for ${request.fullName} is being rejected.`,confirmLabel:"Reject Request",onConfirm:note=>MatrixDB.rejectExitAction(request.id,note)}));
 
       exitActionsTableBody.appendChild(tr);
     });
@@ -499,7 +642,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const members = MatrixDB.getMembers();
     const pending = MatrixDB.getPendingRegistrations().filter(p => p.status === "pending");
     const pendingUpgrades = MatrixDB.getUpgradeRequests().filter(item => item.status === "pending");
-    const pendingTotal = pending.length + pendingUpgrades.length;
+    const pendingTimeline = MatrixDB.getTimelineRequests ? MatrixDB.getTimelineRequests().filter(item => item.status === "pending") : [];
+    const pendingTotal = pending.length + pendingUpgrades.length + pendingTimeline.length;
     const positions = MatrixDB.getPositions();
 
     statActiveMembers.textContent = members.filter(member => member.status === "active").length;
@@ -522,7 +666,73 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    statRevenue.textContent = `${totalVolume.toLocaleString()} F3`;
+    statRevenue.textContent = `PHP ${totalVolume.toLocaleString()}`;
+  }
+
+  function formatPeso(value) {
+    return `PHP ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  }
+
+  function renderOperationsReport() {
+    if (!MatrixDB.getOperationsReport || !operationsExceptionsTableBody) return;
+    try {
+      operationsReport = MatrixDB.getOperationsReport();
+      const metrics = operationsReport.metrics || {};
+      opsAvailableRewards.textContent = formatPeso(metrics.availableRewards);
+      opsScheduledRewards.textContent = formatPeso(metrics.scheduledRewards);
+      opsApprovedPayouts.textContent = formatPeso(metrics.approvedPayouts);
+      opsPendingPayouts.textContent = formatPeso(metrics.pendingPayouts);
+      opsActivationVolume.textContent = formatPeso(metrics.activationVolume);
+      opsRecordedDecisions.textContent = Number(metrics.recordedDecisions || 0).toLocaleString();
+      opsAuditEntries.textContent = Number(metrics.auditEntries || 0).toLocaleString();
+      const auditValid = Boolean(operationsReport.audit?.valid);
+      opsAuditIntegrity.textContent = auditValid ? "Verified" : "Review";
+      opsAuditIntegrity.style.color = auditValid ? "var(--success)" : "var(--danger)";
+      const exceptions = operationsReport.exceptions || [];
+      opsExceptionCount.textContent = exceptions.length;
+      opsExceptionCount.className = `badge ${exceptions.some(item => item.severity === "high") ? "badge-danger" : "badge-pending"}`;
+      opsReportGenerated.textContent = `Report generated ${formatDateTime(operationsReport.generatedAt)}. ${auditValid ? "Audit hash chain verified." : operationsReport.audit?.issue || "Audit review required."}`;
+      operationsExceptionsTableBody.innerHTML = exceptions.length ? "" : `<tr><td colspan="4" class="empty-state">No reconciliation exceptions found.</td></tr>`;
+      exceptions.forEach(exception => {
+        const row = document.createElement("tr");
+        const severity = exception.severity === "high" ? "High" : "Review";
+        row.innerHTML = `<td><span class="badge ${exception.severity === "high" ? "badge-danger" : "badge-pending"}">${severity}</span></td><td><strong>${escapeHtml(exception.category)}</strong></td><td><code>${escapeHtml(exception.reference)}</code></td><td>${escapeHtml(exception.detail)}</td>`;
+        operationsExceptionsTableBody.appendChild(row);
+      });
+    } catch (error) {
+      operationsExceptionsTableBody.innerHTML = `<tr><td colspan="4" class="empty-state">Operations report unavailable: ${escapeHtml(error.message)}</td></tr>`;
+    }
+  }
+
+  function csvCell(value) {
+    return `"${String(value ?? "").replace(/"/g, '""')}"`;
+  }
+
+  function exportOperationsCsv() {
+    if (!operationsReport) renderOperationsReport();
+    if (!operationsReport) return;
+    const metrics = operationsReport.metrics || {};
+    const lines = [
+      ["Matrix Operations Report", operationsReport.generatedAt],
+      ["Available rewards", metrics.availableRewards],
+      ["Scheduled rewards", metrics.scheduledRewards],
+      ["Approved payouts", metrics.approvedPayouts],
+      ["Pending payouts", metrics.pendingPayouts],
+      ["Activation volume", metrics.activationVolume],
+      ["Recorded decisions", metrics.recordedDecisions],
+      ["Audit entries", metrics.auditEntries],
+      ["Audit integrity", operationsReport.audit?.valid ? "Verified" : "Review required"],
+      [],
+      ["Severity", "Category", "Reference", "Finding"],
+      ...(operationsReport.exceptions || []).map(item => [item.severity, item.category, item.reference, item.detail])
+    ];
+    const blob = new Blob([lines.map(row => row.map(csvCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `matrix-operations-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   // Render Activity Log View
@@ -593,16 +803,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       // Event listener for Reject button
-      tr.querySelector(".reject-btn").addEventListener("click", () => {
-        if (confirm(`Are you sure you want to reject the registration request for ${req.fullName} (@${req.username})?`)) {
-          try {
-            MatrixDB.rejectPending(req.id);
-            refreshAll();
-          } catch (e) {
-            showPendingAlert(e.message, "danger");
-          }
-        }
-      });
+      tr.querySelector(".reject-btn").addEventListener("click", () => openDecisionModal({
+        title: "Reject Registration",
+        context: `Record why the registration request for ${req.fullName} is being rejected.`,
+        confirmLabel: "Reject Registration",
+        onConfirm: note => MatrixDB.rejectPending(req.id, note)
+      }));
 
       pendingTableBody.appendChild(tr);
     });
@@ -612,6 +818,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function openPlacementModal(req) {
     modalAlert.style.display = "none";
     modalPendingId.value = req.id;
+    modalDecisionNote.value = "";
     modalApplicantName.textContent = req.fullName;
     modalApplicantUsername.textContent = req.username;
     modalApplicantSponsor.textContent = req.sponsorUsername ? `@${req.sponsorUsername}` : "None";
@@ -680,7 +887,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      MatrixDB.approveAndPlace(pendingId, parentId);
+      MatrixDB.approveAndPlace(pendingId, parentId, modalDecisionNote.value);
       closeModal(placementModal);
       refreshAll();
     } catch (err) {
