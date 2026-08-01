@@ -49,7 +49,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.querySelectorAll("[data-production-tab]").forEach(button => button.addEventListener("click", async () => {
     const target = button.dataset.productionTab;
     document.querySelectorAll("[data-production-tab]").forEach(tab => tab.classList.toggle("active", tab === button));
-    document.querySelectorAll(".admin-section").forEach(section => section.classList.toggle("active", section.id === target));
+    document.querySelectorAll(".admin-section").forEach(section => {
+      const active = section.id === target;
+      section.classList.toggle("active", active);
+      if (section.id === "tab-finances") section.hidden = !ownerMode;
+    });
     if (target === "tab-finances") await loadFinances();
     if (target === "tab-matrix-viewer") await loadMatrixExplorer();
   }));
@@ -111,6 +115,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     currentUserId = userData.user && userData.user.id;
     ownerMode = Boolean(isOwner);
     ownerFinancesTab.hidden = !ownerMode;
+    document.getElementById("tab-finances").hidden = !ownerMode;
     statAdminAccess.textContent = ownerMode ? "Owner" : "Admin";
     memberRoles = new Map((roles || []).map(item => [item.memberId, item]));
     loginSection.style.display = "none"; content.style.display = "block"; adminUserStatus.style.display = "flex"; await loadAll();
