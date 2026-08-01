@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const exitList = document.getElementById("admin-exit-list");
   const withdrawalList = document.getElementById("admin-withdrawal-list");
   const productsList = document.getElementById("admin-products-list");
-  const memberList = document.getElementById("admin-member-list");
+  const memberTableBody = document.getElementById("admin-member-table-body");
   const memberSummary = document.getElementById("admin-member-summary");
   const memberPagination = document.getElementById("admin-member-pagination");
   const memberSearch = document.getElementById("admin-member-search");
@@ -27,12 +27,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   const timelineDecisionModal = document.getElementById("timeline-decision-modal");
   const timelineDecisionForm = document.getElementById("timeline-decision-form");
   const timelineDecisionAlert = document.getElementById("timeline-decision-alert");
+  const viewerPlanSelect = document.getElementById("production-viewer-plan-select");
+  const treeMemberSearch = document.getElementById("production-tree-member-search");
+  const matrixExitFilter = document.getElementById("production-matrix-exit-filter");
+  const matrixStatusFilter = document.getElementById("production-matrix-status-filter");
+  const matrixExplorerCount = document.getElementById("production-matrix-explorer-count");
+  const matrixExplorerBreadcrumbs = document.getElementById("production-matrix-explorer-breadcrumbs");
+  const globalTreeVisualizer = document.getElementById("production-global-tree-visualizer");
+  const matrixMemberDetails = document.getElementById("production-matrix-member-details");
   let voucherMemberId = null;
   let timelineDecision = null;
   let memberPage = 1;
   let currentUserId = null;
   let ownerMode = false;
   let memberRoles = new Map();
+  let matrixExplorerNodes = [];
+  let matrixExplorerExpanded = new Set();
+  let matrixExplorerSelectedId = null;
   const pendingCounts = {};
 
   document.querySelectorAll("[data-production-tab]").forEach(button => button.addEventListener("click", async () => {
@@ -40,6 +51,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.querySelectorAll("[data-production-tab]").forEach(tab => tab.classList.toggle("active", tab === button));
     document.querySelectorAll(".admin-section").forEach(section => section.classList.toggle("active", section.id === target));
     if (target === "tab-finances") await loadFinances();
+    if (target === "tab-matrix-viewer") await loadMatrixExplorer();
   }));
   document.querySelectorAll("[data-production-approval-tab]").forEach(button => button.addEventListener("click", () => {
     const selected = button.dataset.productionApprovalTab;
@@ -57,6 +69,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault(); memberPage = 1; await loadMembers();
   });
   memberStatus.addEventListener("change", async () => { memberPage = 1; await loadMembers(); });
+  viewerPlanSelect.addEventListener("change", loadMatrixExplorer);
+  treeMemberSearch.addEventListener("input", renderMatrixExplorerRows);
+  [matrixExitFilter, matrixStatusFilter].forEach(input => input.addEventListener("change", renderMatrixExplorerRows));
+  document.getElementById("production-matrix-expand-all").addEventListener("click", () => { matrixExplorerExpanded = new Set(matrixExplorerNodes.filter(node => node.childIds.length).map(node => node.id)); renderMatrixExplorerRows(); });
+  document.getElementById("production-matrix-collapse-all").addEventListener("click", () => { matrixExplorerExpanded = new Set(matrixExplorerNodes.filter(node => !node.parentId && node.childIds.length).map(node => node.id)); renderMatrixExplorerRows(); });
   document.getElementById("voucher-redemption-close").addEventListener("click", closeVoucherModal);
   voucherModal.addEventListener("click", event => { if (event.target === voucherModal) closeVoucherModal(); });
   document.getElementById("timeline-decision-close").addEventListener("click", closeTimelineDecision);
@@ -100,35 +117,47 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts()]); }
   async function loadMembers() {
-    memberList.innerHTML = `<div class="portal-card withdrawal-empty"><p>Loading member directory...</p></div>`;
+    memberTableBody.innerHTML = `<tr><td colspan="8" class="empty-state">Loading member directory...</td></tr>`;
     const { data, error } = await window.matrixSupabase.rpc("admin_get_members", {
       p_search: memberSearch.value.trim(), p_status: memberStatus.value,
       p_page: memberPage, p_page_size: 10
     });
     if (error) {
-      memberList.innerHTML = "";
+      memberTableBody.innerHTML = `<tr><td colspan="8" class="empty-state">Unable to load the member directory.</td></tr>`;
       return show(alertBox, error.message, "danger");
     }
     const members = data.members || [];
     memberSummary.textContent = `${Number(data.total).toLocaleString()} member${Number(data.total) === 1 ? "" : "s"} found`;
     statMembers.textContent = Number(data.total).toLocaleString();
     if (!members.length) {
-      memberList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No matching members</strong><p>Try a different search or account status.</p></div>`;
+      memberTableBody.innerHTML = `<tr><td colspan="8" class="empty-state">No matching members found.</td></tr>`;
     } else {
-      memberList.innerHTML = members.map(member => { const access = memberRoles.get(member.id) || { role: "member", isOwner: false }; const control = !ownerMode || member.id === currentUserId ? "" : access.role === "admin" ? `<button class="button button-outline button-small remove-admin" type="button">Remove Admin</button>` : `<button class="button button-primary button-small invite-admin" type="button">Invite as Admin</button>`; const redeem = member.id === currentUserId ? "" : `<button class="button button-outline button-small redeem-voucher" type="button">Record Voucher Redemption</button>`; return `<article class="portal-card withdrawal-history-item admin-member-card" data-member-id="${escapeHtml(member.id)}" data-member-name="${escapeHtml(member.fullName)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(member.accountCode)}</span><h2>${escapeHtml(member.fullName)}</h2><p class="admin-member-contact">@${escapeHtml(member.username)} &middot; ${escapeHtml(member.email)}${member.phone ? ` &middot; ${escapeHtml(member.phone)}` : ""}</p></div><span class="withdrawal-status ${memberStatusClass(member.status)}">${access.isOwner ? "Owner" : access.role === "admin" ? "Admin" : escapeHtml(member.status)}</span></div><div class="withdrawal-history-details"><div><span>Sponsor</span><strong>${member.sponsorName ? `${escapeHtml(member.sponsorName)} (${escapeHtml(member.sponsorCode)})` : "Matrix root"}</strong></div><div><span>Direct Tree Children</span><strong>${Number(member.directChildrenCount).toLocaleString()}</strong></div><div><span>Sponsor Referrals</span><strong>${Number(member.referralCount).toLocaleString()}</strong></div><div><span>Progress</span><strong>${member.currentExit > 0 ? `Exit ${Number(member.currentExit)}` : member.status === "active" ? "Entry" : "Not entered"}</strong></div><div><span>${member.approvedAt ? "Approved" : "Joined"}</span><strong>${formatDate(member.approvedAt || member.createdAt)}</strong></div></div>${control || redeem ? `<div class="balance-card-buttons">${control}${redeem}</div>` : ""}</article>`; }).join("");
-      memberList.querySelectorAll("[data-member-id]").forEach(card => {
-        const invite = card.querySelector(".invite-admin");
-        const remove = card.querySelector(".remove-admin");
+      memberTableBody.innerHTML = members.map(member => {
+        const access = memberRoles.get(member.id) || { role: "member", isOwner: false };
+        const main = member.mainPosition;
+        const timeline = member.timelinePosition;
+        const planLabel = main ? "Power of Three Passive Income" : timeline ? "Timeline Matrix" : "Not placed";
+        const parentLabel = main ? (main.parentUsername ? `@${main.parentUsername}` : "ROOT Node") : timeline ? (timeline.parentUsername ? `@${timeline.parentUsername}` : "ROOT Node") : "-";
+        const sponsorLabel = member.sponsorName ? `@${member.sponsorName}` : "-";
+        const roleButton = !ownerMode || member.id === currentUserId ? "" : access.role === "admin" ? `<button class="button button-outline button-small remove-admin" type="button">Remove Admin</button>` : `<button class="button button-primary button-small invite-admin" type="button">Invite Admin</button>`;
+        const redeemButton = member.id === currentUserId ? "" : `<button class="button button-outline button-small redeem-voucher" type="button">Voucher</button>`;
+        return `<tr data-member-id="${escapeHtml(member.id)}" data-member-name="${escapeHtml(member.fullName)}"><td><strong>${escapeHtml(member.fullName)}</strong><br><small>${escapeHtml(member.accountCode)}</small></td><td><strong class="admin-table-handle">@${escapeHtml(member.username)}</strong><br><span class="withdrawal-status ${memberStatusClass(member.status)}">${access.isOwner ? "Owner" : access.role === "admin" ? "Admin" : escapeHtml(member.status)}</span></td><td>${escapeHtml(planLabel)}</td><td>${escapeHtml(parentLabel)}</td><td>${escapeHtml(sponsorLabel)}</td><td>${copyField(member.walletAddress)}</td><td>${formatDate(member.approvedAt || member.createdAt)}</td><td><div class="actions"><button class="button button-outline button-small view-member" type="button">View</button>${roleButton}${redeemButton}</div></td></tr>`;
+      }).join("");
+      bindCopyButtons(memberTableBody);
+      memberTableBody.querySelectorAll("[data-member-id]").forEach(row => {
+        const invite = row.querySelector(".invite-admin");
+        const remove = row.querySelector(".remove-admin");
         if (invite) invite.addEventListener("click", async () => {
-          const { data, error } = await window.matrixSupabase.rpc("owner_invite_admin", { p_member_id: card.dataset.memberId });
+          const { data, error } = await window.matrixSupabase.rpc("owner_invite_admin", { p_member_id: row.dataset.memberId });
           if (error) return show(alertBox, error.message, "danger");
           const link = `${window.location.origin}/portal.html?admin_invite=${encodeURIComponent(data.token)}`;
           try { await navigator.clipboard.writeText(link); show(alertBox, `Invitation link copied. It expires ${new Date(data.expiresAt).toLocaleString()}.`, "success"); }
           catch (_) { window.prompt("Copy this administrator invitation link:", link); }
         });
-        if (remove) remove.addEventListener("click", async () => { if (!window.confirm("Remove administrator access for this member?")) return; await act("owner_remove_admin", { p_member_id: card.dataset.memberId }); });
-        const redeem = card.querySelector(".redeem-voucher");
-        if (redeem) redeem.addEventListener("click", () => { voucherMemberId=card.dataset.memberId; voucherForm.reset(); voucherAlert.style.display="none"; document.getElementById("voucher-redemption-member").textContent=`Member: ${card.dataset.memberName}`; voucherModal.style.display="flex"; document.getElementById("voucher-redemption-amount").focus(); });
+        if (remove) remove.addEventListener("click", async () => { if (!window.confirm("Remove administrator access for this member?")) return; await act("owner_remove_admin", { p_member_id: row.dataset.memberId }); });
+        const redeem = row.querySelector(".redeem-voucher");
+        if (redeem) redeem.addEventListener("click", () => { voucherMemberId=row.dataset.memberId; voucherForm.reset(); voucherAlert.style.display="none"; document.getElementById("voucher-redemption-member").textContent=`Member: ${row.dataset.memberName}`; voucherModal.style.display="flex"; document.getElementById("voucher-redemption-amount").focus(); });
+        row.querySelector(".view-member").addEventListener("click", async () => { await activateMatrixViewer(row.dataset.memberId); });
       });
     }
     renderMemberPagination(Number(data.page), Number(data.totalPages));
@@ -139,6 +168,83 @@ document.addEventListener("DOMContentLoaded", async () => {
       memberPage = Number(button.dataset.page); await loadMembers();
       document.getElementById("admin-member-heading").scrollIntoView({ behavior: "smooth", block: "start" });
     }));
+  }
+  async function activateMatrixViewer(memberId) {
+    document.querySelectorAll("[data-production-tab]").forEach(tab => tab.classList.toggle("active", tab.dataset.productionTab === "tab-matrix-viewer"));
+    document.querySelectorAll(".admin-section").forEach(section => section.classList.toggle("active", section.id === "tab-matrix-viewer"));
+    await loadMatrixExplorer(memberId);
+  }
+  async function loadMatrixExplorer(preferredMemberId = null) {
+    globalTreeVisualizer.innerHTML = `<div class="empty-state"><p>Loading matrix placements...</p></div>`;
+    const { data, error } = await window.matrixSupabase.rpc("admin_get_matrix_explorer", { p_plan_id: viewerPlanSelect.value });
+    if (error) { globalTreeVisualizer.innerHTML = `<div class="empty-state"><p>Unable to load the Matrix Explorer.</p></div>`; return show(alertBox, error.message, "danger"); }
+    const byParent = new Map();
+    (data || []).forEach(node => {
+      const key = node.parentMemberId || "root";
+      if (!byParent.has(key)) byParent.set(key, []);
+      byParent.get(key).push(node);
+    });
+    byParent.forEach(nodes => nodes.sort((left, right) => new Date(left.placedAt) - new Date(right.placedAt)));
+    matrixExplorerNodes = [];
+    const flatten = (node, depth) => {
+      const children = byParent.get(node.id) || [];
+      matrixExplorerNodes.push({ ...node, depth, childIds: children.map(child => child.id), openSlots: Math.max(3 - children.length, 0) });
+      children.forEach(child => flatten(child, depth + 1));
+    };
+    (byParent.get("root") || []).forEach(root => flatten(root, 0));
+    matrixExplorerExpanded = new Set((byParent.get("root") || []).filter(root => (byParent.get(root.id) || []).length).map(root => root.id));
+    matrixExplorerSelectedId = matrixExplorerNodes.some(node => node.id === preferredMemberId) ? preferredMemberId : (matrixExplorerNodes[0] || {}).id || null;
+    renderMatrixExplorerRows();
+    renderMatrixMemberDetails();
+  }
+  function renderMatrixExplorerRows() {
+    const query = treeMemberSearch.value.trim().toLowerCase();
+    const exitFilter = matrixExitFilter.value;
+    const statusFilter = matrixStatusFilter.value;
+    const filtered = Boolean(query || exitFilter !== "all" || statusFilter !== "all");
+    const nodeById = new Map(matrixExplorerNodes.map(node => [node.id, node]));
+    const matchingIds = new Set();
+    matrixExplorerNodes.forEach(node => {
+      const stage = node.matrixStage || { exit: 0, status: "active" };
+      const matchesQuery = !query || [node.fullName, node.username, node.walletAddress, node.id].some(value => String(value || "").toLowerCase().includes(query));
+      const matchesExit = exitFilter === "all" || Number(exitFilter) === Number(stage.exit || 0);
+      const matchesStatus = statusFilter === "all" || stage.status === statusFilter;
+      if (!matchesQuery || !matchesExit || !matchesStatus) return;
+      let cursor = node;
+      while (cursor) { matchingIds.add(cursor.id); cursor = cursor.parentMemberId ? nodeById.get(cursor.parentMemberId) : null; }
+    });
+    const visible = matrixExplorerNodes.filter(node => {
+      if (filtered) return matchingIds.has(node.id);
+      let parentId = node.parentMemberId;
+      while (parentId) { if (!matrixExplorerExpanded.has(parentId)) return false; parentId = nodeById.get(parentId)?.parentMemberId || null; }
+      return true;
+    });
+    matrixExplorerCount.textContent = `${matrixExplorerNodes.length} ${matrixExplorerNodes.length === 1 ? "member" : "members"}`;
+    if (!visible.length) { globalTreeVisualizer.innerHTML = `<div class="empty-state"><p>No members match the selected filters.</p></div>`; return; }
+    globalTreeVisualizer.innerHTML = visible.map(node => {
+      const stage = node.matrixStage || { label: "Entry", status: "active", exit: 0 };
+      const expanded = filtered || matrixExplorerExpanded.has(node.id);
+      const hasChildren = node.childIds.length > 0;
+      return `<div class="matrix-explorer-row ${node.id === matrixExplorerSelectedId ? "selected" : ""}" role="treeitem" aria-level="${node.depth + 1}" aria-expanded="${hasChildren ? expanded : "false"}"><div class="matrix-explorer-member-cell" style="--tree-depth:${node.depth}">${hasChildren ? `<button class="matrix-tree-toggle" type="button" data-toggle-id="${escapeHtml(node.id)}" aria-label="${expanded ? "Collapse" : "Expand"} ${escapeHtml(node.fullName)}">${expanded ? "-" : "+"}</button>` : `<span class="matrix-tree-leaf">&bull;</span>`}<button class="matrix-explorer-member" type="button" data-explorer-member-id="${escapeHtml(node.id)}"><strong>${escapeHtml(node.fullName)}</strong><span>@${escapeHtml(node.username)} | ${escapeHtml(shorten(node.walletAddress))}</span></button></div><span class="matrix-explorer-stage stage-${escapeHtml(stage.status)}">${escapeHtml(stage.label)} <small>${escapeHtml(capitalize(stage.status))}</small></span><span class="matrix-explorer-children">${node.childIds.length}/${node.childIds.length + node.openSlots}</span></div>`;
+    }).join("");
+    globalTreeVisualizer.querySelectorAll("[data-toggle-id]").forEach(button => button.addEventListener("click", () => { const id = button.dataset.toggleId; if (matrixExplorerExpanded.has(id)) matrixExplorerExpanded.delete(id); else matrixExplorerExpanded.add(id); renderMatrixExplorerRows(); }));
+    globalTreeVisualizer.querySelectorAll("[data-explorer-member-id]").forEach(button => button.addEventListener("click", () => { matrixExplorerSelectedId = button.dataset.explorerMemberId; renderMatrixExplorerRows(); renderMatrixMemberDetails(); }));
+  }
+  function renderMatrixMemberDetails() {
+    const node = matrixExplorerNodes.find(item => item.id === matrixExplorerSelectedId);
+    if (!node) { matrixExplorerBreadcrumbs.textContent = "Select a member"; matrixMemberDetails.innerHTML = `<div class="empty-state"><p>Select a member to view their details.</p></div>`; return; }
+    const nodeById = new Map(matrixExplorerNodes.map(item => [item.id, item]));
+    const path = [];
+    let cursor = node;
+    while (cursor) { path.unshift(cursor.fullName); cursor = cursor.parentMemberId ? nodeById.get(cursor.parentMemberId) : null; }
+    matrixExplorerBreadcrumbs.textContent = path.join(" > ");
+    const descendants = countExplorerDescendants(node.id);
+    const stage = node.matrixStage || { label: "Entry", status: "active" };
+    matrixMemberDetails.innerHTML = `<span class="withdrawal-eyebrow">Selected member</span><h3>${escapeHtml(node.fullName)}</h3><p class="matrix-member-username">@${escapeHtml(node.username)}</p><div class="matrix-member-stage stage-${escapeHtml(stage.status)}"><strong>${escapeHtml(stage.label)}</strong><span>${escapeHtml(capitalize(stage.status))}</span></div><dl class="matrix-member-detail-list"><div><dt>Direct children</dt><dd>${node.childIds.length}</dd></div><div><dt>Total downline</dt><dd>${descendants}</dd></div><div><dt>Open positions</dt><dd>${node.openSlots}</dd></div><div><dt>Parent placement</dt><dd>${node.parentUsername ? `@${escapeHtml(node.parentUsername)}` : "Root"}</dd></div><div><dt>Invited sponsor</dt><dd>${node.sponsorUsername ? `@${escapeHtml(node.sponsorUsername)}` : "None"}</dd></div><div><dt>Email</dt><dd>${escapeHtml(node.email || "-")}</dd></div><div><dt>Phone</dt><dd>${escapeHtml(node.phone || "-")}</dd></div><div><dt>Wallet</dt><dd title="${escapeHtml(node.walletAddress || "")}">${escapeHtml(shorten(node.walletAddress))}</dd></div><div><dt>Placed</dt><dd>${formatDate(node.placedAt)}</dd></div></dl>`;
+  }
+  function countExplorerDescendants(memberId) {
+    const node = matrixExplorerNodes.find(item => item.id === memberId);
+    return node ? node.childIds.reduce((total, childId) => total + 1 + countExplorerDescendants(childId), 0) : 0;
   }
   async function loadEntry() {
     const [{ data: requests, error }, { data: parents, error: parentError }] = await Promise.all([
@@ -249,6 +355,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   function memberStatusClass(status) { return status === "active" ? "status-approved" : status === "suspended" ? "status-rejected" : "status-pending"; }
   function formatDate(value) { return value ? new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "-"; }
   function money(value) { return `PHP ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
+  function shorten(value) { const text = String(value || ""); return text.length > 14 ? `${text.slice(0, 7)}...${text.slice(-4)}` : text || "-"; }
+  function capitalize(value) { const text = String(value || ""); return text.charAt(0).toUpperCase() + text.slice(1); }
   function openTimelineDecision(request, action) {
     timelineDecision = { requestId: request.id, rpc: action === "approve" ? "admin_approve_timeline_request" : "admin_reject_timeline_request" };
     document.getElementById("timeline-decision-title").textContent = `${action === "approve" ? "Approve" : "Reject"} Timeline Request`;

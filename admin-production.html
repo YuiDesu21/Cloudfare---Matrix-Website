@@ -42,6 +42,7 @@
         <button class="tab-btn active" type="button" data-production-tab="tab-overview">Overview</button>
         <button class="tab-btn" type="button" data-production-tab="tab-approvals">Pending Requests <span id="badge-pending-count" class="badge badge-pending" style="display:none">0</span></button>
         <button class="tab-btn" type="button" data-production-tab="tab-members">Members Directory</button>
+        <button class="tab-btn" type="button" data-production-tab="tab-matrix-viewer">Matrix Viewer</button>
         <button id="admin-owner-finances-tab" class="tab-btn" type="button" data-production-tab="tab-finances" hidden>Owner Finances</button>
       </nav>
 
@@ -77,10 +78,24 @@
         <div class="portal-card" style="padding:1.5rem;margin-bottom:1.5rem">
           <h3 id="admin-member-heading" style="color:var(--gold);margin-top:0;text-transform:uppercase;font-size:1.1rem">Members Directory</h3>
           <p id="admin-member-summary" style="font-size:.82rem;color:var(--muted)">Loading members...</p>
-          <form id="admin-member-filters" class="admin-directory-filters"><div class="form-group"><label for="admin-member-search">Search members</label><input id="admin-member-search" class="form-control" type="search" placeholder="Name, username, email, or account code"></div><div class="form-group"><label for="admin-member-status">Account status</label><select id="admin-member-status" class="form-control"><option value="all">All statuses</option><option value="registered">Registered</option><option value="active">Active</option><option value="suspended">Suspended</option></select></div><button class="button button-primary button-small" type="submit">Apply Filters</button></form>
+          <form id="admin-member-filters" class="admin-directory-filters"><div class="form-group"><label for="admin-member-search">Search members</label><input id="admin-member-search" class="form-control" type="search" placeholder="Name, username, email, account code, or wallet"></div><div class="form-group"><label for="admin-member-status">Account status</label><select id="admin-member-status" class="form-control"><option value="all">All statuses</option><option value="registered">Registered</option><option value="active">Active</option><option value="suspended">Suspended</option></select></div><button class="button button-primary button-small" type="submit">Apply Filters</button></form>
         </div>
-        <div id="admin-member-list" class="withdrawal-history-list"></div>
+        <div class="table-container admin-member-table-wrap"><table class="admin-table admin-member-table"><thead><tr><th>Full Name</th><th>Username</th><th>Matrix</th><th>Parent</th><th>Sponsor</th><th>Wallet Address</th><th>Approved</th><th>Actions</th></tr></thead><tbody id="admin-member-table-body"></tbody></table></div>
         <nav id="admin-member-pagination" class="admin-pagination" aria-label="Member directory pages"></nav>
+      </section>
+
+      <section id="tab-matrix-viewer" class="admin-section">
+        <div class="portal-card" style="padding:1.5rem;margin-bottom:1.5rem">
+          <div class="matrix-explorer-heading"><div><h3>Global Matrix Explorer</h3><p>Search, filter, and expand the branches you need. Select a member to inspect placement and progress.</p></div><span id="production-matrix-explorer-count" class="badge">0 members</span></div>
+          <div class="matrix-explorer-controls">
+            <div class="form-group"><label for="production-viewer-plan-select">Matrix</label><select id="production-viewer-plan-select" class="form-control"><option value="power3-passive">Power of Three Passive Income</option><option value="timeline-power3">Power of Three Timeline Matrix</option></select></div>
+            <div class="form-group matrix-explorer-search"><label for="production-tree-member-search">Search Members</label><input id="production-tree-member-search" class="form-control" type="search" placeholder="Name, username, wallet, or member ID"></div>
+            <div class="form-group"><label for="production-matrix-exit-filter">Exit</label><select id="production-matrix-exit-filter" class="form-control"><option value="all">All exits</option><option value="0">Entry</option><option value="1">Exit 1</option><option value="2">Exit 2</option><option value="3">Exit 3</option><option value="4">Exit 4</option><option value="5">Exit 5</option><option value="6">Exit 6</option><option value="7">Exit 7</option><option value="8">Exit 8</option><option value="9">Exit 9</option><option value="10">Exit 10</option><option value="11">Exit 11</option><option value="12">Exit 12</option><option value="13">Exit 13</option></select></div>
+            <div class="form-group"><label for="production-matrix-status-filter">Status</label><select id="production-matrix-status-filter" class="form-control"><option value="all">All statuses</option><option value="active">Active</option><option value="qualified">Qualified</option><option value="pending">Pending</option></select></div>
+          </div>
+          <div class="matrix-explorer-actions"><button id="production-matrix-expand-all" class="button button-outline button-small" type="button">Expand All</button><button id="production-matrix-collapse-all" class="button button-outline button-small" type="button">Collapse All</button></div>
+        </div>
+        <div class="matrix-explorer-layout"><section class="portal-card matrix-explorer-tree-card"><div id="production-matrix-explorer-breadcrumbs" class="matrix-explorer-breadcrumbs">Select a member</div><div class="matrix-explorer-columns" aria-hidden="true"><span>Member / placement</span><span>Exit</span><span>Children</span></div><div id="production-global-tree-visualizer" class="matrix-explorer-tree" role="tree" aria-label="Global matrix hierarchy"></div></section><aside id="production-matrix-member-details" class="portal-card matrix-member-details"><div class="empty-state"><p>Select a member to view their details.</p></div></aside></div>
       </section>
 
       <section id="tab-finances" class="admin-section" hidden>

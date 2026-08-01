@@ -370,6 +370,14 @@ body.portal-body {
 .admin-directory-filters { align-items: end; display: grid; gap: 0.8rem; grid-template-columns: minmax(240px, 2fr) minmax(170px, 1fr) auto; margin-bottom: 1rem; }
 .admin-directory-filters .form-group { margin: 0; }
 .admin-member-card .withdrawal-history-details { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.admin-member-table-wrap { margin-top: 0; }
+.admin-member-table { min-width: 940px; }
+.admin-member-table th { white-space: nowrap; }
+.admin-member-table td { font-size: 0.76rem; vertical-align: middle; }
+.admin-member-table td small { color: var(--muted); font-size: 0.65rem; }
+.admin-member-table .actions { align-items: center; flex-wrap: nowrap; }
+.admin-member-table .button { white-space: nowrap; }
+.admin-table-handle { color: var(--gold-soft); }
 .admin-member-contact { color: var(--muted); font-size: 0.75rem; margin: 0.45rem 0 0; overflow-wrap: anywhere; }
 .admin-pagination { align-items: center; display: flex; gap: 0.7rem; justify-content: center; margin-top: 1rem; }
 .admin-pagination span { color: var(--muted); font-size: 0.75rem; font-weight: 700; }
