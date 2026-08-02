@@ -102,6 +102,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (error) { voucherAlert.className="alert alert-danger"; voucherAlert.textContent=error.message; voucherAlert.style.display="block"; return; }
     closeVoucherModal(); show(alertBox, `Voucher redemption recorded. Remaining balance: ${money(data.balance)}.`, "success");
   });
+  document.addEventListener("click", () => closeMemberActionMenus());
   signout.addEventListener("click", async () => { await window.matrixSupabase.auth.signOut(); location.reload(); });
   const { data } = await window.matrixSupabase.auth.getSession();
   if (data.session) await enter();
@@ -144,22 +145,38 @@ document.addEventListener("DOMContentLoaded", async () => {
         const planLabel = main ? "Power of Three Passive Income" : timeline ? "Timeline Matrix" : "Not placed";
         const parentLabel = main ? (main.parentUsername ? `@${main.parentUsername}` : "ROOT Node") : timeline ? (timeline.parentUsername ? `@${timeline.parentUsername}` : "ROOT Node") : "-";
         const sponsorLabel = member.sponsorName ? `@${member.sponsorName}` : "-";
-        const roleButton = !ownerMode || member.id === currentUserId ? "" : access.role === "admin" ? `<button class="button button-outline button-small remove-admin" type="button">Remove Admin</button>` : `<button class="button button-primary button-small invite-admin" type="button">Invite Admin</button>`;
         const redeemButton = member.id === currentUserId ? "" : `<button class="button button-outline button-small redeem-voucher" type="button">Voucher</button>`;
-        return `<tr data-member-id="${escapeHtml(member.id)}" data-member-name="${escapeHtml(member.fullName)}"><td><strong>${escapeHtml(member.fullName)}</strong><br><small>${escapeHtml(member.accountCode)}</small></td><td><strong class="admin-table-handle">@${escapeHtml(member.username)}</strong><br><span class="withdrawal-status ${memberStatusClass(member.status)}">${access.isOwner ? "Owner" : access.role === "admin" ? "Admin" : escapeHtml(member.status)}</span></td><td>${escapeHtml(planLabel)}</td><td>${escapeHtml(parentLabel)}</td><td>${escapeHtml(sponsorLabel)}</td><td>${copyField(member.walletAddress)}</td><td>${formatDate(member.approvedAt || member.createdAt)}</td><td><div class="actions"><button class="button button-outline button-small view-member" type="button">View</button>${roleButton}${redeemButton}</div></td></tr>`;
+        const menuButton = !ownerMode || member.id === currentUserId ? "" : `<div class="member-actions-menu"><button class="member-actions-toggle" type="button" aria-label="Open actions for ${escapeHtml(member.fullName)}" aria-expanded="false"><span></span><span></span><span></span></button><div class="member-actions-dropdown" hidden>${access.role === "admin" ? `<button class="member-menu-item remove-admin" type="button">Remove Admin</button>` : `<button class="member-menu-item invite-admin" type="button">Invite Admin</button>`}<button class="member-menu-item danger delete-member" type="button">Delete User</button></div></div>`;
+        return `<tr data-member-id="${escapeHtml(member.id)}" data-member-name="${escapeHtml(member.fullName)}"><td><strong>${escapeHtml(member.fullName)}</strong><br><small>${escapeHtml(member.accountCode)}</small></td><td><strong class="admin-table-handle">@${escapeHtml(member.username)}</strong><br><span class="withdrawal-status ${memberStatusClass(member.status)}">${access.isOwner ? "Owner" : access.role === "admin" ? "Admin" : escapeHtml(member.status)}</span></td><td>${escapeHtml(planLabel)}</td><td>${escapeHtml(parentLabel)}</td><td>${escapeHtml(sponsorLabel)}</td><td>${copyField(member.walletAddress)}</td><td>${formatDate(member.approvedAt || member.createdAt)}</td><td><div class="actions"><button class="button button-outline button-small view-member" type="button">View</button>${redeemButton}${menuButton}</div></td></tr>`;
       }).join("");
       bindCopyButtons(memberTableBody);
       memberTableBody.querySelectorAll("[data-member-id]").forEach(row => {
         const invite = row.querySelector(".invite-admin");
         const remove = row.querySelector(".remove-admin");
+        const deleteMember = row.querySelector(".delete-member");
+        const menuToggle = row.querySelector(".member-actions-toggle");
+        const menu = row.querySelector(".member-actions-dropdown");
+        if (menuToggle && menu) menuToggle.addEventListener("click", event => {
+          event.stopPropagation();
+          closeMemberActionMenus(menu);
+          const willOpen = menu.hidden;
+          menu.hidden = !willOpen;
+          menuToggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        });
         if (invite) invite.addEventListener("click", async () => {
+          closeMemberActionMenus();
           const { data, error } = await window.matrixSupabase.rpc("owner_invite_admin", { p_member_id: row.dataset.memberId });
           if (error) return show(alertBox, error.message, "danger");
           const link = `${window.location.origin}/portal.html?admin_invite=${encodeURIComponent(data.token)}`;
           try { await navigator.clipboard.writeText(link); show(alertBox, `Invitation link copied. It expires ${new Date(data.expiresAt).toLocaleString()}.`, "success"); }
           catch (_) { window.prompt("Copy this administrator invitation link:", link); }
         });
-        if (remove) remove.addEventListener("click", async () => { if (!window.confirm("Remove administrator access for this member?")) return; await act("owner_remove_admin", { p_member_id: row.dataset.memberId }); });
+        if (remove) remove.addEventListener("click", async () => { closeMemberActionMenus(); if (!window.confirm("Remove administrator access for this member?")) return; await act("owner_remove_admin", { p_member_id: row.dataset.memberId }); });
+        if (deleteMember) deleteMember.addEventListener("click", async () => {
+          closeMemberActionMenus();
+          if (!window.confirm(`Delete ${row.dataset.memberName}? This only works for registered, unplaced members with no business history.`)) return;
+          await act("owner_delete_registered_member", { p_member_id: row.dataset.memberId });
+        });
         const redeem = row.querySelector(".redeem-voucher");
         if (redeem) redeem.addEventListener("click", () => { voucherMemberId=row.dataset.memberId; voucherForm.reset(); voucherAlert.style.display="none"; document.getElementById("voucher-redemption-member").textContent=`Member: ${row.dataset.memberName}`; voucherModal.style.display="flex"; document.getElementById("voucher-redemption-amount").focus(); });
         row.querySelector(".view-member").addEventListener("click", async () => { await activateMatrixViewer(row.dataset.memberId); });
@@ -374,6 +391,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function closeTimelineDecision() { timelineDecisionModal.style.display = "none"; timelineDecision = null; }
   function closeVoucherModal() { voucherModal.style.display="none"; voucherMemberId=null; }
+  function closeMemberActionMenus(exceptMenu = null) {
+    document.querySelectorAll(".member-actions-dropdown").forEach(menu => {
+      if (menu === exceptMenu) return;
+      menu.hidden = true;
+    });
+    document.querySelectorAll(".member-actions-toggle").forEach(toggle => {
+      if (exceptMenu && toggle.nextElementSibling === exceptMenu) return;
+      toggle.setAttribute("aria-expanded", "false");
+    });
+  }
   function copyField(value) { const clean = String(value || "").trim(); return `<span class="admin-copy-field"><code title="${escapeHtml(clean)}">${escapeHtml(clean || "-")}</code><button class="copy-admin-value" type="button" data-copy-value="${escapeHtml(clean)}" aria-label="Copy ${escapeHtml(clean || "value")}" title="Copy to clipboard" ${clean ? "" : "disabled"}><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M5.5 1.5h6A1.5 1.5 0 0 1 13 3v8.5h-1.5V3h-6V1.5Zm-2 3h6A1.5 1.5 0 0 1 11 6v7A1.5 1.5 0 0 1 9.5 14.5h-6A1.5 1.5 0 0 1 2 13V6a1.5 1.5 0 0 1 1.5-1.5Zm0 1.5v7h6V6h-6Z"/></svg><span class="copy-feedback" aria-live="polite"></span></button></span>`; }
   function bindCopyButtons(container) { container.querySelectorAll(".copy-admin-value").forEach(button => button.addEventListener("click", async () => { try { await navigator.clipboard.writeText(button.dataset.copyValue || ""); const feedback = button.querySelector(".copy-feedback"); feedback.textContent = "Copied"; button.classList.add("copied"); window.setTimeout(() => { feedback.textContent = ""; button.classList.remove("copied"); }, 1200); } catch (error) { show(alertBox, "Unable to copy automatically. Select and copy the value manually.", "danger"); } })); }
   function show(element, message, type) { element.className = `alert alert-${type}`; element.textContent = message; element.style.display = "block"; }
