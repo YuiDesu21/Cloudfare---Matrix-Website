@@ -567,7 +567,7 @@ body.portal-body {
 .notification-menu-toggle:hover,
 .notification-menu-toggle[aria-expanded="true"] { background: rgba(12, 86, 37, 0.35); border-color: var(--gold); }
 .notification-menu-toggle.has-priority { box-shadow: 0 0 0 3px rgba(255, 201, 28, 0.12); }
-.notification-bell { font-size: 1rem; font-weight: 900; line-height: 1; }
+.notification-bell { fill: currentColor; height: 20px; width: 20px; }
 .notification-count { align-items: center; background: #ffcf38; border: 2px solid #061c10; border-radius: 999px; color: #171100; display: inline-flex; font-size: 0.62rem; font-weight: 900; height: 20px; justify-content: center; min-width: 20px; padding: 0 0.25rem; position: absolute; right: -5px; top: -5px; }
 .notification-menu {
   background: rgba(4, 14, 7, 0.98);
