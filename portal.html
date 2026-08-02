@@ -22,6 +22,17 @@
         </span>
       </a>
       <div id="header-user-status" class="user-status-strip" style="display: none;">
+        <button id="notification-menu-toggle" class="notification-menu-toggle" type="button" aria-label="Open notifications" aria-expanded="false" aria-controls="notification-menu">
+          <span class="notification-bell" aria-hidden="true">!</span>
+          <span id="notification-count" class="notification-count" hidden>0</span>
+        </button>
+        <div id="notification-menu" class="notification-menu" role="menu" aria-label="Member notifications" hidden>
+          <div class="notification-menu-heading">
+            <strong>Notifications</strong>
+            <span id="notification-summary">No updates</span>
+          </div>
+          <div id="notification-list" class="notification-list"></div>
+        </div>
         <button id="account-menu-toggle" class="account-menu-toggle" type="button" aria-label="Open member menu" aria-expanded="false" aria-controls="account-menu">
           <span id="header-avatar-letter" class="header-avatar">M</span>
           <span class="account-menu-copy">

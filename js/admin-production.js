@@ -142,12 +142,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const access = memberRoles.get(member.id) || { role: "member", isOwner: false };
         const main = member.mainPosition;
         const timeline = member.timelinePosition;
-        const planLabel = main ? "Power of Three Passive Income" : timeline ? "Timeline Matrix" : "Not placed";
+        const placements = getMemberPlacements(member);
+        const planLabel = placements.length ? placements.map(placement => `<span class="matrix-plan-chip">${escapeHtml(placement.label)}</span>`).join("") : `<span class="matrix-plan-chip muted">Not placed</span>`;
         const parentLabel = main ? (main.parentUsername ? `@${main.parentUsername}` : "ROOT Node") : timeline ? (timeline.parentUsername ? `@${timeline.parentUsername}` : "ROOT Node") : "-";
         const sponsorLabel = member.sponsorName ? `@${member.sponsorName}` : "-";
+        const viewControl = placements.length > 1 ? `<div class="member-actions-menu view-matrix-menu"><button class="button button-outline button-small view-member view-member-menu-toggle" type="button" aria-expanded="false">View</button><div class="member-actions-dropdown" hidden>${placements.map(placement => `<button class="member-menu-item view-member-plan" type="button" data-plan-id="${escapeHtml(placement.planId)}">${escapeHtml(placement.label)}</button>`).join("")}</div></div>` : `<button class="button button-outline button-small view-member" type="button" data-plan-id="${escapeHtml(placements[0]?.planId || "")}" ${placements.length ? "" : "disabled"}>View</button>`;
         const redeemButton = member.id === currentUserId ? "" : `<button class="button button-outline button-small redeem-voucher" type="button">Voucher</button>`;
         const menuButton = !ownerMode || member.id === currentUserId ? "" : `<div class="member-actions-menu"><button class="member-actions-toggle" type="button" aria-label="Open actions for ${escapeHtml(member.fullName)}" aria-expanded="false"><span></span><span></span><span></span></button><div class="member-actions-dropdown" hidden>${access.role === "admin" ? `<button class="member-menu-item remove-admin" type="button">Remove Admin</button>` : `<button class="member-menu-item invite-admin" type="button">Invite Admin</button>`}<button class="member-menu-item danger delete-member" type="button">Delete User</button></div></div>`;
-        return `<tr data-member-id="${escapeHtml(member.id)}" data-member-name="${escapeHtml(member.fullName)}"><td><strong>${escapeHtml(member.fullName)}</strong><br><small>${escapeHtml(member.accountCode)}</small></td><td><strong class="admin-table-handle">@${escapeHtml(member.username)}</strong><br><span class="withdrawal-status ${memberStatusClass(member.status)}">${access.isOwner ? "Owner" : access.role === "admin" ? "Admin" : escapeHtml(member.status)}</span></td><td>${escapeHtml(planLabel)}</td><td>${escapeHtml(parentLabel)}</td><td>${escapeHtml(sponsorLabel)}</td><td>${copyField(member.walletAddress)}</td><td>${formatDate(member.approvedAt || member.createdAt)}</td><td><div class="actions"><button class="button button-outline button-small view-member" type="button">View</button>${redeemButton}${menuButton}</div></td></tr>`;
+        return `<tr data-member-id="${escapeHtml(member.id)}" data-member-name="${escapeHtml(member.fullName)}"><td><strong>${escapeHtml(member.fullName)}</strong><br><small>${escapeHtml(member.accountCode)}</small></td><td><strong class="admin-table-handle">@${escapeHtml(member.username)}</strong><br><span class="withdrawal-status ${memberStatusClass(member.status)}">${access.isOwner ? "Owner" : access.role === "admin" ? "Admin" : escapeHtml(member.status)}</span></td><td><div class="matrix-plan-list">${planLabel}</div></td><td>${escapeHtml(parentLabel)}</td><td>${escapeHtml(sponsorLabel)}</td><td>${copyField(member.walletAddress)}</td><td>${formatDate(member.approvedAt || member.createdAt)}</td><td><div class="actions">${viewControl}${redeemButton}${menuButton}</div></td></tr>`;
       }).join("");
       bindCopyButtons(memberTableBody);
       memberTableBody.querySelectorAll("[data-member-id]").forEach(row => {
@@ -177,9 +179,23 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (!window.confirm(`Delete ${row.dataset.memberName}? This only works for registered, unplaced members with no business history.`)) return;
           await act("owner_delete_registered_member", { p_member_id: row.dataset.memberId });
         });
+        const viewMenuToggle = row.querySelector(".view-member-menu-toggle");
+        if (viewMenuToggle) viewMenuToggle.addEventListener("click", event => {
+          event.stopPropagation();
+          const menu = viewMenuToggle.nextElementSibling;
+          closeMemberActionMenus(menu);
+          const willOpen = menu.hidden;
+          menu.hidden = !willOpen;
+          viewMenuToggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+        });
+        row.querySelectorAll(".view-member-plan").forEach(button => button.addEventListener("click", async () => {
+          closeMemberActionMenus();
+          await activateMatrixViewer(row.dataset.memberId, button.dataset.planId);
+        }));
         const redeem = row.querySelector(".redeem-voucher");
         if (redeem) redeem.addEventListener("click", () => { voucherMemberId=row.dataset.memberId; voucherForm.reset(); voucherAlert.style.display="none"; document.getElementById("voucher-redemption-member").textContent=`Member: ${row.dataset.memberName}`; voucherModal.style.display="flex"; document.getElementById("voucher-redemption-amount").focus(); });
-        row.querySelector(".view-member").addEventListener("click", async () => { await activateMatrixViewer(row.dataset.memberId); });
+        const directView = row.querySelector(".view-member[data-plan-id]");
+        if (directView) directView.addEventListener("click", async () => { if (!directView.dataset.planId) return show(alertBox, "This member is not placed in a matrix yet.", "danger"); await activateMatrixViewer(row.dataset.memberId, directView.dataset.planId); });
       });
     }
     renderMemberPagination(Number(data.page), Number(data.totalPages));
@@ -191,7 +207,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       document.getElementById("admin-member-heading").scrollIntoView({ behavior: "smooth", block: "start" });
     }));
   }
-  async function activateMatrixViewer(memberId) {
+  async function activateMatrixViewer(memberId, planId = null) {
+    if (planId && viewerPlanSelect.value !== planId) viewerPlanSelect.value = planId;
     document.querySelectorAll("[data-production-tab]").forEach(tab => tab.classList.toggle("active", tab.dataset.productionTab === "tab-matrix-viewer"));
     document.querySelectorAll(".admin-section").forEach(section => section.classList.toggle("active", section.id === "tab-matrix-viewer"));
     await loadMatrixExplorer(memberId);
@@ -391,6 +408,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function closeTimelineDecision() { timelineDecisionModal.style.display = "none"; timelineDecision = null; }
   function closeVoucherModal() { voucherModal.style.display="none"; voucherMemberId=null; }
+  function getMemberPlacements(member) {
+    const placements = [];
+    if (member.mainPosition) placements.push({ planId: "power3-passive", label: "PHP 1,200 Matrix" });
+    if (member.timelinePosition) placements.push({ planId: "timeline-power3", label: "PHP 693 Timeline" });
+    return placements;
+  }
   function closeMemberActionMenus(exceptMenu = null) {
     document.querySelectorAll(".member-actions-dropdown").forEach(menu => {
       if (menu === exceptMenu) return;

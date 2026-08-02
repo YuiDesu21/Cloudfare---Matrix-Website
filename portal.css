@@ -378,7 +378,11 @@ body.portal-body {
 .admin-member-table .actions { align-items: center; flex-wrap: nowrap; justify-content: flex-end; }
 .admin-member-table .button { white-space: nowrap; }
 .admin-member-table td:last-child { position: relative; }
+.matrix-plan-list { align-items: flex-start; display: flex; flex-direction: column; gap: 0.3rem; }
+.matrix-plan-chip { background: rgba(255, 201, 28, 0.1); border: 1px solid rgba(255, 201, 28, 0.25); border-radius: 5px; color: #fff; display: inline-flex; font-size: 0.72rem; font-weight: 800; line-height: 1.25; padding: 0.25rem 0.4rem; }
+.matrix-plan-chip.muted { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.12); color: var(--muted); }
 .member-actions-menu { position: relative; }
+.view-matrix-menu .member-actions-dropdown { right: auto; left: 0; }
 .member-actions-toggle { align-items: center; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 5px; cursor: pointer; display: inline-flex; flex-direction: column; gap: 4px; height: 34px; justify-content: center; padding: 0; width: 34px; }
 .member-actions-toggle span { background: #fff; border-radius: 999px; display: block; height: 2px; width: 17px; }
 .member-actions-toggle:hover,
@@ -539,9 +543,56 @@ body.portal-body {
 
 /* Header account menu */
 .user-status-strip {
+  align-items: center;
+  display: flex;
+  gap: 0.55rem;
   position: relative;
   margin-left: auto;
 }
+
+.notification-menu-toggle {
+  align-items: center;
+  background: rgba(7, 20, 11, 0.92);
+  border: 1px solid rgba(255, 201, 28, 0.35);
+  border-radius: 50%;
+  color: var(--gold);
+  cursor: pointer;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 42px;
+  justify-content: center;
+  position: relative;
+  width: 42px;
+}
+.notification-menu-toggle:hover,
+.notification-menu-toggle[aria-expanded="true"] { background: rgba(12, 86, 37, 0.35); border-color: var(--gold); }
+.notification-menu-toggle.has-priority { box-shadow: 0 0 0 3px rgba(255, 201, 28, 0.12); }
+.notification-bell { font-size: 1rem; font-weight: 900; line-height: 1; }
+.notification-count { align-items: center; background: #ffcf38; border: 2px solid #061c10; border-radius: 999px; color: #171100; display: inline-flex; font-size: 0.62rem; font-weight: 900; height: 20px; justify-content: center; min-width: 20px; padding: 0 0.25rem; position: absolute; right: -5px; top: -5px; }
+.notification-menu {
+  background: rgba(4, 14, 7, 0.98);
+  border: 1px solid rgba(255, 201, 28, 0.4);
+  border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  min-width: 330px;
+  padding: 0.55rem;
+  position: absolute;
+  right: calc(100% + 0.55rem);
+  top: calc(100% + 0.65rem);
+  z-index: 82;
+}
+.notification-menu[hidden] { display: none; }
+.notification-menu-heading { align-items: center; border-bottom: 1px solid rgba(255, 201, 28, 0.15); display: flex; justify-content: space-between; padding: 0.4rem 0.45rem 0.65rem; }
+.notification-menu-heading strong { color: var(--gold); font-size: 0.85rem; text-transform: uppercase; }
+.notification-menu-heading span { color: var(--muted); font-size: 0.72rem; }
+.notification-list { display: grid; gap: 0.35rem; max-height: min(420px, 70vh); overflow: auto; padding-top: 0.45rem; }
+.notification-item { border-radius: 8px; padding: 0.65rem; }
+.notification-item.priority { background: rgba(255, 201, 28, 0.1); }
+.notification-item strong { color: #fff; display: block; font-size: 0.8rem; }
+.notification-item p { color: var(--muted); font-size: 0.74rem; line-height: 1.45; margin: 0.25rem 0; }
+.notification-item span,
+.notification-empty { color: rgba(198, 207, 188, 0.72); font-size: 0.68rem; }
+.notification-empty { padding: 0.9rem 0.65rem; }
 
 .account-menu-toggle {
   align-items: center;

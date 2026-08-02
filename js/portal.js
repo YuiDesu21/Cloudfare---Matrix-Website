@@ -55,6 +55,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const headerUserStatus = document.getElementById("header-user-status");
   const headerUserName = document.getElementById("header-user-name");
   const headerAvatarLetter = document.getElementById("header-avatar-letter");
+  const notificationMenuToggle = document.getElementById("notification-menu-toggle");
+  const notificationMenu = document.getElementById("notification-menu");
+  const notificationCount = document.getElementById("notification-count");
+  const notificationSummary = document.getElementById("notification-summary");
+  const notificationList = document.getElementById("notification-list");
   const accountMenuToggle = document.getElementById("account-menu-toggle");
   const accountMenu = document.getElementById("account-menu");
   const logoutBtnHeader = document.getElementById("logout-btn-header");
@@ -237,9 +242,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   logoutBtnSidebar.addEventListener("click", logout);
 
   accountMenuToggle.addEventListener("click", () => {
+    closeNotificationMenu();
     const open = accountMenu.hidden;
     accountMenu.hidden = !open;
     accountMenuToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+
+  notificationMenuToggle.addEventListener("click", () => {
+    closeAccountMenu();
+    const open = notificationMenu.hidden;
+    notificationMenu.hidden = !open;
+    notificationMenuToggle.setAttribute("aria-expanded", open ? "true" : "false");
   });
 
   accountMenu.querySelectorAll("[data-account-action]").forEach(button => {
@@ -262,11 +275,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   profileDrawerClose.addEventListener("click", closeProfileDrawer);
   profileDrawerBackdrop.addEventListener("click", closeProfileDrawer);
   document.addEventListener("click", (event) => {
-    if (!headerUserStatus.contains(event.target)) closeAccountMenu();
+    if (!headerUserStatus.contains(event.target)) {
+      closeAccountMenu();
+      closeNotificationMenu();
+    }
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     closeAccountMenu();
+    closeNotificationMenu();
     closeProfileDrawer();
   });
 
@@ -706,6 +723,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderMatrixOverview(member, positions, summary);
     renderBalancePanel(member, summary);
     renderProductsPlusPanel(member, summary);
+    renderNotifications(summary);
 
     if (pos) {
       // Calculate referrals & downline children
@@ -719,6 +737,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       metricChildren.textContent = "0";
       treeVisualizer.innerHTML = `<div class="empty-state"><p>Matrix position is not established. Contact admin.</p></div>`;
     }
+  }
+
+  function renderNotifications(summary) {
+    const notifications = summary && Array.isArray(summary.notifications) ? summary.notifications : [];
+    const highCount = notifications.filter(item => item.priority === "high").length;
+    notificationCount.hidden = notifications.length === 0;
+    notificationCount.textContent = String(Math.min(notifications.length, 99));
+    notificationSummary.textContent = notifications.length ? `${notifications.length} update${notifications.length === 1 ? "" : "s"}` : "No updates";
+    notificationMenuToggle.classList.toggle("has-notifications", notifications.length > 0);
+    notificationMenuToggle.classList.toggle("has-priority", highCount > 0);
+    notificationList.innerHTML = notifications.length ? notifications.map(item => `
+      <article class="notification-item ${item.priority === "high" ? "priority" : ""}">
+        <strong>${escapeHtml(item.title)}</strong>
+        <p>${escapeHtml(item.message)}</p>
+        <span>${formatDateTime(item.createdAt)}</span>
+      </article>
+    `).join("") : `<div class="notification-empty">You have no new member updates.</div>`;
   }
 
   function countMatrixDescendants(parentMemberId, planId, positions) {
@@ -1127,6 +1162,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   function closeAccountMenu() {
     accountMenu.hidden = true;
     accountMenuToggle.setAttribute("aria-expanded", "false");
+  }
+
+  function closeNotificationMenu() {
+    notificationMenu.hidden = true;
+    notificationMenuToggle.setAttribute("aria-expanded", "false");
   }
 
   function openProfileDrawer() {

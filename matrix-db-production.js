@@ -14,13 +14,14 @@ const MatrixDB = {
     return true;
   },
   async refreshSessionData() {
-    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse] = await Promise.all([
+    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse, notificationsResponse] = await Promise.all([
       window.matrixSupabase.rpc("get_my_dashboard"),
       window.matrixSupabase.rpc("get_pending_exit_balance"),
       window.matrixSupabase.rpc("get_my_exit_statuses"),
       window.matrixSupabase.rpc("get_my_reward_schedule"),
       window.matrixSupabase.rpc("get_my_product_plus"),
-      window.matrixSupabase.rpc("get_my_vouchers")
+      window.matrixSupabase.rpc("get_my_vouchers"),
+      window.matrixSupabase.rpc("get_my_notifications")
     ]);
     if (error) throw error;
     if (pendingExitResponse.error) throw pendingExitResponse.error;
@@ -28,11 +29,13 @@ const MatrixDB = {
     if (scheduleResponse.error) throw scheduleResponse.error;
     if (productsResponse.error) throw productsResponse.error;
     if (vouchersResponse.error) throw vouchersResponse.error;
+    if (notificationsResponse.error) throw notificationsResponse.error;
     if (data) {
       data.pendingExitBalance = Number(pendingExitResponse.data || 0);
       data.exits = (exitsResponse.data || []).map(exit => ({ ...exit, ...(scheduleResponse.data[String(exit.exit)] || {}) }));
       data.productPlusEntitlements = productsResponse.data || [];
       data.vouchers = vouchersResponse.data || { balance: 0, history: [] };
+      data.notifications = notificationsResponse.data || [];
     }
     if (data && data.rules && data.rules.entry) Object.assign(data.rules.entry, { holdPesoValue: 1200, tokenHoldingAllocation: 900, matrixAllocation: 300 });
     state.dashboard = data;
