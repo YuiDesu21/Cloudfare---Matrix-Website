@@ -393,7 +393,7 @@ body.portal-body {
 .member-menu-item:hover { background: rgba(255, 201, 28, 0.12); color: var(--gold-soft); }
 .member-menu-item.danger { color: #ffaaa8; }
 .member-menu-item.danger:hover { background: rgba(255, 88, 88, 0.12); color: #ffd1d0; }
-.admin-table-handle { color: var(--gold-soft); }
+.admin-table-handle { color: var(--gold-soft); display: inline-block; margin-bottom: 0.35rem; }
 .admin-member-contact { color: var(--muted); font-size: 0.75rem; margin: 0.45rem 0 0; overflow-wrap: anywhere; }
 .admin-pagination { align-items: center; display: flex; gap: 0.7rem; justify-content: center; margin-top: 1rem; }
 .admin-pagination span { color: var(--muted); font-size: 0.75rem; font-weight: 700; }
