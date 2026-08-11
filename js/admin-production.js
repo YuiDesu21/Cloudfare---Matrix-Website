@@ -415,7 +415,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     return placements;
   }
   function exitActionAmountLabel(request) {
-    if (Number(request.exit) === 1 && (request.actionType === "reinvest" || /^Re-Stake/i.test(request.actionLabel || ""))) return `${Number(request.actionAmount || 0).toLocaleString()} F3 Token`;
     return `PHP ${Number(request.actionAmount || 0).toLocaleString()}`;
   }
   function closeMemberActionMenus(exceptMenu = null) {

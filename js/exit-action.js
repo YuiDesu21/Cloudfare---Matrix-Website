@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("exit-action-layout").style.display = "grid";
     document.getElementById("exit-action-title").textContent = `Exit ${exit.exit} ${verb}`;
     document.getElementById("exit-action-description").textContent = `Submit your ${verb} request for administrator review.`;
-    document.getElementById("exit-action-amount").textContent = Number(exit.exit) === 1 && isRestake ? `${formatNumber(exit.actionAmount)} F3 Token` : money(exit.actionAmount);
+    document.getElementById("exit-action-amount").textContent = Number(exit.exit) === 1 && isRestake ? `${exit.actionLabel}: ${money(exit.actionAmount)}` : money(exit.actionAmount);
     document.getElementById("exit-action-number").textContent = `Exit ${exit.exit}`;
     document.getElementById("exit-action-verb").textContent = verb;
     document.getElementById("exit-action-requirement").textContent = exit.requirementRank.split(" / ")[0];
@@ -95,7 +95,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function money(value) { return `PHP ${Number(value || 0).toLocaleString()}`; }
-  function formatNumber(value) { return Number(value || 0).toLocaleString(); }
   function validGcashNumber(value) {
     const digits = String(value || "").replace(/\D/g, "");
     if (/^09\d{9}$/.test(digits)) return digits;

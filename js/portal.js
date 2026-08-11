@@ -868,7 +868,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     matrixQualification.className = `matrix-qualification ${exit.status === "locked" ? "locked" : "qualified"}`;
     const actionVerb = exit.actionType === "reinvest" || /^Re-Stake/i.test(exit.actionLabel) ? "Re-Stake" : "Buy";
     matrixTitle.textContent = `Exit ${exit.exit}:`;
-    matrixSummary.textContent = formatExitActionSummary(exit, actionVerb);
+    matrixSummary.textContent = formatExitActionSummary(exit, { fallbackVerb: actionVerb });
     matrixRequirement.textContent = exit.requirementRank.split(" / ")[0];
     const isNextExit = exit.exit === nextExitNumber;
     const canRequestExit = isNextExit && exit.status === "qualified";
@@ -936,7 +936,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       <article class="exit-card">
         <div class="exit-number">Exit ${exit.exit}</div>
         <div>
-          <h5>${formatExitActionSummary(exit)}</h5>
+          <h5>${formatExitActionSummary(exit, { includeAmount: true })}</h5>
           <p>${exit.requirementRank.split(" / ")[0]}. Once qualified, submit a request and wait for admin approval.</p>
           <div class="exit-meta">
             <span>Downlines: ${exit.qualifiedDownlines}/${exit.requiredDownlines}</span>
@@ -959,11 +959,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   }
 
-  function formatExitActionSummary(exit, fallbackVerb = null) {
+  function formatExitActionSummary(exit, options = {}) {
     const isRestake = exit.actionType === "reinvest" || /^Re-Stake/i.test(exit.actionLabel);
-    const verb = fallbackVerb || (isRestake ? "Re-Stake" : "Buy");
-    if (Number(exit.exit) === 1 && isRestake) return `${verb} ${formatNumber(exit.actionAmount)} F3 Token`;
-    return `${verb} ${formatNumber(exit.actionAmount)} Pesos worth of F3 Token`;
+    const verb = options.fallbackVerb || (isRestake ? "Re-Stake" : "Buy");
+    if (Number(exit.exit) === 1 && isRestake) {
+      return options.includeAmount
+        ? `${exit.actionLabel}: PHP ${formatNumber(exit.actionAmount)}`
+        : exit.actionLabel;
+    }
+    const summary = `${verb} ${formatNumber(exit.actionAmount)} Pesos worth of F3 Token`;
+    return options.includeAmount ? `${exit.actionLabel}: PHP ${formatNumber(exit.actionAmount)}` : summary;
   }
 
   function renderBalancePanel(member, summary) {
