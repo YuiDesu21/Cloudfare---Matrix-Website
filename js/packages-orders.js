@@ -25,10 +25,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   const commerceOrderNotes = document.getElementById("commerce-order-notes");
   const commerceOrderNotesCount = document.getElementById("commerce-order-notes-count");
   const commerceOrderSubmit = document.getElementById("commerce-order-submit");
+  const commercePaymentModal = document.getElementById("commerce-payment-modal");
+  const commercePaymentClose = document.getElementById("commerce-payment-close");
+  const commercePaymentSummary = document.getElementById("commerce-payment-summary");
+  const commercePaymentAlert = document.getElementById("commerce-payment-alert");
+  const commercePaymentForm = document.getElementById("commerce-payment-form");
+  const commercePaymentMethod = document.getElementById("commerce-payment-method");
+  const commercePaymentMethodPreview = document.getElementById("commerce-payment-method-preview");
+  const commercePaymentReference = document.getElementById("commerce-payment-reference");
+  const commercePaymentNotes = document.getElementById("commerce-payment-notes");
+  const commercePaymentNotesCount = document.getElementById("commerce-payment-notes-count");
+  const commercePaymentSubmit = document.getElementById("commerce-payment-submit");
 
   let member = null;
   let selectedCommercePackageType = "timeline_entry";
   let pendingCommercePackage = null;
+  let pendingPaymentOrder = null;
 
   if (!window.MatrixDB) {
     showAccessError("Please sign in through your member dashboard before opening packages.");
@@ -54,7 +66,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   commerceOrderAddress.addEventListener("change", renderSelectedCommerceAddress);
   commerceOrderAddAddress.addEventListener("click", () => { window.location.href = "portal.html#profile"; });
   commerceOrderForm.addEventListener("submit", handleCommerceOrderSubmit);
-  document.addEventListener("keydown", event => { if (event.key === "Escape") closeCommerceOrderModal(); });
+  commercePaymentClose.addEventListener("click", closeCommercePaymentModal);
+  commercePaymentModal.addEventListener("click", event => { if (event.target === commercePaymentModal) closeCommercePaymentModal(); });
+  commercePaymentMethod.addEventListener("change", renderSelectedPaymentMethod);
+  commercePaymentNotes.addEventListener("input", () => { commercePaymentNotesCount.textContent = commercePaymentNotes.value.length; });
+  commercePaymentForm.addEventListener("submit", handleCommercePaymentSubmit);
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    closeCommerceOrderModal();
+    closeCommercePaymentModal();
+  });
 
   function renderCommercePackagesPanel() {
     const summary = MatrixDB.getMemberMatrixSummary(member.id);
@@ -127,17 +148,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     commerceOrderList.innerHTML = orders.slice(0, 8).map(order => {
       const packageSnapshot = order.packageSnapshot || {};
+      const canPay = order.status === "approved_for_payment" && Number(order.amountDue || 0) > 0;
       return `
         <article class="product-plus-month ${order.status === "rejected" || order.status === "cancelled" ? "upcoming" : "vested"}">
           <div class="product-plus-month-index">${escapeHtml((order.orderCode || "ORD").replace("ORD-", ""))}</div>
           <div>
             <h5>${escapeHtml(packageSnapshot.packageName || "Package order")}: ${commerceOrderTotalLabel(order)}</h5>
-            <p>${escapeHtml(order.packageTypeLabel)} &middot; ${commerceOrderStatusLabel(order.status)} &middot; ${formatDate(order.createdAt)}</p>
+            <p>${escapeHtml(order.packageTypeLabel)} &middot; ${commerceOrderStatusLabel(order.status)} &middot; ${formatDate(order.createdAt)}${order.shippingFee != null ? ` &middot; Shipping: PHP ${formatNumber(order.shippingFee)}` : ""}</p>
           </div>
-          <span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span>
+          ${canPay ? `<button class="button button-primary button-small pay-commerce-order" type="button" data-pay-order-id="${escapeHtml(order.id)}">Pay Now</button>` : `<span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span>`}
         </article>
       `;
     }).join("");
+    commerceOrderList.querySelectorAll("[data-pay-order-id]").forEach(button => {
+      const order = orders.find(item => item.id === button.dataset.payOrderId);
+      button.addEventListener("click", () => openCommercePaymentModal(order));
+    });
   }
 
   function openCommerceOrderModal(commercePackage) {
@@ -162,6 +188,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!commerceOrderModal || commerceOrderModal.style.display === "none") return;
     commerceOrderModal.style.display = "none";
     pendingCommercePackage = null;
+  }
+
+  function openCommercePaymentModal(order) {
+    pendingPaymentOrder = order;
+    const paymentMethods = MatrixDB.getPaymentMethods();
+    commercePaymentForm.reset();
+    commercePaymentNotesCount.textContent = "0";
+    commercePaymentAlert.style.display = "none";
+    commercePaymentSubmit.disabled = paymentMethods.length === 0;
+    commercePaymentMethod.disabled = paymentMethods.length === 0;
+    commercePaymentSummary.textContent = `${order.orderCode} | Amount due: PHP ${formatNumber(order.amountDue || 0)}`;
+    commercePaymentMethod.innerHTML = paymentMethods.length
+      ? paymentMethods.map(method => `<option value="${escapeHtml(method.id)}">${escapeHtml(method.methodName)} - ${escapeHtml(method.accountName)}</option>`).join("")
+      : `<option value="">No active payment methods yet</option>`;
+    renderSelectedPaymentMethod();
+    commercePaymentModal.style.display = "flex";
+    if (paymentMethods.length) commercePaymentMethod.focus();
+  }
+
+  function closeCommercePaymentModal() {
+    if (!commercePaymentModal || commercePaymentModal.style.display === "none") return;
+    commercePaymentModal.style.display = "none";
+    pendingPaymentOrder = null;
+  }
+
+  function renderSelectedPaymentMethod() {
+    const method = MatrixDB.getPaymentMethods().find(item => item.id === commercePaymentMethod.value);
+    commercePaymentMethodPreview.innerHTML = method
+      ? `<div>${method.qrImageData ? `<img src="${escapeHtml(method.qrImageData)}" alt="${escapeHtml(method.methodName)} QR code">` : `<span>No QR</span>`}</div><section><strong>${escapeHtml(method.methodName)}</strong><p>${escapeHtml(method.accountName)} &middot; ${escapeHtml(method.accountNumber)}</p>${method.instructions ? `<small>${escapeHtml(method.instructions)}</small>` : ""}</section>`
+      : `<p>No active payment methods are available yet.</p>`;
   }
 
   function renderSelectedCommerceAddress() {
@@ -192,6 +248,30 @@ document.addEventListener("DOMContentLoaded", async () => {
       commerceOrderAlert.style.display = "block";
     } finally {
       commerceOrderSubmit.disabled = false;
+    }
+  }
+
+  async function handleCommercePaymentSubmit(event) {
+    event.preventDefault();
+    if (!pendingPaymentOrder) return;
+    commercePaymentAlert.style.display = "none";
+    commercePaymentSubmit.disabled = true;
+    try {
+      await MatrixDB.submitCommerceOrderPayment({
+        orderId: pendingPaymentOrder.id,
+        paymentMethodId: commercePaymentMethod.value,
+        referenceNumber: commercePaymentReference.value.trim(),
+        notes: commercePaymentNotes.value.trim()
+      });
+      closeCommercePaymentModal();
+      renderCommercePackagesPanel();
+      showAlert("Payment reference submitted. Admin will manually verify it next.", "success");
+    } catch (error) {
+      commercePaymentAlert.className = "alert alert-danger";
+      commercePaymentAlert.textContent = error.message;
+      commercePaymentAlert.style.display = "block";
+    } finally {
+      commercePaymentSubmit.disabled = false;
     }
   }
 

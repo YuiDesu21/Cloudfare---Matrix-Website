@@ -685,8 +685,31 @@ document.addEventListener("DOMContentLoaded", async () => {
       const address = order.shippingAddressSnapshot || {};
       const packageSnapshot = order.packageSnapshot || {};
       const items = packageSnapshot.items || [];
-      return `<article class="portal-card withdrawal-history-item"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(order.orderCode)} &middot; ${escapeHtml(order.packageTypeLabel)}</span><h2>${escapeHtml(packageSnapshot.packageName || "Package order")}</h2></div><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div><div class="withdrawal-history-details"><div><span>Member</span><strong>${escapeHtml(order.fullName)} (@${escapeHtml(order.username)})</strong></div><div><span>Package total</span><strong>${money(order.packageTotal)}</strong></div><div><span>Voucher use</span><strong>${money(order.voucherAmount || 0)}</strong></div><div><span>Requested</span><strong>${new Date(order.createdAt).toLocaleString()}</strong></div></div><p class="withdrawal-history-note"><strong>Ship to:</strong> ${escapeHtml(address.fullName || "-")} &middot; ${escapeHtml(address.phone || "-")} &middot; ${escapeHtml(address.streetAddress || "-")}, ${escapeHtml(address.barangay || "-")}, ${escapeHtml(address.city || "-")}, ${escapeHtml(address.province || "-")}, ${escapeHtml(address.region || "-")} ${escapeHtml(address.postalCode || "")}</p>${order.memberNotes ? `<p class="withdrawal-history-note"><strong>Member note:</strong> ${escapeHtml(order.memberNotes)}</p>` : ""}<div class="commerce-admin-order-items">${items.map(item => `<span>${escapeHtml(item.itemName)} (${money(item.price)})</span>`).join("")}</div></article>`;
+      const payment = order.latestPayment || null;
+      const paymentDetails = payment ? `<p class="withdrawal-history-note"><strong>Payment submitted:</strong> ${escapeHtml(payment.paymentMethodSnapshot?.methodName || "Payment method")} &middot; ${escapeHtml(payment.referenceNumber || "-")} &middot; ${money(payment.amount)}</p>` : "";
+      const reviewControls = order.status === "pending_shipping_fee" ? `<form class="commerce-admin-order-review"><div class="form-group"><label>Shipping fee</label><input class="form-control commerce-admin-shipping-fee" type="number" min="0" max="100000" step="0.01" value="0" required></div><div class="form-group"><label>Admin note</label><textarea class="form-control commerce-admin-note" rows="2" maxlength="320" placeholder="J&T fee note or reason"></textarea></div><div class="balance-card-buttons"><button class="button button-primary button-small approve-commerce-order" type="submit">Approve Fee</button><button class="button button-outline button-small reject-commerce-order" type="button">Reject</button></div></form>` : `<div class="balance-card-buttons"><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div>`;
+      return `<article class="portal-card withdrawal-history-item" data-commerce-order-id="${escapeHtml(order.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(order.orderCode)} &middot; ${escapeHtml(order.packageTypeLabel)}</span><h2>${escapeHtml(packageSnapshot.packageName || "Package order")}</h2></div><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div><div class="withdrawal-history-details"><div><span>Member</span><strong>${escapeHtml(order.fullName)} (@${escapeHtml(order.username)})</strong></div><div><span>Package total</span><strong>${money(order.packageTotal)}</strong></div><div><span>Shipping fee</span><strong>${order.shippingFee == null ? "Pending" : money(order.shippingFee)}</strong></div><div><span>Total due</span><strong>${money(order.amountDue)}</strong></div><div><span>Voucher use</span><strong>${money(order.voucherAmount || 0)}</strong></div><div><span>Requested</span><strong>${new Date(order.createdAt).toLocaleString()}</strong></div></div><p class="withdrawal-history-note"><strong>Ship to:</strong> ${escapeHtml(address.fullName || "-")} &middot; ${escapeHtml(address.phone || "-")} &middot; ${escapeHtml(address.streetAddress || "-")}, ${escapeHtml(address.barangay || "-")}, ${escapeHtml(address.city || "-")}, ${escapeHtml(address.province || "-")}, ${escapeHtml(address.region || "-")} ${escapeHtml(address.postalCode || "")}</p>${order.memberNotes ? `<p class="withdrawal-history-note"><strong>Member note:</strong> ${escapeHtml(order.memberNotes)}</p>` : ""}${paymentDetails}<div class="commerce-admin-order-items">${items.map(item => `<span>${escapeHtml(item.itemName)} (${money(item.price)})</span>`).join("")}</div>${reviewControls}</article>`;
     }).join("");
+    commerceOrderList.querySelectorAll("[data-commerce-order-id]").forEach(card => {
+      const orderId = card.dataset.commerceOrderId;
+      const reviewForm = card.querySelector(".commerce-admin-order-review");
+      if (reviewForm) {
+        reviewForm.addEventListener("submit", async event => {
+          event.preventDefault();
+          await act("admin_approve_commerce_order_fee", {
+            p_order_id: orderId,
+            p_shipping_fee: Number(card.querySelector(".commerce-admin-shipping-fee").value || 0),
+            p_admin_notes: card.querySelector(".commerce-admin-note").value.trim()
+          });
+        });
+      }
+      const reject = card.querySelector(".reject-commerce-order");
+      if (reject) reject.addEventListener("click", async () => {
+        const note = card.querySelector(".commerce-admin-note").value.trim();
+        if (!note || !window.confirm("Reject this order request?")) return;
+        await act("admin_reject_commerce_order", { p_order_id: orderId, p_admin_notes: note });
+      });
+    });
   }
   async function loadFinances() {
     financeSummary.innerHTML = `<div class="portal-card withdrawal-empty"><p>Calculating finances...</p></div>`;

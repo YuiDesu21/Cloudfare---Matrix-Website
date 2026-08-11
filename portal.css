@@ -2133,6 +2133,67 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   margin-top: 0.3rem;
 }
 
+.commerce-payment-method-preview {
+  align-items: start;
+  background: rgba(255, 201, 28, 0.055);
+  border: 1px solid rgba(255, 201, 28, 0.16);
+  border-radius: 7px;
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: 96px minmax(0, 1fr);
+  margin-bottom: 0.9rem;
+  min-height: 96px;
+  padding: 0.8rem;
+}
+
+.commerce-payment-method-preview img,
+.commerce-payment-method-preview div > span {
+  aspect-ratio: 1;
+  background: rgba(255, 201, 28, 0.08);
+  border: 1px solid rgba(255, 201, 28, 0.22);
+  border-radius: 7px;
+  object-fit: contain;
+  width: 96px;
+}
+
+.commerce-payment-method-preview div > span {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.62rem;
+  font-weight: 900;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+.commerce-payment-method-preview strong {
+  color: #fff;
+  display: block;
+}
+
+.commerce-payment-method-preview p,
+.commerce-payment-method-preview small {
+  color: var(--muted);
+  display: block;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  margin: 0.25rem 0 0;
+}
+
+.commerce-admin-order-review {
+  border-top: 1px solid rgba(255, 201, 28, 0.12);
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(130px, 0.35fr) minmax(220px, 1fr);
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+.commerce-admin-order-review .balance-card-buttons {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
+
 .commerce-admin-order-items {
   display: flex;
   flex-wrap: wrap;
@@ -2178,6 +2239,8 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   .admin-commerce-filter-row .form-control { max-width: none; }
   .commerce-browser-heading,
   .commerce-browser-actions { align-items: stretch; flex-direction: column; }
+  .commerce-payment-method-preview,
+  .commerce-admin-order-review { grid-template-columns: 1fr; }
 }
 
 @keyframes pulseHighlight {

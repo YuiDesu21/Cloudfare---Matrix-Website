@@ -14,7 +14,7 @@ const MatrixDB = {
     return true;
   },
   async refreshSessionData() {
-    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse, notificationsResponse, addressesResponse, packagesResponse, ordersResponse] = await Promise.all([
+    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse, notificationsResponse, addressesResponse, packagesResponse, ordersResponse, paymentMethodsResponse] = await Promise.all([
       window.matrixSupabase.rpc("get_my_dashboard"),
       window.matrixSupabase.rpc("get_pending_exit_balance"),
       window.matrixSupabase.rpc("get_my_exit_statuses"),
@@ -24,7 +24,8 @@ const MatrixDB = {
       window.matrixSupabase.rpc("get_my_notifications"),
       window.matrixSupabase.rpc("get_my_shipping_addresses"),
       window.matrixSupabase.rpc("get_active_commerce_packages", { p_package_type: null }),
-      window.matrixSupabase.rpc("get_my_commerce_orders")
+      window.matrixSupabase.rpc("get_my_commerce_orders"),
+      window.matrixSupabase.rpc("get_active_payment_methods")
     ]);
     if (error) throw error;
     if (pendingExitResponse.error) throw pendingExitResponse.error;
@@ -36,6 +37,7 @@ const MatrixDB = {
     if (addressesResponse.error) throw addressesResponse.error;
     if (packagesResponse.error) throw packagesResponse.error;
     if (ordersResponse.error) throw ordersResponse.error;
+    if (paymentMethodsResponse.error) throw paymentMethodsResponse.error;
     if (data) {
       data.pendingExitBalance = Number(pendingExitResponse.data || 0);
       data.exits = (exitsResponse.data || []).map(exit => ({ ...exit, ...(scheduleResponse.data[String(exit.exit)] || {}) }));
@@ -45,6 +47,7 @@ const MatrixDB = {
       data.shippingAddresses = addressesResponse.data || [];
       data.commercePackages = packagesResponse.data || [];
       data.commerceOrders = ordersResponse.data || [];
+      data.paymentMethods = paymentMethodsResponse.data || [];
     }
     if (data && data.rules && data.rules.entry) Object.assign(data.rules.entry, { holdPesoValue: 1200, tokenHoldingAllocation: 900, matrixAllocation: 300 });
     state.dashboard = data;
@@ -183,6 +186,9 @@ const MatrixDB = {
   getCommerceOrders() {
     return (state.dashboard && state.dashboard.commerceOrders) || [];
   },
+  getPaymentMethods() {
+    return (state.dashboard && state.dashboard.paymentMethods) || [];
+  },
   async refreshCommerceOrders() {
     const { data, error } = await window.matrixSupabase.rpc("get_my_commerce_orders");
     if (error) throw error;
@@ -194,6 +200,17 @@ const MatrixDB = {
       p_package_id: details.packageId,
       p_shipping_address_id: details.shippingAddressId,
       p_member_notes: details.memberNotes || ""
+    });
+    if (error) throw error;
+    await this.refreshCommerceOrders();
+    return data;
+  },
+  async submitCommerceOrderPayment(details = {}) {
+    const { data, error } = await window.matrixSupabase.rpc("submit_commerce_order_payment", {
+      p_order_id: details.orderId,
+      p_payment_method_id: details.paymentMethodId,
+      p_reference_number: details.referenceNumber || "",
+      p_notes: details.notes || ""
     });
     if (error) throw error;
     await this.refreshCommerceOrders();

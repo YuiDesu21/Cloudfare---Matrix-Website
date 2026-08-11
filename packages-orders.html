@@ -77,6 +77,33 @@
     </div>
   </div>
 
+  <div id="commerce-payment-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="commerce-payment-title" style="display:none">
+    <div class="modal-content portal-card commerce-order-modal-content">
+      <button id="commerce-payment-close" class="modal-close" type="button" aria-label="Close">&times;</button>
+      <h2 id="commerce-payment-title">Pay Order</h2>
+      <p id="commerce-payment-summary" class="subtitle"></p>
+      <div id="commerce-payment-alert" class="alert" style="display:none"></div>
+      <form id="commerce-payment-form">
+        <div class="form-group">
+          <label for="commerce-payment-method">Payment method</label>
+          <select id="commerce-payment-method" class="form-control" required></select>
+        </div>
+        <div id="commerce-payment-method-preview" class="commerce-payment-method-preview"></div>
+        <div class="form-group">
+          <label for="commerce-payment-reference">Reference number</label>
+          <input id="commerce-payment-reference" class="form-control" type="text" minlength="3" maxlength="60" pattern="[A-Za-z0-9][A-Za-z0-9 _./#-]{2,59}" required>
+          <small>3-60 letters, numbers, spaces, or . / # -</small>
+        </div>
+        <div class="form-group">
+          <label for="commerce-payment-notes">Payment notes</label>
+          <textarea id="commerce-payment-notes" class="form-control" rows="3" maxlength="240"></textarea>
+          <small><span id="commerce-payment-notes-count">0</span>/240 characters</small>
+        </div>
+        <button id="commerce-payment-submit" class="button button-primary" type="submit">Submit Payment Reference</button>
+      </form>
+    </div>
+  </div>
+
   <script src="js/runtime-config.js"></script>
   <script src="vendor/supabase.js"></script>
   <script src="js/supabase-client.js"></script>
