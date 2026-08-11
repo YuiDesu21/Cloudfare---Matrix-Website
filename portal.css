@@ -1882,8 +1882,13 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   border-radius: 7px;
   display: grid;
   gap: 0.65rem;
-  grid-template-columns: 86px minmax(0, 1fr) 105px 78px auto;
+  grid-template-columns: 86px minmax(130px, 1fr) 105px 78px auto;
   padding: 0.75rem;
+}
+
+.package-item-row .form-group:has(.package-item-name) {
+  grid-column: 1 / -1;
+  order: -1;
 }
 
 .package-item-photo-control {
