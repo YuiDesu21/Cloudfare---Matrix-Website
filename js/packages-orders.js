@@ -149,12 +149,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     commerceOrderList.innerHTML = orders.slice(0, 8).map(order => {
       const packageSnapshot = order.packageSnapshot || {};
       const canPay = order.status === "approved_for_payment" && Number(order.amountDue || 0) > 0;
+      const adminNote = order.adminNotes ? `<p><strong>Admin note:</strong> ${escapeHtml(order.adminNotes)}</p>` : "";
+      const payment = order.latestPayment || null;
+      const paymentNote = payment ? `<p><strong>Payment:</strong> ${commercePaymentStatusLabel(payment.status)} &middot; ${escapeHtml(payment.referenceNumber || "-")}</p>` : "";
       return `
         <article class="product-plus-month ${order.status === "rejected" || order.status === "cancelled" ? "upcoming" : "vested"}">
           <div class="product-plus-month-index">${escapeHtml((order.orderCode || "ORD").replace("ORD-", ""))}</div>
           <div>
             <h5>${escapeHtml(packageSnapshot.packageName || "Package order")}: ${commerceOrderTotalLabel(order)}</h5>
             <p>${escapeHtml(order.packageTypeLabel)} &middot; ${commerceOrderStatusLabel(order.status)} &middot; ${formatDate(order.createdAt)}${order.shippingFee != null ? ` &middot; Shipping: PHP ${formatNumber(order.shippingFee)}` : ""}</p>
+            ${adminNote}${paymentNote}
           </div>
           ${canPay ? `<button class="button button-primary button-small pay-commerce-order" type="button" data-pay-order-id="${escapeHtml(order.id)}">Pay Now</button>` : `<span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span>`}
         </article>
@@ -314,8 +318,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function commerceOrderTotalLabel(order) {
-    if (Number(order.voucherAmount || 0) > 0) return `PHP ${formatNumber(order.voucherAmount)} vouchers`;
-    const total = Number(order.amountDue || order.packageTotal || 0) + Number(order.shippingFee || 0);
+    if (Number(order.voucherAmount || 0) > 0) {
+      const shipping = Number(order.shippingFee || order.amountDue || 0);
+      return shipping > 0 ? `PHP ${formatNumber(order.voucherAmount)} vouchers + PHP ${formatNumber(shipping)}` : `PHP ${formatNumber(order.voucherAmount)} vouchers`;
+    }
+    const total = Number(order.amountDue || order.packageTotal || 0);
     return `PHP ${formatNumber(total)}`;
   }
 
@@ -336,6 +343,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (["received", "shipped", "payment_approved"].includes(status)) return "status-approved";
     if (["rejected", "cancelled"].includes(status)) return "status-rejected";
     return "status-pending";
+  }
+  function commercePaymentStatusLabel(status) {
+    return ({ submitted: "For Review", approved: "Approved", rejected: "Rejected" })[status] || capitalize(status || "submitted");
   }
 
   function formatNumber(value) { return Number(value || 0).toLocaleString("en-US"); }
