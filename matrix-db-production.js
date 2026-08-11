@@ -216,6 +216,12 @@ const MatrixDB = {
     await this.refreshCommerceOrders();
     return data;
   },
+  async confirmCommerceOrderReceived(orderId) {
+    const { data, error } = await window.matrixSupabase.rpc("confirm_commerce_order_received", { p_order_id: orderId });
+    if (error) throw error;
+    await this.refreshCommerceOrders();
+    return data;
+  },
   async requestWithdrawal() { throw new Error("Withdrawals are not available in this production release yet."); }
 };
 

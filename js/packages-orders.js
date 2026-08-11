@@ -14,6 +14,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const commercePackageList = document.getElementById("commerce-package-list");
   const commerceOrderCount = document.getElementById("commerce-order-count");
   const commerceOrderList = document.getElementById("commerce-order-list");
+  const commerceHistoryCount = document.getElementById("commerce-history-count");
+  const commerceHistoryList = document.getElementById("commerce-history-list");
   const commerceOrderModal = document.getElementById("commerce-order-modal");
   const commerceOrderClose = document.getElementById("commerce-order-close");
   const commerceOrderSummary = document.getElementById("commerce-order-summary");
@@ -141,33 +143,65 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function renderCommerceOrderHistory(orders = []) {
-    commerceOrderCount.textContent = `${orders.length} request${orders.length === 1 ? "" : "s"}`;
-    if (!orders.length) {
+    const activeOrders = orders.filter(order => order.status !== "received");
+    const historyOrders = orders.filter(order => order.status === "received");
+    commerceOrderCount.textContent = `${activeOrders.length} request${activeOrders.length === 1 ? "" : "s"}`;
+    commerceHistoryCount.textContent = `${historyOrders.length} order${historyOrders.length === 1 ? "" : "s"}`;
+    if (!activeOrders.length) {
       commerceOrderList.innerHTML = `<div class="empty-state"><p>No order requests yet.</p></div>`;
-      return;
+    } else {
+      commerceOrderList.innerHTML = activeOrders.slice(0, 8).map(order => renderCommerceOrderCard(order, false)).join("");
     }
-    commerceOrderList.innerHTML = orders.slice(0, 8).map(order => {
-      const packageSnapshot = order.packageSnapshot || {};
-      const canPay = order.status === "approved_for_payment" && Number(order.amountDue || 0) > 0;
-      const adminNote = order.adminNotes ? `<p><strong>Admin note:</strong> ${escapeHtml(order.adminNotes)}</p>` : "";
-      const payment = order.latestPayment || null;
-      const paymentNote = payment ? `<p><strong>Payment:</strong> ${commercePaymentStatusLabel(payment.status)} &middot; ${escapeHtml(payment.referenceNumber || "-")}</p>` : "";
-      return `
-        <article class="product-plus-month ${order.status === "rejected" || order.status === "cancelled" ? "upcoming" : "vested"}">
-          <div class="product-plus-month-index">${escapeHtml((order.orderCode || "ORD").replace("ORD-", ""))}</div>
-          <div>
-            <h5>${escapeHtml(packageSnapshot.packageName || "Package order")}: ${commerceOrderTotalLabel(order)}</h5>
-            <p>${escapeHtml(order.packageTypeLabel)} &middot; ${commerceOrderStatusLabel(order.status)} &middot; ${formatDate(order.createdAt)}${order.shippingFee != null ? ` &middot; Shipping: PHP ${formatNumber(order.shippingFee)}` : ""}</p>
-            ${adminNote}${paymentNote}
-          </div>
-          ${canPay ? `<button class="button button-primary button-small pay-commerce-order" type="button" data-pay-order-id="${escapeHtml(order.id)}">Pay Now</button>` : `<span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span>`}
-        </article>
-      `;
-    }).join("");
+    commerceHistoryList.innerHTML = historyOrders.length
+      ? historyOrders.slice(0, 12).map(order => renderCommerceOrderCard(order, true)).join("")
+      : `<div class="empty-state"><p>No completed orders yet.</p></div>`;
     commerceOrderList.querySelectorAll("[data-pay-order-id]").forEach(button => {
-      const order = orders.find(item => item.id === button.dataset.payOrderId);
+      const order = activeOrders.find(item => item.id === button.dataset.payOrderId);
       button.addEventListener("click", () => openCommercePaymentModal(order));
     });
+    commerceOrderList.querySelectorAll("[data-receive-order-id]").forEach(button => {
+      button.addEventListener("click", async () => {
+        if (!window.confirm("Mark this order as received?")) return;
+        button.disabled = true;
+        try {
+          await MatrixDB.confirmCommerceOrderReceived(button.dataset.receiveOrderId);
+          renderCommercePackagesPanel();
+          showAlert("Order marked as received.", "success");
+        } catch (error) {
+          showAlert(error.message, "danger");
+          button.disabled = false;
+        }
+      });
+    });
+  }
+
+  function renderCommerceOrderCard(order, isHistory) {
+    const packageSnapshot = order.packageSnapshot || {};
+    const canPay = order.status === "approved_for_payment" && Number(order.amountDue || 0) > 0;
+    const canReceive = order.status === "shipped";
+    const adminNote = order.adminNotes ? `<p><strong>Admin note:</strong> ${escapeHtml(order.adminNotes)}</p>` : "";
+    const payment = order.latestPayment || null;
+    const paymentNote = payment ? `<p><strong>Payment:</strong> ${commercePaymentStatusLabel(payment.status)} &middot; ${escapeHtml(payment.referenceNumber || "-")}</p>` : "";
+    const shippingNote = order.shippedAt
+      ? `<p><strong>Shipping:</strong> ${escapeHtml(order.courierName || "J&T")}${order.trackingNumber ? ` &middot; ${escapeHtml(order.trackingNumber)}` : ""} &middot; ${formatDate(order.shippedAt)}${order.shippingNotes ? ` &middot; ${escapeHtml(order.shippingNotes)}` : ""}</p>`
+      : "";
+    const receivedNote = order.receivedAt ? `<p><strong>Received:</strong> ${formatDate(order.receivedAt)}</p>` : "";
+    const action = canPay
+      ? `<button class="button button-primary button-small pay-commerce-order" type="button" data-pay-order-id="${escapeHtml(order.id)}">Pay Now</button>`
+      : canReceive
+        ? `<button class="button button-primary button-small" type="button" data-receive-order-id="${escapeHtml(order.id)}">Order Received</button>`
+        : `<span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span>`;
+    return `
+      <article class="product-plus-month ${isHistory || order.status === "rejected" || order.status === "cancelled" ? "upcoming" : "vested"}">
+        <div class="product-plus-month-index">${escapeHtml((order.orderCode || "ORD").replace("ORD-", ""))}</div>
+        <div>
+          <h5>${escapeHtml(packageSnapshot.packageName || "Package order")}: ${commerceOrderTotalLabel(order)}</h5>
+          <p>${escapeHtml(order.packageTypeLabel)} &middot; ${commerceOrderStatusLabel(order.status)} &middot; ${formatDate(order.createdAt)}${order.shippingFee != null ? ` &middot; Shipping fee: PHP ${formatNumber(order.shippingFee)}` : ""}</p>
+          ${adminNote}${paymentNote}${shippingNote}${receivedNote}
+        </div>
+        ${action}
+      </article>
+    `;
   }
 
   function openCommerceOrderModal(commercePackage) {
