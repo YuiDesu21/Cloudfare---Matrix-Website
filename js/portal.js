@@ -868,7 +868,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     matrixQualification.className = `matrix-qualification ${exit.status === "locked" ? "locked" : "qualified"}`;
     const actionVerb = exit.actionType === "reinvest" || /^Re-Stake/i.test(exit.actionLabel) ? "Re-Stake" : "Buy";
     matrixTitle.textContent = `Exit ${exit.exit}:`;
-    matrixSummary.textContent = `${actionVerb} ${formatNumber(exit.actionAmount)} Pesos worth of F3 Token`;
+    matrixSummary.textContent = formatExitActionSummary(exit, actionVerb);
     matrixRequirement.textContent = exit.requirementRank.split(" / ")[0];
     const isNextExit = exit.exit === nextExitNumber;
     const canRequestExit = isNextExit && exit.status === "qualified";
@@ -936,7 +936,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       <article class="exit-card">
         <div class="exit-number">Exit ${exit.exit}</div>
         <div>
-          <h5>${exit.actionLabel}: PHP ${formatNumber(exit.actionAmount)}</h5>
+          <h5>${formatExitActionSummary(exit)}</h5>
           <p>${exit.requirementRank.split(" / ")[0]}. Once qualified, submit a request and wait for admin approval.</p>
           <div class="exit-meta">
             <span>Downlines: ${exit.qualifiedDownlines}/${exit.requiredDownlines}</span>
@@ -957,6 +957,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
       </article>
     `;
+  }
+
+  function formatExitActionSummary(exit, fallbackVerb = null) {
+    const isRestake = exit.actionType === "reinvest" || /^Re-Stake/i.test(exit.actionLabel);
+    const verb = fallbackVerb || (isRestake ? "Re-Stake" : "Buy");
+    if (Number(exit.exit) === 1 && isRestake) return `${verb} ${formatNumber(exit.actionAmount)} F3 Token`;
+    return `${verb} ${formatNumber(exit.actionAmount)} Pesos worth of F3 Token`;
   }
 
   function renderBalancePanel(member, summary) {

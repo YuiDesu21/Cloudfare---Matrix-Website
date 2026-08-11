@@ -309,7 +309,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!pending.length) { exitList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No pending Exit requests</strong><p>Qualified member requests will appear here.</p></div>`; return; }
     exitList.innerHTML = pending.map(request => {
       const details = request.paymentMethod === "f3_wallet" ? `<div><span>F3 Wallet</span>${copyField(request.f3Wallet)}</div>` : request.paymentMethod === "available_balance" ? `<div><span>Payment</span><strong>Available Balance</strong></div>` : `<div><span>GCash</span><strong>${escapeHtml(request.gcashName || "-")} · ${escapeHtml(request.gcashNumber || "-")}</strong></div><div><span>Reference</span><strong>${escapeHtml(request.referenceNumber || "-")}</strong></div>`;
-      return `<article class="portal-card withdrawal-history-item" data-exit-request-id="${escapeHtml(request.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(request.accountCode)} · Exit ${request.exit}</span><h2>${escapeHtml(request.fullName)}</h2></div><span class="withdrawal-status status-pending">Pending</span></div><div class="withdrawal-history-details"><div><span>Username</span><strong>@${escapeHtml(request.username)}</strong></div><div><span>Action</span><strong>${escapeHtml(request.actionLabel)}</strong></div><div><span>Amount</span><strong>PHP ${Number(request.actionAmount).toLocaleString()}</strong></div>${details}<div><span>Requested</span><strong>${new Date(request.createdAt).toLocaleString()}</strong></div></div><div class="balance-card-buttons" style="margin-top:1rem"><button class="button button-primary button-small approve-exit" type="button">Approve Exit</button><button class="button button-outline button-small reject-exit" type="button">Reject</button></div></article>`;
+      return `<article class="portal-card withdrawal-history-item" data-exit-request-id="${escapeHtml(request.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(request.accountCode)} · Exit ${request.exit}</span><h2>${escapeHtml(request.fullName)}</h2></div><span class="withdrawal-status status-pending">Pending</span></div><div class="withdrawal-history-details"><div><span>Username</span><strong>@${escapeHtml(request.username)}</strong></div><div><span>Action</span><strong>${escapeHtml(request.actionLabel)}</strong></div><div><span>Amount</span><strong>${escapeHtml(exitActionAmountLabel(request))}</strong></div>${details}<div><span>Requested</span><strong>${new Date(request.createdAt).toLocaleString()}</strong></div></div><div class="balance-card-buttons" style="margin-top:1rem"><button class="button button-primary button-small approve-exit" type="button">Approve Exit</button><button class="button button-outline button-small reject-exit" type="button">Reject</button></div></article>`;
     }).join("");
     bindCopyButtons(exitList);
     exitList.querySelectorAll("[data-exit-request-id]").forEach(card => {
@@ -413,6 +413,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (member.mainPosition) placements.push({ planId: "power3-passive", label: "PHP 1,200 Matrix" });
     if (member.timelinePosition) placements.push({ planId: "timeline-power3", label: "PHP 693 Timeline" });
     return placements;
+  }
+  function exitActionAmountLabel(request) {
+    if (Number(request.exit) === 1 && (request.actionType === "reinvest" || /^Re-Stake/i.test(request.actionLabel || ""))) return `${Number(request.actionAmount || 0).toLocaleString()} F3 Token`;
+    return `PHP ${Number(request.actionAmount || 0).toLocaleString()}`;
   }
   function closeMemberActionMenus(exceptMenu = null) {
     document.querySelectorAll(".member-actions-dropdown").forEach(menu => {
