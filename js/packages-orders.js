@@ -100,7 +100,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!visiblePackages.length) {
       commercePackageList.innerHTML = `<div class="empty-state"><p>No active packages for this type yet.</p></div>`;
     } else {
-      commercePackageList.innerHTML = visiblePackages.map(commercePackage => renderCommercePackageCard(commercePackage, summary)).join("");
+      commercePackageList.innerHTML = visiblePackages.map(commercePackage => renderCommercePackageCard(commercePackage, summary, orders)).join("");
       commercePackageList.querySelectorAll("[data-request-package-id]").forEach(button => {
         const commercePackage = visiblePackages.find(item => item.id === button.dataset.requestPackageId);
         button.addEventListener("click", () => openCommerceOrderModal(commercePackage));
@@ -110,11 +110,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderCommerceOrderHistory(orders);
   }
 
-  function renderCommercePackageCard(commercePackage, summary) {
+  function renderCommercePackageCard(commercePackage, summary, orders = []) {
     const isVoucherPackage = commercePackage.packageType === "product_plus_voucher";
     const voucherBalanceValue = Number(summary && summary.vouchers ? summary.vouchers.balance : 0);
+    const reservedVoucherValue = getReservedVoucherValue(orders);
+    const availableVoucherValue = Math.max(voucherBalanceValue - reservedVoucherValue, 0);
     const total = Number(commercePackage.totalPrice || 0);
-    const canRequest = !isVoucherPackage || voucherBalanceValue >= total;
+    const requestState = getCommercePackageRequestState(commercePackage, summary, orders, availableVoucherValue);
+    const voucherHint = `Voucher available: PHP ${formatNumber(availableVoucherValue)}${reservedVoucherValue > 0 ? ` | Reserved: PHP ${formatNumber(reservedVoucherValue)}` : ""}${!requestState.canRequest && requestState.buttonLabel !== "Need More Vouchers" ? ` | ${requestState.hint}` : ""}`;
     const items = commercePackage.items || [];
     return `
       <article class="commerce-browser-package">
@@ -135,11 +138,35 @@ document.addEventListener("DOMContentLoaded", async () => {
           `).join("")}
         </div>
         <div class="commerce-browser-actions">
-          ${isVoucherPackage ? `<span class="commerce-voucher-note">Voucher balance: PHP ${formatNumber(voucherBalanceValue)}</span>` : `<span>Shipping fee added after admin checks J&amp;T.</span>`}
-          <button class="button button-primary button-small" type="button" data-request-package-id="${escapeHtml(commercePackage.id)}" ${canRequest ? "" : "disabled"}>${canRequest ? "Request Order" : "Need More Vouchers"}</button>
+          ${isVoucherPackage ? `<span class="commerce-voucher-note">${escapeHtml(voucherHint)}</span>` : `<span>${escapeHtml(requestState.hint)}</span>`}
+          <button class="button button-primary button-small" type="button" data-request-package-id="${escapeHtml(commercePackage.id)}" ${requestState.canRequest ? "" : "disabled"}>${escapeHtml(requestState.buttonLabel)}</button>
         </div>
       </article>
     `;
+  }
+
+  function getCommercePackageRequestState(commercePackage, summary, orders, availableVoucherValue) {
+    const activeStatuses = ["pending_shipping_fee", "approved_for_payment", "payment_submitted", "payment_approved", "shipped"];
+    const hasActiveSamePackage = orders.some(order => order.packageId === commercePackage.id && activeStatuses.includes(order.status));
+    const hasActiveSameType = orders.some(order => order.packageType === commercePackage.packageType && activeStatuses.includes(order.status));
+    const isMainActive = Boolean(summary && summary.position);
+    const isTimelineActive = Boolean(summary && summary.timelineDashboard && summary.timelineDashboard.isActive);
+    const hasPendingTimelineRequest = Boolean(summary && summary.timelineDashboard && summary.timelineDashboard.pendingRequest);
+    const total = Number(commercePackage.totalPrice || 0);
+
+    if (commercePackage.packageType === "matrix_1200_entry" && isMainActive) return { canRequest: false, buttonLabel: "Already Active", hint: "Your PHP 1,200 Matrix is already active." };
+    if (commercePackage.packageType === "timeline_entry" && isTimelineActive) return { canRequest: false, buttonLabel: "Already Active", hint: "Your Timeline Matrix is already active." };
+    if (commercePackage.packageType === "timeline_entry" && hasPendingTimelineRequest) return { canRequest: false, buttonLabel: "Request Active", hint: "You already have a pending Timeline Matrix request." };
+    if (["matrix_1200_entry", "timeline_entry"].includes(commercePackage.packageType) && hasActiveSameType) return { canRequest: false, buttonLabel: "Request Active", hint: "You already have an active request for this entry type." };
+    if (hasActiveSamePackage) return { canRequest: false, buttonLabel: "Order Active", hint: "You already have an active order for this package." };
+    if (commercePackage.packageType === "product_plus_voucher" && availableVoucherValue < total) return { canRequest: false, buttonLabel: "Need More Vouchers", hint: "Save more vouchers before requesting this package." };
+    return { canRequest: true, buttonLabel: "Request Order", hint: "Shipping fee added after admin checks J&T." };
+  }
+
+  function getReservedVoucherValue(orders = []) {
+    return orders
+      .filter(order => order.packageType === "product_plus_voucher" && order.status === "pending_shipping_fee")
+      .reduce((sum, order) => sum + Number(order.voucherAmount || 0), 0);
   }
 
   function renderCommerceOrderHistory(orders = []) {
@@ -363,9 +390,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   function commerceOrderStatusLabel(status) {
     return ({
       pending_shipping_fee: "Pending Fee",
-      approved_for_payment: "Approved",
-      payment_submitted: "Payment Sent",
-      payment_approved: "Payment Approved",
+      approved_for_payment: "Ready to Pay",
+      payment_submitted: "Payment Review",
+      payment_approved: "Paid",
       shipped: "Shipped",
       received: "Received",
       rejected: "Rejected",

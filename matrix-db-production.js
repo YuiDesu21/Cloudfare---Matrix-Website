@@ -14,7 +14,7 @@ const MatrixDB = {
     return true;
   },
   async refreshSessionData() {
-    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse, notificationsResponse, addressesResponse, packagesResponse, ordersResponse, paymentMethodsResponse] = await Promise.all([
+    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse, notificationsResponse, addressesResponse, packagesResponse, ordersResponse, paymentMethodsResponse, timelineResponse] = await Promise.all([
       window.matrixSupabase.rpc("get_my_dashboard"),
       window.matrixSupabase.rpc("get_pending_exit_balance"),
       window.matrixSupabase.rpc("get_my_exit_statuses"),
@@ -25,7 +25,8 @@ const MatrixDB = {
       window.matrixSupabase.rpc("get_my_shipping_addresses"),
       window.matrixSupabase.rpc("get_active_commerce_packages", { p_package_type: null }),
       window.matrixSupabase.rpc("get_my_commerce_orders"),
-      window.matrixSupabase.rpc("get_active_payment_methods")
+      window.matrixSupabase.rpc("get_active_payment_methods"),
+      window.matrixSupabase.rpc("get_my_timeline_dashboard")
     ]);
     if (error) throw error;
     if (pendingExitResponse.error) throw pendingExitResponse.error;
@@ -38,6 +39,7 @@ const MatrixDB = {
     if (packagesResponse.error) throw packagesResponse.error;
     if (ordersResponse.error) throw ordersResponse.error;
     if (paymentMethodsResponse.error) throw paymentMethodsResponse.error;
+    if (timelineResponse.error) throw timelineResponse.error;
     if (data) {
       data.pendingExitBalance = Number(pendingExitResponse.data || 0);
       data.exits = (exitsResponse.data || []).map(exit => ({ ...exit, ...(scheduleResponse.data[String(exit.exit)] || {}) }));
@@ -48,6 +50,7 @@ const MatrixDB = {
       data.commercePackages = packagesResponse.data || [];
       data.commerceOrders = ordersResponse.data || [];
       data.paymentMethods = paymentMethodsResponse.data || [];
+      data.timelineDashboard = timelineResponse.data || null;
     }
     if (data && data.rules && data.rules.entry) Object.assign(data.rules.entry, { holdPesoValue: 1200, tokenHoldingAllocation: 900, matrixAllocation: 300 });
     state.dashboard = data;

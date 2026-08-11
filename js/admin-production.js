@@ -780,7 +780,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function shorten(value) { const text = String(value || ""); return text.length > 14 ? `${text.slice(0, 7)}...${text.slice(-4)}` : text || "-"; }
   function capitalize(value) { const text = String(value || ""); return text.charAt(0).toUpperCase() + text.slice(1); }
   function commerceOrderStatusLabel(status) {
-    return ({ pending_shipping_fee: "Pending Fee", approved_for_payment: "Approved", payment_submitted: "Payment Sent", payment_approved: "Payment Approved", shipped: "Shipped", received: "Received", rejected: "Rejected", cancelled: "Cancelled" })[status] || capitalize(status || "pending");
+    return ({ pending_shipping_fee: "Pending Fee", approved_for_payment: "Awaiting Payment", payment_submitted: "Payment Review", payment_approved: "Ready to Ship", shipped: "Shipped", received: "Received", rejected: "Rejected", cancelled: "Cancelled" })[status] || capitalize(status || "pending");
   }
   function commerceOrderStatusClass(status) {
     if (["received", "shipped", "payment_approved"].includes(status)) return "status-approved";
