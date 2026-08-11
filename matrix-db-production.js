@@ -14,7 +14,7 @@ const MatrixDB = {
     return true;
   },
   async refreshSessionData() {
-    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse, notificationsResponse, addressesResponse] = await Promise.all([
+    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse, notificationsResponse, addressesResponse, packagesResponse, ordersResponse] = await Promise.all([
       window.matrixSupabase.rpc("get_my_dashboard"),
       window.matrixSupabase.rpc("get_pending_exit_balance"),
       window.matrixSupabase.rpc("get_my_exit_statuses"),
@@ -22,7 +22,9 @@ const MatrixDB = {
       window.matrixSupabase.rpc("get_my_product_plus"),
       window.matrixSupabase.rpc("get_my_vouchers"),
       window.matrixSupabase.rpc("get_my_notifications"),
-      window.matrixSupabase.rpc("get_my_shipping_addresses")
+      window.matrixSupabase.rpc("get_my_shipping_addresses"),
+      window.matrixSupabase.rpc("get_active_commerce_packages", { p_package_type: null }),
+      window.matrixSupabase.rpc("get_my_commerce_orders")
     ]);
     if (error) throw error;
     if (pendingExitResponse.error) throw pendingExitResponse.error;
@@ -32,6 +34,8 @@ const MatrixDB = {
     if (vouchersResponse.error) throw vouchersResponse.error;
     if (notificationsResponse.error) throw notificationsResponse.error;
     if (addressesResponse.error) throw addressesResponse.error;
+    if (packagesResponse.error) throw packagesResponse.error;
+    if (ordersResponse.error) throw ordersResponse.error;
     if (data) {
       data.pendingExitBalance = Number(pendingExitResponse.data || 0);
       data.exits = (exitsResponse.data || []).map(exit => ({ ...exit, ...(scheduleResponse.data[String(exit.exit)] || {}) }));
@@ -39,6 +43,8 @@ const MatrixDB = {
       data.vouchers = vouchersResponse.data || { balance: 0, history: [] };
       data.notifications = notificationsResponse.data || [];
       data.shippingAddresses = addressesResponse.data || [];
+      data.commercePackages = packagesResponse.data || [];
+      data.commerceOrders = ordersResponse.data || [];
     }
     if (data && data.rules && data.rules.entry) Object.assign(data.rules.entry, { holdPesoValue: 1200, tokenHoldingAllocation: 900, matrixAllocation: 300 });
     state.dashboard = data;
@@ -169,6 +175,28 @@ const MatrixDB = {
     const { data, error } = await window.matrixSupabase.rpc("delete_my_shipping_address", { p_address_id: addressId });
     if (error) throw error;
     await this.refreshShippingAddresses();
+    return data;
+  },
+  getCommercePackages() {
+    return (state.dashboard && state.dashboard.commercePackages) || [];
+  },
+  getCommerceOrders() {
+    return (state.dashboard && state.dashboard.commerceOrders) || [];
+  },
+  async refreshCommerceOrders() {
+    const { data, error } = await window.matrixSupabase.rpc("get_my_commerce_orders");
+    if (error) throw error;
+    if (state.dashboard) state.dashboard.commerceOrders = data || [];
+    return data || [];
+  },
+  async requestCommerceOrder(details = {}) {
+    const { data, error } = await window.matrixSupabase.rpc("request_commerce_order", {
+      p_package_id: details.packageId,
+      p_shipping_address_id: details.shippingAddressId,
+      p_member_notes: details.memberNotes || ""
+    });
+    if (error) throw error;
+    await this.refreshCommerceOrders();
     return data;
   },
   async requestWithdrawal() { throw new Error("Withdrawals are not available in this production release yet."); }

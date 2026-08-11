@@ -431,6 +431,22 @@
           <section class="products-plus-vouchers"><div class="exit-header-row"><h4>Voucher Wallet</h4><strong id="voucher-balance">PHP 0</strong></div><p>Approved Products Plus bonuses appear here. Vouchers do not expire, are not withdrawable as cash, and may be redeemed partially.</p><div id="voucher-history" class="product-plus-schedule"></div></section>
         </div>
 
+        <div id="commerce-packages-card" class="portal-card matrix-overview-card" style="display: none;">
+          <div class="matrix-card-header">
+            <div>
+              <h3>Packages &amp; Orders</h3>
+              <p>Browse available packages, view included items, and submit an order request with your saved shipping address.</p>
+            </div>
+            <span id="commerce-package-count" class="badge">0 Packages</span>
+          </div>
+          <div id="commerce-package-tabs" class="matrix-tabs package-type-tabs" role="tablist" aria-label="Package types"></div>
+          <div id="commerce-package-list" class="commerce-package-browser"></div>
+          <section class="commerce-order-history">
+            <div class="exit-header-row"><h4>Order Requests</h4><span id="commerce-order-count">0 requests</span></div>
+            <div id="commerce-order-list" class="product-plus-schedule"></div>
+          </section>
+        </div>
+
         <!-- Pending Status Message -->
         <div id="pending-details-card" class="portal-card" style="display: none;">
           <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem;">Waiting for Review</h3>
@@ -464,6 +480,21 @@
 
   <div id="products-plus-claim-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="products-plus-claim-title" style="display:none">
     <div class="modal-content portal-card"><button id="products-plus-claim-close" class="modal-close" type="button" aria-label="Close">&times;</button><h2 id="products-plus-claim-title">Products Plus Purchase Claim</h2><p id="products-plus-claim-limit" class="subtitle"></p><div id="products-plus-claim-alert" class="alert" style="display:none"></div><form id="products-plus-claim-form"><div class="form-group"><label for="products-plus-claim-amount">Product purchase amount</label><input id="products-plus-claim-amount" class="form-control" type="number" min="0.01" step="0.01" max="1000000" required></div><div class="form-group"><label for="products-plus-claim-reference">Receipt or purchase reference</label><input id="products-plus-claim-reference" class="form-control" type="text" minlength="3" maxlength="60" pattern="[A-Za-z0-9][A-Za-z0-9 _./#-]{2,59}" required><small>3–60 letters, numbers, spaces, or . / # -</small></div><div class="form-group"><label for="products-plus-claim-notes">Notes (optional)</label><textarea id="products-plus-claim-notes" class="form-control" rows="3" maxlength="240"></textarea><small><span id="products-plus-notes-count">0</span>/240 characters</small></div><button id="products-plus-claim-submit" class="button button-primary" type="submit">Submit for Review</button></form></div>
+  </div>
+
+  <div id="commerce-order-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="commerce-order-title" style="display:none">
+    <div class="modal-content portal-card commerce-order-modal-content">
+      <button id="commerce-order-close" class="modal-close" type="button" aria-label="Close">&times;</button>
+      <h2 id="commerce-order-title">Request Order</h2>
+      <p id="commerce-order-summary" class="subtitle"></p>
+      <div id="commerce-order-alert" class="alert" style="display:none"></div>
+      <form id="commerce-order-form">
+        <div class="form-group"><label for="commerce-order-address">Shipping address</label><select id="commerce-order-address" class="form-control" required></select><button id="commerce-order-add-address" class="button button-outline button-small" type="button" hidden>Add Shipping Address</button></div>
+        <div id="commerce-order-address-preview" class="commerce-order-address-preview"></div>
+        <div class="form-group"><label for="commerce-order-notes">Order notes</label><textarea id="commerce-order-notes" class="form-control" rows="3" maxlength="240"></textarea><small><span id="commerce-order-notes-count">0</span>/240 characters</small></div>
+        <button id="commerce-order-submit" class="button button-primary" type="submit">Request Order</button>
+      </form>
+    </div>
   </div>
 
   <!-- Footer -->

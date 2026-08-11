@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const exitList = document.getElementById("admin-exit-list");
   const withdrawalList = document.getElementById("admin-withdrawal-list");
   const productsList = document.getElementById("admin-products-list");
+  const commerceOrderList = document.getElementById("admin-commerce-order-list");
   const memberTableBody = document.getElementById("admin-member-table-body");
   const memberSummary = document.getElementById("admin-member-summary");
   const memberPagination = document.getElementById("admin-member-pagination");
@@ -159,7 +160,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     memberRoles = new Map((roles || []).map(item => [item.memberId, item]));
     loginSection.style.display = "none"; content.style.display = "block"; adminUserStatus.style.display = "flex"; await loadAll();
   }
-  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts(), loadPaymentMethods(), loadCommercePackages()]); }
+  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts(), loadCommerceOrders(), loadPaymentMethods(), loadCommercePackages()]); }
   async function loadMembers() {
     memberTableBody.innerHTML = `<tr><td colspan="8" class="empty-state">Loading member directory...</td></tr>`;
     const { data, error } = await window.matrixSupabase.rpc("admin_get_members", {
@@ -671,6 +672,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       card.querySelector(".reject-product").addEventListener("click", async () => act("admin_reject_product_plus_claim", { p_claim_id: card.dataset.productClaimId }));
     });
   }
+  async function loadCommerceOrders() {
+    const { data: orders, error } = await window.matrixSupabase.rpc("admin_get_commerce_orders");
+    if (error) return show(alertBox, error.message, "danger");
+    const openOrders = (orders || []).filter(order => !["received", "rejected", "cancelled"].includes(order.status));
+    updateCount("orders", openOrders.filter(order => order.status === "pending_shipping_fee").length);
+    if (!openOrders.length) {
+      commerceOrderList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No open order requests</strong><p>Member package orders will appear here.</p></div>`;
+      return;
+    }
+    commerceOrderList.innerHTML = openOrders.map(order => {
+      const address = order.shippingAddressSnapshot || {};
+      const packageSnapshot = order.packageSnapshot || {};
+      const items = packageSnapshot.items || [];
+      return `<article class="portal-card withdrawal-history-item"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(order.orderCode)} &middot; ${escapeHtml(order.packageTypeLabel)}</span><h2>${escapeHtml(packageSnapshot.packageName || "Package order")}</h2></div><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div><div class="withdrawal-history-details"><div><span>Member</span><strong>${escapeHtml(order.fullName)} (@${escapeHtml(order.username)})</strong></div><div><span>Package total</span><strong>${money(order.packageTotal)}</strong></div><div><span>Voucher use</span><strong>${money(order.voucherAmount || 0)}</strong></div><div><span>Requested</span><strong>${new Date(order.createdAt).toLocaleString()}</strong></div></div><p class="withdrawal-history-note"><strong>Ship to:</strong> ${escapeHtml(address.fullName || "-")} &middot; ${escapeHtml(address.phone || "-")} &middot; ${escapeHtml(address.streetAddress || "-")}, ${escapeHtml(address.barangay || "-")}, ${escapeHtml(address.city || "-")}, ${escapeHtml(address.province || "-")}, ${escapeHtml(address.region || "-")} ${escapeHtml(address.postalCode || "")}</p>${order.memberNotes ? `<p class="withdrawal-history-note"><strong>Member note:</strong> ${escapeHtml(order.memberNotes)}</p>` : ""}<div class="commerce-admin-order-items">${items.map(item => `<span>${escapeHtml(item.itemName)} (${money(item.price)})</span>`).join("")}</div></article>`;
+    }).join("");
+  }
   async function loadFinances() {
     financeSummary.innerHTML = `<div class="portal-card withdrawal-empty"><p>Calculating finances...</p></div>`;
     const { data, error } = await window.matrixSupabase.rpc("owner_get_finance_summary");
@@ -703,6 +720,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   function money(value) { return `PHP ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
   function shorten(value) { const text = String(value || ""); return text.length > 14 ? `${text.slice(0, 7)}...${text.slice(-4)}` : text || "-"; }
   function capitalize(value) { const text = String(value || ""); return text.charAt(0).toUpperCase() + text.slice(1); }
+  function commerceOrderStatusLabel(status) {
+    return ({ pending_shipping_fee: "Pending Fee", approved_for_payment: "Approved", payment_submitted: "Payment Sent", payment_approved: "Payment Approved", shipped: "Shipped", received: "Received", rejected: "Rejected", cancelled: "Cancelled" })[status] || capitalize(status || "pending");
+  }
+  function commerceOrderStatusClass(status) {
+    if (["received", "shipped", "payment_approved"].includes(status)) return "status-approved";
+    if (["rejected", "cancelled"].includes(status)) return "status-rejected";
+    return "status-pending";
+  }
   function openTimelineDecision(request, action) {
     timelineDecision = { requestId: request.id, rpc: action === "approve" ? "admin_approve_timeline_request" : "admin_reject_timeline_request" };
     document.getElementById("timeline-decision-title").textContent = `${action === "approve" ? "Approve" : "Reject"} Timeline Request`;

@@ -205,7 +205,8 @@ body.portal-body {
 #balance-card, #pending-details-card { order: 2; }
 #matrix-overview-card { order: 3; }
 #products-plus-card { order: 4; }
-#active-tree-card { order: 5; }
+#commerce-packages-card { order: 5; }
+#active-tree-card { order: 6; }
 
 /* Status Badges */
 .badge {
@@ -1978,6 +1979,177 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   margin-top: 0.18rem;
 }
 
+.commerce-package-browser {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.commerce-browser-package {
+  background: rgba(255, 201, 28, 0.035);
+  border: 1px solid rgba(255, 201, 28, 0.16);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.commerce-browser-heading,
+.commerce-browser-actions {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.commerce-browser-heading span,
+.commerce-browser-actions span,
+.commerce-voucher-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.commerce-browser-heading h4 {
+  color: #fff;
+  font-size: 1.05rem;
+  margin: 0.18rem 0 0;
+}
+
+.commerce-browser-heading strong {
+  color: var(--gold);
+  flex-shrink: 0;
+  font-size: 0.95rem;
+}
+
+.commerce-browser-package > p {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  margin: 0.75rem 0 0;
+}
+
+.commerce-browser-items {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+  margin-top: 0.9rem;
+}
+
+.commerce-browser-items figure {
+  border-top: 1px solid rgba(255, 201, 28, 0.1);
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding-top: 0.75rem;
+}
+
+.commerce-browser-items img,
+.commerce-browser-items figure > span {
+  aspect-ratio: 4 / 3;
+  background: rgba(255, 201, 28, 0.07);
+  border: 1px solid rgba(255, 201, 28, 0.18);
+  border-radius: 7px;
+  object-fit: cover;
+  width: 100%;
+}
+
+.commerce-browser-items figure > span {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.65rem;
+  font-weight: 900;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+.commerce-browser-items figcaption strong,
+.commerce-browser-items figcaption small {
+  display: block;
+}
+
+.commerce-browser-items figcaption strong {
+  color: #fff;
+  font-size: 0.78rem;
+}
+
+.commerce-browser-items figcaption small {
+  color: var(--gold-soft);
+  font-size: 0.68rem;
+  font-weight: 900;
+  margin-top: 0.12rem;
+}
+
+.commerce-browser-actions {
+  align-items: center;
+  border-top: 1px solid rgba(255, 201, 28, 0.11);
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+}
+
+.commerce-order-history {
+  border-top: 1px solid rgba(255, 201, 28, 0.16);
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+}
+
+.commerce-order-modal-content {
+  max-width: 560px;
+}
+
+.commerce-order-modal-content .form-group {
+  margin-bottom: 0.9rem;
+}
+
+.commerce-order-modal-content #commerce-order-add-address {
+  margin-top: 0.55rem;
+}
+
+.commerce-order-address-preview {
+  background: rgba(255, 201, 28, 0.055);
+  border: 1px solid rgba(255, 201, 28, 0.16);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  margin-bottom: 0.9rem;
+  min-height: 54px;
+  padding: 0.8rem;
+}
+
+.commerce-order-address-preview strong {
+  color: #fff;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.commerce-order-address-preview p {
+  margin: 0;
+}
+
+.commerce-order-address-preview span {
+  color: var(--gold-soft);
+  display: block;
+  font-weight: 800;
+  margin-top: 0.3rem;
+}
+
+.commerce-admin-order-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+}
+
+.commerce-admin-order-items span {
+  background: rgba(255, 201, 28, 0.08);
+  border: 1px solid rgba(255, 201, 28, 0.18);
+  border-radius: 999px;
+  color: var(--gold-soft);
+  font-size: 0.68rem;
+  font-weight: 900;
+  padding: 0.32rem 0.55rem;
+}
+
 @media (max-width: 900px) {
   .matrix-explorer-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .matrix-explorer-layout { grid-template-columns: 1fr; }
@@ -2004,6 +2176,8 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   .package-item-row { grid-template-columns: 1fr; }
   .admin-commerce-filter-row { align-items: stretch; flex-direction: column; }
   .admin-commerce-filter-row .form-control { max-width: none; }
+  .commerce-browser-heading,
+  .commerce-browser-actions { align-items: stretch; flex-direction: column; }
 }
 
 @keyframes pulseHighlight {
