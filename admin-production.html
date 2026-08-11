@@ -42,6 +42,7 @@
         <button class="tab-btn active" type="button" data-production-tab="tab-overview">Overview</button>
         <button class="tab-btn" type="button" data-production-tab="tab-approvals">Pending Requests <span id="badge-pending-count" class="badge badge-pending" style="display:none">0</span></button>
         <button class="tab-btn" type="button" data-production-tab="tab-members">Members Directory</button>
+        <button class="tab-btn" type="button" data-production-tab="tab-payment-methods">Payment Methods</button>
         <button class="tab-btn" type="button" data-production-tab="tab-matrix-viewer">Matrix Viewer</button>
         <button id="admin-owner-finances-tab" class="tab-btn" type="button" data-production-tab="tab-finances" hidden>Owner Finances</button>
       </nav>
@@ -82,6 +83,32 @@
         </div>
         <div class="table-container admin-member-table-wrap"><table class="admin-table admin-member-table"><thead><tr><th>Full Name</th><th>Username</th><th>Matrix</th><th>Parent</th><th>Sponsor</th><th>Wallet Address</th><th>Approved</th><th>Actions</th></tr></thead><tbody id="admin-member-table-body"></tbody></table></div>
         <nav id="admin-member-pagination" class="admin-pagination" aria-label="Member directory pages"></nav>
+      </section>
+
+      <section id="tab-payment-methods" class="admin-section">
+        <div class="portal-card" style="padding:1.5rem;margin-bottom:1.5rem">
+          <h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Payment Methods</h3>
+          <p style="font-size:.82rem;color:var(--muted);margin:0">Add the bank, wallet, and QR details members will use when order payments are turned on.</p>
+        </div>
+        <div class="admin-payment-layout">
+          <form id="admin-payment-method-form" class="portal-card admin-payment-form">
+            <input id="admin-payment-method-id" type="hidden">
+            <div class="form-group"><label for="admin-payment-method-name">Method name</label><input id="admin-payment-method-name" class="form-control" type="text" maxlength="60" placeholder="GCash, Maribank, BDO" required></div>
+            <div class="form-group"><label for="admin-payment-account-name">Account name</label><input id="admin-payment-account-name" class="form-control" type="text" maxlength="120" required></div>
+            <div class="form-group"><label for="admin-payment-account-number">Account number</label><input id="admin-payment-account-number" class="form-control" type="text" maxlength="80" required></div>
+            <div class="form-group"><label for="admin-payment-sort">Sort order</label><input id="admin-payment-sort" class="form-control" type="number" min="0" max="9999" step="1" value="100"></div>
+            <div class="form-group"><label for="admin-payment-qr">QR code</label><input id="admin-payment-qr" class="form-control" type="file" accept="image/*"><img id="admin-payment-qr-preview" class="admin-payment-qr-preview" alt="" hidden></div>
+            <div class="form-group"><label for="admin-payment-instructions">Instructions</label><textarea id="admin-payment-instructions" class="form-control" rows="4" maxlength="320" placeholder="Example: Use the exact order total and keep your reference number."></textarea></div>
+            <label class="checkbox-line"><input id="admin-payment-active" type="checkbox" checked> Active for members</label>
+            <div class="profile-form-actions">
+              <button id="admin-payment-save" class="button button-primary button-small" type="submit">Save Method</button>
+              <button id="admin-payment-cancel" class="button button-outline button-small" type="button" hidden>Cancel Edit</button>
+            </div>
+          </form>
+          <div id="admin-payment-method-list" class="admin-payment-method-list">
+            <div class="portal-card withdrawal-empty"><p>No payment methods yet.</p></div>
+          </div>
+        </div>
       </section>
 
       <section id="tab-matrix-viewer" class="admin-section">

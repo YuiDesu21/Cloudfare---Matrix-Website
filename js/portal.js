@@ -67,6 +67,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   const profileDrawer = document.getElementById("profile-drawer");
   const profileDrawerClose = document.getElementById("profile-drawer-close");
   const profileDrawerBackdrop = document.getElementById("profile-drawer-backdrop");
+  const shippingAddressCount = document.getElementById("shipping-address-count");
+  const shippingAddressAlert = document.getElementById("shipping-address-alert");
+  const shippingAddressList = document.getElementById("shipping-address-list");
+  const shippingAddressForm = document.getElementById("shipping-address-form");
+  const shippingAddressId = document.getElementById("shipping-address-id");
+  const shippingFullName = document.getElementById("shipping-full-name");
+  const shippingPhone = document.getElementById("shipping-phone");
+  const shippingRegion = document.getElementById("shipping-region");
+  const shippingProvince = document.getElementById("shipping-province");
+  const shippingCity = document.getElementById("shipping-city");
+  const shippingBarangay = document.getElementById("shipping-barangay");
+  const shippingStreet = document.getElementById("shipping-street");
+  const shippingPostal = document.getElementById("shipping-postal");
+  const shippingNotes = document.getElementById("shipping-notes");
+  const shippingDefault = document.getElementById("shipping-default");
+  const shippingSaveBtn = document.getElementById("shipping-save-btn");
+  const shippingCancelBtn = document.getElementById("shipping-cancel-btn");
 
   const dbStatusBadge = document.getElementById("db-status-badge");
   const dbAvatarLetter = document.getElementById("db-avatar-letter");
@@ -288,6 +305,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   copyRefBtn.addEventListener("click", copyReferralLink);
+  shippingPhone.addEventListener("input", () => { shippingPhone.value = shippingPhone.value.replace(/[^\d+]/g, "").slice(0, 13); });
+  shippingPostal.addEventListener("input", () => { shippingPostal.value = shippingPostal.value.replace(/\D/g, "").slice(0, 4); });
+  shippingCancelBtn.addEventListener("click", () => resetShippingAddressForm());
+  shippingAddressForm.addEventListener("submit", handleShippingAddressSubmit);
   requestWithdrawalBtn.addEventListener("click", () => {
     window.location.href = "withdrawal-request.html";
   });
@@ -724,6 +745,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderBalancePanel(member, summary);
     renderProductsPlusPanel(member, summary);
     renderNotifications(summary);
+    renderShippingAddresses(MatrixDB.getShippingAddresses());
 
     if (pos) {
       // Calculate referrals & downline children
@@ -756,6 +778,107 @@ document.addEventListener("DOMContentLoaded", async () => {
     `).join("") : `<div class="notification-empty">You have no new member updates.</div>`;
   }
 
+  function renderShippingAddresses(addresses = []) {
+    shippingAddressCount.textContent = String(addresses.length);
+    shippingDefault.checked = addresses.length === 0;
+    if (!addresses.length) {
+      shippingAddressList.innerHTML = `<div class="shipping-address-empty">No shipping address yet.</div>`;
+      return;
+    }
+
+    shippingAddressList.innerHTML = addresses.map(address => `
+      <article class="shipping-address-panel" data-address-id="${escapeHtml(address.id)}">
+        <div class="shipping-address-topline">
+          <strong>${escapeHtml(address.fullName)}</strong>
+          ${address.isDefault ? `<span class="badge badge-active">Default</span>` : ""}
+        </div>
+        <p>${escapeHtml(address.streetAddress)}, ${escapeHtml(address.barangay)}, ${escapeHtml(address.city)}, ${escapeHtml(address.province)}, ${escapeHtml(address.region)} ${escapeHtml(address.postalCode)}</p>
+        <span>${escapeHtml(address.phone)}</span>
+        ${address.notes ? `<small>${escapeHtml(address.notes)}</small>` : ""}
+        <div class="profile-form-actions">
+          <button class="button button-outline button-small edit-shipping-address" type="button">Edit</button>
+          <button class="button button-outline button-small delete-shipping-address" type="button">Delete</button>
+        </div>
+      </article>
+    `).join("");
+
+    shippingAddressList.querySelectorAll("[data-address-id]").forEach(panel => {
+      const address = addresses.find(item => item.id === panel.dataset.addressId);
+      panel.querySelector(".edit-shipping-address").addEventListener("click", () => populateShippingAddressForm(address));
+      panel.querySelector(".delete-shipping-address").addEventListener("click", async () => {
+        if (!window.confirm("Delete this shipping address?")) return;
+        shippingAddressAlert.style.display = "none";
+        try {
+          await MatrixDB.deleteShippingAddress(address.id);
+          renderShippingAddresses(MatrixDB.getShippingAddresses());
+          showShippingAddressAlert("Shipping address deleted.", "success");
+        } catch (error) {
+          showShippingAddressAlert(error.message, "danger");
+        }
+      });
+    });
+  }
+
+  function populateShippingAddressForm(address) {
+    if (!address) return;
+    shippingAddressId.value = address.id;
+    shippingFullName.value = address.fullName || "";
+    shippingPhone.value = address.phone || "";
+    shippingRegion.value = address.region || "";
+    shippingProvince.value = address.province || "";
+    shippingCity.value = address.city || "";
+    shippingBarangay.value = address.barangay || "";
+    shippingStreet.value = address.streetAddress || "";
+    shippingPostal.value = address.postalCode || "";
+    shippingNotes.value = address.notes || "";
+    shippingDefault.checked = Boolean(address.isDefault);
+    shippingCancelBtn.hidden = false;
+    shippingSaveBtn.textContent = "Update Address";
+    shippingFullName.focus();
+  }
+
+  function resetShippingAddressForm() {
+    shippingAddressForm.reset();
+    shippingAddressId.value = "";
+    shippingDefault.checked = MatrixDB.getShippingAddresses().length === 0;
+    shippingCancelBtn.hidden = true;
+    shippingSaveBtn.textContent = "Save Address";
+  }
+
+  async function handleShippingAddressSubmit(event) {
+    event.preventDefault();
+    shippingAddressAlert.style.display = "none";
+    shippingSaveBtn.disabled = true;
+    try {
+      await MatrixDB.saveShippingAddress({
+        id: shippingAddressId.value || null,
+        fullName: shippingFullName.value.trim(),
+        phone: shippingPhone.value.trim(),
+        region: shippingRegion.value.trim(),
+        province: shippingProvince.value.trim(),
+        city: shippingCity.value.trim(),
+        barangay: shippingBarangay.value.trim(),
+        streetAddress: shippingStreet.value.trim(),
+        postalCode: shippingPostal.value.trim(),
+        notes: shippingNotes.value.trim(),
+        isDefault: shippingDefault.checked
+      });
+      renderShippingAddresses(MatrixDB.getShippingAddresses());
+      resetShippingAddressForm();
+      showShippingAddressAlert("Shipping address saved.", "success");
+    } catch (error) {
+      showShippingAddressAlert(error.message, "danger");
+    } finally {
+      shippingSaveBtn.disabled = false;
+    }
+  }
+
+  function showShippingAddressAlert(message, type) {
+    shippingAddressAlert.className = `alert alert-${type}`;
+    shippingAddressAlert.textContent = message;
+    shippingAddressAlert.style.display = "block";
+  }
+
   function countMatrixDescendants(parentMemberId, planId, positions) {
     const childrenByParent = new Map();
     positions.forEach(position => {
@@ -786,6 +909,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     dbWallet.textContent = shortenWallet(member.walletAddress); dbEmail.textContent = member.email; dbPhone.textContent = member.phone; dbJoinDate.textContent = formatDate(member.createdAt);
     dbAccountId.textContent = member.accountCode;
     dbSponsor.textContent = member.sponsorId ? `@${(MatrixDB.getMemberById(member.sponsorId) || {}).username || "member"}` : "None";
+    renderShippingAddresses(MatrixDB.getShippingAddresses());
     referralContainer.style.display = "none";
     dbWelcomeTitle.textContent = `Welcome, ${member.fullName}!`; dbWelcomeDesc.textContent = "Your free account is ready. Unlock Entry to join the Power of Three matrix.";
     activeMetricsRow.style.display = "none"; pendingDetailsCard.style.display = "none"; balanceCard.style.display = "none"; productsPlusCard.style.display = "none"; activeTreeCard.style.display = "none";

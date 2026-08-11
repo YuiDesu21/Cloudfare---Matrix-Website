@@ -1665,10 +1665,173 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
 .matrix-member-detail-list dt { color: var(--muted); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; }
 .matrix-member-detail-list dd { color: #fff; font-size: 0.72rem; font-weight: 800; margin: 0; max-width: 60%; overflow-wrap: anywhere; text-align: right; }
 
+.profile-commerce-section {
+  border-top: 1px solid rgba(255, 201, 28, 0.2);
+  margin-top: 1.4rem;
+  padding-top: 1.2rem;
+}
+
+.profile-section-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+}
+
+.profile-section-heading h4 {
+  color: var(--gold);
+  font-size: 0.82rem;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.shipping-address-list,
+.admin-payment-method-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.shipping-address-empty {
+  border: 1px dashed rgba(255, 201, 28, 0.24);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 0.85rem;
+  text-align: center;
+}
+
+.shipping-address-panel {
+  background: rgba(255, 201, 28, 0.035);
+  border: 1px solid rgba(255, 201, 28, 0.16);
+  border-radius: 7px;
+  padding: 0.85rem;
+}
+
+.shipping-address-topline {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+  justify-content: space-between;
+}
+
+.shipping-address-topline strong {
+  color: #fff;
+  font-size: 0.82rem;
+}
+
+.shipping-address-panel p,
+.shipping-address-panel span,
+.shipping-address-panel small {
+  color: var(--muted);
+  display: block;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  margin: 0.35rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.shipping-address-form {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.shipping-address-form .form-group {
+  margin: 0;
+}
+
+.shipping-address-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.checkbox-line {
+  align-items: center;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  font-size: 0.74rem;
+  font-weight: 800;
+  gap: 0.45rem;
+}
+
+.checkbox-line input {
+  accent-color: var(--gold);
+}
+
+.profile-form-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.3rem;
+}
+
+.admin-payment-layout {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+}
+
+.admin-payment-form {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.25rem;
+}
+
+.admin-payment-form .form-group {
+  margin: 0;
+}
+
+.admin-payment-qr-preview,
+.payment-method-qr {
+  aspect-ratio: 1;
+  background: rgba(255, 201, 28, 0.07);
+  border: 1px solid rgba(255, 201, 28, 0.22);
+  border-radius: 7px;
+  object-fit: contain;
+}
+
+.admin-payment-qr-preview {
+  display: block;
+  margin-top: 0.65rem;
+  max-width: 150px;
+  width: 100%;
+}
+
+.payment-method-card {
+  padding: 1.2rem;
+}
+
+.payment-method-body {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 96px minmax(0, 1fr);
+  margin-top: 1rem;
+}
+
+.payment-method-qr {
+  color: var(--muted);
+  display: grid;
+  font-size: 0.7rem;
+  font-weight: 900;
+  min-height: 96px;
+  place-items: center;
+  width: 96px;
+}
+
+.payment-method-qr.empty {
+  text-transform: uppercase;
+}
+
 @media (max-width: 900px) {
   .matrix-explorer-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .matrix-explorer-layout { grid-template-columns: 1fr; }
   .matrix-member-details { position: static; }
+  .admin-payment-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 580px) {
@@ -1683,6 +1846,8 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   .matrix-explorer-stage { font-size: 0.58rem; }
   .matrix-explorer-stage small { display: none; }
   .matrix-explorer-children { display: none; }
+  .shipping-address-grid { grid-template-columns: 1fr; }
+  .payment-method-body { grid-template-columns: 1fr; }
 }
 
 @keyframes pulseHighlight {

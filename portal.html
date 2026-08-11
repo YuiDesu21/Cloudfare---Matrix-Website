@@ -274,6 +274,36 @@
             <div id="copy-toast" style="color: #4bd675; font-size: 0.68rem; margin-top: 0.3rem; font-weight: 800; display: none;">Link copied to clipboard!</div>
           </div>
 
+          <section class="profile-commerce-section">
+            <div class="profile-section-heading">
+              <h4>Shipping Addresses</h4>
+              <span id="shipping-address-count" class="badge">0</span>
+            </div>
+            <div id="shipping-address-alert" class="alert" style="display:none"></div>
+            <div id="shipping-address-list" class="shipping-address-list">
+              <div class="shipping-address-empty">No shipping address yet.</div>
+            </div>
+            <form id="shipping-address-form" class="shipping-address-form">
+              <input id="shipping-address-id" type="hidden">
+              <div class="form-group"><label for="shipping-full-name">Receiver name</label><input id="shipping-full-name" class="form-control" type="text" maxlength="120" required></div>
+              <div class="form-group"><label for="shipping-phone">Phone number</label><input id="shipping-phone" class="form-control" type="tel" maxlength="18" placeholder="09XXXXXXXXX" required></div>
+              <div class="shipping-address-grid">
+                <div class="form-group"><label for="shipping-region">Region</label><input id="shipping-region" class="form-control" type="text" maxlength="80" required></div>
+                <div class="form-group"><label for="shipping-province">Province</label><input id="shipping-province" class="form-control" type="text" maxlength="80" required></div>
+                <div class="form-group"><label for="shipping-city">City / Municipality</label><input id="shipping-city" class="form-control" type="text" maxlength="80" required></div>
+                <div class="form-group"><label for="shipping-barangay">Barangay</label><input id="shipping-barangay" class="form-control" type="text" maxlength="80" required></div>
+              </div>
+              <div class="form-group"><label for="shipping-street">Street / House no.</label><input id="shipping-street" class="form-control" type="text" maxlength="180" required></div>
+              <div class="form-group"><label for="shipping-postal">Postal code</label><input id="shipping-postal" class="form-control" type="text" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required></div>
+              <div class="form-group"><label for="shipping-notes">Delivery notes</label><textarea id="shipping-notes" class="form-control" maxlength="240" rows="3"></textarea></div>
+              <label class="checkbox-line"><input id="shipping-default" type="checkbox"> Use as default address</label>
+              <div class="profile-form-actions">
+                <button id="shipping-save-btn" class="button button-primary button-small" type="submit">Save Address</button>
+                <button id="shipping-cancel-btn" class="button button-outline button-small" type="button" hidden>Cancel Edit</button>
+              </div>
+            </form>
+          </section>
+
           <button id="logout-btn-sidebar" class="button button-outline btn-block" style="margin-top: 1.5rem;">Sign Out</button>
         </div>
       </aside>

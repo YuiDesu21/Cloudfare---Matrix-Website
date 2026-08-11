@@ -13,6 +13,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   const memberPagination = document.getElementById("admin-member-pagination");
   const memberSearch = document.getElementById("admin-member-search");
   const memberStatus = document.getElementById("admin-member-status");
+  const paymentMethodForm = document.getElementById("admin-payment-method-form");
+  const paymentMethodId = document.getElementById("admin-payment-method-id");
+  const paymentMethodName = document.getElementById("admin-payment-method-name");
+  const paymentAccountName = document.getElementById("admin-payment-account-name");
+  const paymentAccountNumber = document.getElementById("admin-payment-account-number");
+  const paymentSort = document.getElementById("admin-payment-sort");
+  const paymentQr = document.getElementById("admin-payment-qr");
+  const paymentQrPreview = document.getElementById("admin-payment-qr-preview");
+  const paymentInstructions = document.getElementById("admin-payment-instructions");
+  const paymentActive = document.getElementById("admin-payment-active");
+  const paymentSave = document.getElementById("admin-payment-save");
+  const paymentCancel = document.getElementById("admin-payment-cancel");
+  const paymentMethodList = document.getElementById("admin-payment-method-list");
   const signout = document.getElementById("admin-signout");
   const adminUserStatus = document.getElementById("admin-user-status");
   const ownerFinancesTab = document.getElementById("admin-owner-finances-tab");
@@ -44,6 +57,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   let matrixExplorerNodes = [];
   let matrixExplorerExpanded = new Set();
   let matrixExplorerSelectedId = null;
+  let paymentMethods = [];
+  let paymentQrData = "";
   const pendingCounts = {};
 
   document.querySelectorAll("[data-production-tab]").forEach(button => button.addEventListener("click", async () => {
@@ -56,6 +71,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     if (target === "tab-finances") await loadFinances();
     if (target === "tab-matrix-viewer") await loadMatrixExplorer();
+    if (target === "tab-payment-methods") await loadPaymentMethods();
   }));
   document.querySelectorAll("[data-production-approval-tab]").forEach(button => button.addEventListener("click", () => {
     const selected = button.dataset.productionApprovalTab;
@@ -73,6 +89,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault(); memberPage = 1; await loadMembers();
   });
   memberStatus.addEventListener("change", async () => { memberPage = 1; await loadMembers(); });
+  paymentQr.addEventListener("change", handlePaymentQrChange);
+  paymentCancel.addEventListener("click", () => resetPaymentMethodForm());
+  paymentMethodForm.addEventListener("submit", handlePaymentMethodSubmit);
   viewerPlanSelect.addEventListener("change", loadMatrixExplorer);
   treeMemberSearch.addEventListener("input", renderMatrixExplorerRows);
   [matrixExitFilter, matrixStatusFilter].forEach(input => input.addEventListener("change", renderMatrixExplorerRows));
@@ -121,7 +140,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     memberRoles = new Map((roles || []).map(item => [item.memberId, item]));
     loginSection.style.display = "none"; content.style.display = "block"; adminUserStatus.style.display = "flex"; await loadAll();
   }
-  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts()]); }
+  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts(), loadPaymentMethods()]); }
   async function loadMembers() {
     memberTableBody.innerHTML = `<tr><td colspan="8" class="empty-state">Loading member directory...</td></tr>`;
     const { data, error } = await window.matrixSupabase.rpc("admin_get_members", {
@@ -206,6 +225,130 @@ document.addEventListener("DOMContentLoaded", async () => {
       memberPage = Number(button.dataset.page); await loadMembers();
       document.getElementById("admin-member-heading").scrollIntoView({ behavior: "smooth", block: "start" });
     }));
+  }
+  async function loadPaymentMethods() {
+    paymentMethodList.innerHTML = `<div class="portal-card withdrawal-empty"><p>Loading payment methods...</p></div>`;
+    const { data, error } = await window.matrixSupabase.rpc("admin_get_payment_methods");
+    if (error) {
+      paymentMethodList.innerHTML = `<div class="portal-card withdrawal-empty"><p>Unable to load payment methods.</p></div>`;
+      return show(alertBox, error.message, "danger");
+    }
+    paymentMethods = data || [];
+    if (!paymentMethods.length) {
+      paymentMethodList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No payment methods yet</strong><p>Add GCash, Maribank, or bank transfer details before opening order payments.</p></div>`;
+      return;
+    }
+    paymentMethodList.innerHTML = paymentMethods.map(method => `
+      <article class="portal-card payment-method-card" data-payment-method-id="${escapeHtml(method.id)}">
+        <div class="withdrawal-history-topline">
+          <div>
+            <span class="withdrawal-reference-label">Sort ${Number(method.sortOrder || 100)}</span>
+            <h2>${escapeHtml(method.methodName)}</h2>
+          </div>
+          <span class="withdrawal-status ${method.isActive ? "status-approved" : "status-rejected"}">${method.isActive ? "Active" : "Inactive"}</span>
+        </div>
+        <div class="payment-method-body">
+          ${method.qrImageData ? `<img class="payment-method-qr" src="${escapeHtml(method.qrImageData)}" alt="${escapeHtml(method.methodName)} QR code">` : `<div class="payment-method-qr empty">No QR</div>`}
+          <div class="withdrawal-history-details">
+            <div><span>Account name</span><strong>${escapeHtml(method.accountName)}</strong></div>
+            <div><span>Account number</span>${copyField(method.accountNumber)}</div>
+            <div><span>Instructions</span><strong>${escapeHtml(method.instructions || "-")}</strong></div>
+            <div><span>Updated</span><strong>${formatDate(method.updatedAt)}</strong></div>
+          </div>
+        </div>
+        <div class="balance-card-buttons">
+          <button class="button button-outline button-small edit-payment-method" type="button">Edit</button>
+          <button class="button button-outline button-small delete-payment-method" type="button">Delete</button>
+        </div>
+      </article>
+    `).join("");
+    bindCopyButtons(paymentMethodList);
+    paymentMethodList.querySelectorAll("[data-payment-method-id]").forEach(card => {
+      const method = paymentMethods.find(item => item.id === card.dataset.paymentMethodId);
+      card.querySelector(".edit-payment-method").addEventListener("click", () => populatePaymentMethodForm(method));
+      card.querySelector(".delete-payment-method").addEventListener("click", async () => {
+        if (!window.confirm(`Delete ${method.methodName}?`)) return;
+        const { error } = await window.matrixSupabase.rpc("admin_delete_payment_method", { p_method_id: method.id });
+        if (error) return show(alertBox, error.message, "danger");
+        resetPaymentMethodForm();
+        show(alertBox, "Payment method deleted.", "success");
+        await loadPaymentMethods();
+      });
+    });
+  }
+  async function handlePaymentQrChange() {
+    paymentQrData = "";
+    paymentQrPreview.hidden = true;
+    paymentQrPreview.removeAttribute("src");
+    const file = paymentQr.files && paymentQr.files[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      paymentQr.value = "";
+      return show(alertBox, "Upload an image file for the QR code.", "danger");
+    }
+    if (file.size > 900000) {
+      paymentQr.value = "";
+      return show(alertBox, "QR image is too large. Please use an image under 900 KB.", "danger");
+    }
+    paymentQrData = await readFileAsDataUrl(file);
+    paymentQrPreview.src = paymentQrData;
+    paymentQrPreview.hidden = false;
+  }
+  async function handlePaymentMethodSubmit(event) {
+    event.preventDefault();
+    paymentSave.disabled = true;
+    const payload = {
+      p_method_id: paymentMethodId.value || null,
+      p_method_name: paymentMethodName.value.trim(),
+      p_account_name: paymentAccountName.value.trim(),
+      p_account_number: paymentAccountNumber.value.trim(),
+      p_qr_image_data: paymentQrData,
+      p_instructions: paymentInstructions.value.trim(),
+      p_sort_order: Number(paymentSort.value || 100),
+      p_is_active: paymentActive.checked
+    };
+    const { error } = await window.matrixSupabase.rpc("admin_save_payment_method", payload);
+    paymentSave.disabled = false;
+    if (error) return show(alertBox, error.message, "danger");
+    resetPaymentMethodForm();
+    show(alertBox, "Payment method saved.", "success");
+    await loadPaymentMethods();
+  }
+  function populatePaymentMethodForm(method) {
+    if (!method) return;
+    paymentMethodId.value = method.id;
+    paymentMethodName.value = method.methodName || "";
+    paymentAccountName.value = method.accountName || "";
+    paymentAccountNumber.value = method.accountNumber || "";
+    paymentSort.value = method.sortOrder || 100;
+    paymentInstructions.value = method.instructions || "";
+    paymentActive.checked = Boolean(method.isActive);
+    paymentQrData = method.qrImageData || "";
+    paymentQr.value = "";
+    paymentQrPreview.src = paymentQrData;
+    paymentQrPreview.hidden = !paymentQrData;
+    paymentCancel.hidden = false;
+    paymentSave.textContent = "Update Method";
+    paymentMethodName.focus();
+  }
+  function resetPaymentMethodForm() {
+    paymentMethodForm.reset();
+    paymentMethodId.value = "";
+    paymentQrData = "";
+    paymentQrPreview.hidden = true;
+    paymentQrPreview.removeAttribute("src");
+    paymentActive.checked = true;
+    paymentSort.value = 100;
+    paymentCancel.hidden = true;
+    paymentSave.textContent = "Save Method";
+  }
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
   }
   async function activateMatrixViewer(memberId, planId = null) {
     if (planId && viewerPlanSelect.value !== planId) viewerPlanSelect.value = planId;
