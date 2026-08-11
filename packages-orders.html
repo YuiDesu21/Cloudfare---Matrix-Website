@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Matrix member packages and order requests">
+  <title>Packages &amp; Orders | Matrix Portal</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body class="portal-body">
+  <header class="portal-header site-header">
+    <div class="container header-wrapper withdrawal-header-wrapper">
+      <a class="brand" href="portal.html">
+        <span class="brand-mark">M</span>
+        <span><strong>Matrix</strong><small>Member Orders</small></span>
+      </a>
+      <nav class="withdrawal-nav" aria-label="Member orders">
+        <a class="active" href="packages-orders.html">Packages</a>
+        <a href="portal.html#profile">Addresses</a>
+        <a href="portal.html">Dashboard</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="portal-container withdrawal-page">
+    <section class="withdrawal-hero">
+      <div>
+        <span class="withdrawal-eyebrow">Member Orders</span>
+        <h1>Packages &amp; Orders</h1>
+        <p>Browse available packages, view included items, and submit an order request with your saved shipping address.</p>
+      </div>
+      <a class="button button-outline button-small" href="portal.html">Dashboard</a>
+    </section>
+
+    <div id="packages-orders-alert" class="alert" style="display:none"></div>
+
+    <section id="packages-orders-content" style="display:none">
+      <div id="commerce-packages-card" class="portal-card matrix-overview-card">
+        <div class="matrix-card-header">
+          <div>
+            <h3>Packages</h3>
+            <p>Select a package type, review included items, then request an order for admin shipping-fee review.</p>
+          </div>
+          <span id="commerce-package-count" class="badge">0 Packages</span>
+        </div>
+        <div id="commerce-package-tabs" class="matrix-tabs package-type-tabs" role="tablist" aria-label="Package types"></div>
+        <div id="commerce-package-list" class="commerce-package-browser"></div>
+        <section class="commerce-order-history">
+          <div class="exit-header-row"><h4>Order Requests</h4><span id="commerce-order-count">0 requests</span></div>
+          <div id="commerce-order-list" class="product-plus-schedule"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <div id="commerce-order-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="commerce-order-title" style="display:none">
+    <div class="modal-content portal-card commerce-order-modal-content">
+      <button id="commerce-order-close" class="modal-close" type="button" aria-label="Close">&times;</button>
+      <h2 id="commerce-order-title">Request Order</h2>
+      <p id="commerce-order-summary" class="subtitle"></p>
+      <div id="commerce-order-alert" class="alert" style="display:none"></div>
+      <form id="commerce-order-form">
+        <div class="form-group">
+          <label for="commerce-order-address">Shipping address</label>
+          <select id="commerce-order-address" class="form-control" required></select>
+          <button id="commerce-order-add-address" class="button button-outline button-small" type="button" hidden>Add Shipping Address</button>
+        </div>
+        <div id="commerce-order-address-preview" class="commerce-order-address-preview"></div>
+        <div class="form-group">
+          <label for="commerce-order-notes">Order notes</label>
+          <textarea id="commerce-order-notes" class="form-control" rows="3" maxlength="240"></textarea>
+          <small><span id="commerce-order-notes-count">0</span>/240 characters</small>
+        </div>
+        <button id="commerce-order-submit" class="button button-primary" type="submit">Request Order</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/runtime-config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="matrix-db.js"></script>
+  <script src="js/packages-orders.js"></script>
+</body>
+</html>

@@ -141,23 +141,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const productsPlusList = document.getElementById("products-plus-list");
   const voucherBalance = document.getElementById("voucher-balance");
   const voucherHistory = document.getElementById("voucher-history");
-  const commercePackagesCard = document.getElementById("commerce-packages-card");
-  const commercePackageCount = document.getElementById("commerce-package-count");
-  const commercePackageTabs = document.getElementById("commerce-package-tabs");
-  const commercePackageList = document.getElementById("commerce-package-list");
-  const commerceOrderCount = document.getElementById("commerce-order-count");
-  const commerceOrderList = document.getElementById("commerce-order-list");
-  const commerceOrderModal = document.getElementById("commerce-order-modal");
-  const commerceOrderClose = document.getElementById("commerce-order-close");
-  const commerceOrderSummary = document.getElementById("commerce-order-summary");
-  const commerceOrderAlert = document.getElementById("commerce-order-alert");
-  const commerceOrderForm = document.getElementById("commerce-order-form");
-  const commerceOrderAddress = document.getElementById("commerce-order-address");
-  const commerceOrderAddAddress = document.getElementById("commerce-order-add-address");
-  const commerceOrderAddressPreview = document.getElementById("commerce-order-address-preview");
-  const commerceOrderNotes = document.getElementById("commerce-order-notes");
-  const commerceOrderNotesCount = document.getElementById("commerce-order-notes-count");
-  const commerceOrderSubmit = document.getElementById("commerce-order-submit");
   const productsPlusClaimModal = document.getElementById("products-plus-claim-modal");
   const productsPlusClaimForm = document.getElementById("products-plus-claim-form");
   const productsPlusClaimAmount = document.getElementById("products-plus-claim-amount");
@@ -167,9 +150,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const productsPlusClaimAlert = document.getElementById("products-plus-claim-alert");
   const productsPlusClaimSubmit = document.getElementById("products-plus-claim-submit");
   let pendingProductClaim = null;
-  let selectedCommercePackageType = "timeline_entry";
-  let pendingCommercePackage = null;
-  let currentDashboardMemberId = null;
 
   const pendingDetailsCard = document.getElementById("pending-details-card");
   const pendingCardPlan = document.getElementById("pending-card-plan");
@@ -200,12 +180,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const action = params.get("action");
   const refSponsor = params.get("ref");
   const FEATURES = (window.MATRIX_CONFIG && window.MATRIX_CONFIG.features) || {};
-  const COMMERCE_PACKAGE_TYPES = [
-    { id: "timeline_entry", label: "Timeline Entry" },
-    { id: "matrix_1200_entry", label: "1200 Entry" },
-    { id: "product_plus_requirement", label: "Product Plus Buy" },
-    { id: "product_plus_voucher", label: "Voucher Packages" }
-  ];
 
   accountMenu.querySelectorAll('[data-account-action="withdraw"], [data-account-action="history"]').forEach(button => {
     button.hidden = !FEATURES.withdrawals;
@@ -303,6 +277,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       closeAccountMenu();
       if (button.dataset.accountAction === "profile") {
         openProfileDrawer();
+      } else if (button.dataset.accountAction === "packages") {
+        window.location.href = "packages-orders.html";
       } else if (button.dataset.accountAction === "timeline") {
         window.location.href = "timeline-matrix.html";
       } else if (button.dataset.accountAction === "withdraw") {
@@ -328,7 +304,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     closeAccountMenu();
     closeNotificationMenu();
     closeProfileDrawer();
-    closeCommerceOrderModal();
   });
 
   copyRefBtn.addEventListener("click", copyReferralLink);
@@ -339,16 +314,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   requestWithdrawalBtn.addEventListener("click", () => {
     window.location.href = "withdrawal-request.html";
   });
-  commerceOrderClose.addEventListener("click", closeCommerceOrderModal);
-  commerceOrderModal.addEventListener("click", event => { if (event.target === commerceOrderModal) closeCommerceOrderModal(); });
-  commerceOrderNotes.addEventListener("input", () => { commerceOrderNotesCount.textContent = commerceOrderNotes.value.length; });
-  commerceOrderAddress.addEventListener("change", renderSelectedCommerceAddress);
-  commerceOrderAddAddress.addEventListener("click", () => {
-    closeCommerceOrderModal();
-    openProfileDrawer();
-    shippingFullName.focus();
-  });
-  commerceOrderForm.addEventListener("submit", handleCommerceOrderSubmit);
   document.getElementById("products-plus-claim-close").addEventListener("click", closeProductClaimModal);
   productsPlusClaimModal.addEventListener("click", event => { if (event.target === productsPlusClaimModal) closeProductClaimModal(); });
   productsPlusClaimNotes.addEventListener("input", () => { document.getElementById("products-plus-notes-count").textContent = productsPlusClaimNotes.value.length; });
@@ -711,7 +676,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     matrixOverviewCard.style.display = "none";
     balanceCard.style.display = "none";
     productsPlusCard.style.display = "none";
-    commercePackagesCard.style.display = "none";
 
     pendingDetailsCard.style.display = "block";
     
@@ -723,7 +687,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Render Approved Active Member Dashboard
   function renderDashboard(member) {
-    currentDashboardMemberId = member.id;
     authSection.style.display = "none";
     dashboardSection.style.display = "block";
 
@@ -772,7 +735,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     matrixOverviewCard.style.display = "block";
     balanceCard.style.display = "block";
     productsPlusCard.style.display = FEATURES.productsPlus ? "block" : "none";
-    commercePackagesCard.style.display = "block";
     activeTreeCard.style.display = "block";
 
     // Find position detail
@@ -784,7 +746,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderMatrixOverview(member, positions, summary);
     renderBalancePanel(member, summary);
     renderProductsPlusPanel(member, summary);
-    renderCommercePackagesPanel(summary);
     renderNotifications(summary);
     renderShippingAddresses(MatrixDB.getShippingAddresses());
 
@@ -945,7 +906,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function renderFreeAccountDashboard(member) {
-    currentDashboardMemberId = member.id;
     dbStatusBadge.className = "badge badge-pending"; dbStatusBadge.textContent = "Free Account";
     dbAvatarLetter.textContent = member.fullName.charAt(0).toUpperCase(); dbFullName.textContent = member.fullName; dbUsername.textContent = `@${member.username}`;
     dbWallet.textContent = shortenWallet(member.walletAddress); dbEmail.textContent = member.email; dbPhone.textContent = member.phone; dbJoinDate.textContent = formatDate(member.createdAt);
@@ -954,8 +914,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderShippingAddresses(MatrixDB.getShippingAddresses());
     referralContainer.style.display = "none";
     dbWelcomeTitle.textContent = `Welcome, ${member.fullName}!`; dbWelcomeDesc.textContent = "Your free account is ready. Unlock Entry to join the Power of Three matrix.";
-    activeMetricsRow.style.display = "none"; pendingDetailsCard.style.display = "none"; balanceCard.style.display = "none"; productsPlusCard.style.display = "none"; commercePackagesCard.style.display = "block"; activeTreeCard.style.display = "none";
-    renderCommercePackagesPanel(MatrixDB.getMemberMatrixSummary(member.id));
+    activeMetricsRow.style.display = "none"; pendingDetailsCard.style.display = "none"; balanceCard.style.display = "none"; productsPlusCard.style.display = "none"; activeTreeCard.style.display = "none";
     matrixOverviewCard.style.display = "block"; matrixSelectedBadge.textContent = "Locked";
     matrixTabs.innerHTML = `<button class="matrix-tab active locked" type="button"><strong>Entry</strong><span class="matrix-tab-status">${renderStatusIcon(true)}<span>Locked</span></span></button>`;
     matrixQualification.innerHTML = `${renderStatusIcon(true)}<span>Locked</span>`; matrixQualification.className = "matrix-qualification locked";
@@ -1217,169 +1176,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         </article>
       `;
     }
-  }
-
-  function renderCommercePackagesPanel(summary) {
-    const packages = MatrixDB.getCommercePackages();
-    const orders = MatrixDB.getCommerceOrders();
-    const visiblePackages = packages.filter(item => item.packageType === selectedCommercePackageType);
-    commercePackageCount.textContent = `${packages.length} Package${packages.length === 1 ? "" : "s"}`;
-    commercePackageTabs.innerHTML = COMMERCE_PACKAGE_TYPES.map(type => {
-      const count = packages.filter(item => item.packageType === type.id).length;
-      return `<button class="matrix-tab ${selectedCommercePackageType === type.id ? "active" : ""} ${count ? "" : "locked"}" type="button" data-commerce-type="${type.id}" role="tab" aria-selected="${selectedCommercePackageType === type.id}"><strong>${escapeHtml(type.label)}</strong><span class="matrix-tab-status"><span>${count}</span></span></button>`;
-    }).join("");
-    commercePackageTabs.querySelectorAll("[data-commerce-type]").forEach(button => {
-      button.addEventListener("click", () => {
-        selectedCommercePackageType = button.dataset.commerceType;
-        renderCommercePackagesPanel(summary);
-      });
-    });
-    enableDragScroll(commercePackageTabs);
-
-    if (!visiblePackages.length) {
-      commercePackageList.innerHTML = `<div class="empty-state"><p>No active packages for this type yet.</p></div>`;
-    } else {
-      commercePackageList.innerHTML = visiblePackages.map(commercePackage => renderCommercePackageCard(commercePackage, summary)).join("");
-      commercePackageList.querySelectorAll("[data-request-package-id]").forEach(button => {
-        const commercePackage = visiblePackages.find(item => item.id === button.dataset.requestPackageId);
-        button.addEventListener("click", () => openCommerceOrderModal(commercePackage));
-      });
-    }
-
-    renderCommerceOrderHistory(orders);
-  }
-
-  function renderCommercePackageCard(commercePackage, summary) {
-    const isVoucherPackage = commercePackage.packageType === "product_plus_voucher";
-    const voucherBalanceValue = Number(summary && summary.vouchers ? summary.vouchers.balance : 0);
-    const total = Number(commercePackage.totalPrice || 0);
-    const canRequest = !isVoucherPackage || voucherBalanceValue >= total;
-    const items = commercePackage.items || [];
-    return `
-      <article class="commerce-browser-package">
-        <div class="commerce-browser-heading">
-          <div>
-            <span>${escapeHtml(commercePackage.packageTypeLabel)}</span>
-            <h4>${escapeHtml(commercePackage.packageName)}</h4>
-          </div>
-          <strong>${isVoucherPackage ? `${formatNumber(total)} Vouchers` : `PHP ${formatNumber(total)}`}</strong>
-        </div>
-        ${commercePackage.description ? `<p>${escapeHtml(commercePackage.description)}</p>` : ""}
-        <div class="commerce-browser-items">
-          ${items.map(item => `
-            <figure>
-              ${item.photoData ? `<img src="${escapeHtml(item.photoData)}" alt="${escapeHtml(item.itemName)}">` : `<span>No Photo</span>`}
-              <figcaption><strong>${escapeHtml(item.itemName)}</strong><small>${isVoucherPackage ? `${formatNumber(item.price)} vouchers` : `PHP ${formatNumber(item.price)}`}</small></figcaption>
-            </figure>
-          `).join("")}
-        </div>
-        <div class="commerce-browser-actions">
-          ${isVoucherPackage ? `<span class="commerce-voucher-note">Voucher balance: PHP ${formatNumber(voucherBalanceValue)}</span>` : `<span>Shipping fee added after admin checks J&amp;T.</span>`}
-          <button class="button button-primary button-small" type="button" data-request-package-id="${escapeHtml(commercePackage.id)}" ${canRequest ? "" : "disabled"}>${canRequest ? "Request Order" : "Need More Vouchers"}</button>
-        </div>
-      </article>
-    `;
-  }
-
-  function renderCommerceOrderHistory(orders = []) {
-    commerceOrderCount.textContent = `${orders.length} request${orders.length === 1 ? "" : "s"}`;
-    if (!orders.length) {
-      commerceOrderList.innerHTML = `<div class="empty-state"><p>No order requests yet.</p></div>`;
-      return;
-    }
-    commerceOrderList.innerHTML = orders.slice(0, 6).map(order => {
-      const packageSnapshot = order.packageSnapshot || {};
-      return `
-        <article class="product-plus-month ${order.status === "rejected" || order.status === "cancelled" ? "upcoming" : "vested"}">
-          <div class="product-plus-month-index">${escapeHtml((order.orderCode || "ORD").replace("ORD-", ""))}</div>
-          <div>
-            <h5>${escapeHtml(packageSnapshot.packageName || "Package order")}: ${commerceOrderTotalLabel(order)}</h5>
-            <p>${escapeHtml(order.packageTypeLabel)} &middot; ${commerceOrderStatusLabel(order.status)} &middot; ${formatDate(order.createdAt)}</p>
-          </div>
-          <span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span>
-        </article>
-      `;
-    }).join("");
-  }
-
-  function openCommerceOrderModal(commercePackage) {
-    pendingCommercePackage = commercePackage;
-    const addresses = MatrixDB.getShippingAddresses();
-    commerceOrderForm.reset();
-    commerceOrderNotesCount.textContent = "0";
-    commerceOrderAlert.style.display = "none";
-    commerceOrderSubmit.disabled = addresses.length === 0;
-    commerceOrderAddress.disabled = addresses.length === 0;
-    commerceOrderAddAddress.hidden = addresses.length > 0;
-    commerceOrderSummary.textContent = `${commercePackage.packageName} | ${commercePackage.packageType === "product_plus_voucher" ? `${formatNumber(commercePackage.totalPrice)} vouchers` : `PHP ${formatNumber(commercePackage.totalPrice)}`}`;
-    commerceOrderAddress.innerHTML = addresses.length
-      ? addresses.map(address => `<option value="${escapeHtml(address.id)}" ${address.isDefault ? "selected" : ""}>${escapeHtml(address.fullName)} - ${escapeHtml(address.city)}, ${escapeHtml(address.province)}</option>`).join("")
-      : `<option value="">Add a shipping address first</option>`;
-    renderSelectedCommerceAddress();
-    commerceOrderModal.style.display = "flex";
-    if (addresses.length) commerceOrderAddress.focus(); else commerceOrderAddAddress.focus();
-  }
-
-  function closeCommerceOrderModal() {
-    if (!commerceOrderModal || commerceOrderModal.style.display === "none") return;
-    commerceOrderModal.style.display = "none";
-    pendingCommercePackage = null;
-  }
-
-  function renderSelectedCommerceAddress() {
-    const address = MatrixDB.getShippingAddresses().find(item => item.id === commerceOrderAddress.value);
-    commerceOrderAddressPreview.innerHTML = address
-      ? `<strong>${escapeHtml(address.fullName)}</strong><p>${escapeHtml(address.streetAddress)}, ${escapeHtml(address.barangay)}, ${escapeHtml(address.city)}, ${escapeHtml(address.province)}, ${escapeHtml(address.region)} ${escapeHtml(address.postalCode)}</p><span>${escapeHtml(address.phone)}</span>`
-      : `<p>Add a shipping address in your profile before requesting this order.</p>`;
-  }
-
-  async function handleCommerceOrderSubmit(event) {
-    event.preventDefault();
-    if (!pendingCommercePackage) return;
-    commerceOrderAlert.style.display = "none";
-    commerceOrderSubmit.disabled = true;
-    try {
-      await MatrixDB.requestCommerceOrder({
-        packageId: pendingCommercePackage.id,
-        shippingAddressId: commerceOrderAddress.value,
-        memberNotes: commerceOrderNotes.value.trim()
-      });
-      closeCommerceOrderModal();
-      renderCommercePackagesPanel(MatrixDB.getMemberMatrixSummary(currentDashboardMemberId));
-      renderCommerceOrderHistory(MatrixDB.getCommerceOrders());
-      commercePackagesCard.scrollIntoView({ behavior: "smooth", block: "start" });
-    } catch (error) {
-      commerceOrderAlert.className = "alert alert-danger";
-      commerceOrderAlert.textContent = error.message;
-      commerceOrderAlert.style.display = "block";
-    } finally {
-      commerceOrderSubmit.disabled = false;
-    }
-  }
-
-  function commerceOrderTotalLabel(order) {
-    if (Number(order.voucherAmount || 0) > 0) return `PHP ${formatNumber(order.voucherAmount)} vouchers`;
-    const total = Number(order.amountDue || order.packageTotal || 0) + Number(order.shippingFee || 0);
-    return `PHP ${formatNumber(total)}`;
-  }
-
-  function commerceOrderStatusLabel(status) {
-    return ({
-      pending_shipping_fee: "Pending Fee",
-      approved_for_payment: "Approved",
-      payment_submitted: "Payment Sent",
-      payment_approved: "Payment Approved",
-      shipped: "Shipped",
-      received: "Received",
-      rejected: "Rejected",
-      cancelled: "Cancelled"
-    })[status] || capitalizeStatus(status || "pending");
-  }
-
-  function commerceOrderStatusClass(status) {
-    if (["received", "shipped", "payment_approved"].includes(status)) return "status-approved";
-    if (["rejected", "cancelled"].includes(status)) return "status-rejected";
-    return "status-pending";
   }
 
   function getMatrixPlacement(member, positions, summary) {
