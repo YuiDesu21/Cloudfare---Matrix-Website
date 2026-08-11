@@ -26,6 +26,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   const paymentSave = document.getElementById("admin-payment-save");
   const paymentCancel = document.getElementById("admin-payment-cancel");
   const paymentMethodList = document.getElementById("admin-payment-method-list");
+  const commercePackageForm = document.getElementById("admin-commerce-package-form");
+  const commercePackageId = document.getElementById("admin-commerce-package-id");
+  const commercePackageType = document.getElementById("admin-commerce-package-type");
+  const commercePackageName = document.getElementById("admin-commerce-package-name");
+  const commercePackageDescription = document.getElementById("admin-commerce-package-description");
+  const commercePackageSort = document.getElementById("admin-commerce-package-sort");
+  const commercePackageActive = document.getElementById("admin-commerce-package-active");
+  const commerceItems = document.getElementById("admin-commerce-items");
+  const commerceAddItem = document.getElementById("admin-commerce-add-item");
+  const commercePackageSave = document.getElementById("admin-commerce-package-save");
+  const commercePackageCancel = document.getElementById("admin-commerce-package-cancel");
+  const commercePackageFilter = document.getElementById("admin-commerce-package-filter");
+  const commercePackageList = document.getElementById("admin-commerce-package-list");
   const signout = document.getElementById("admin-signout");
   const adminUserStatus = document.getElementById("admin-user-status");
   const ownerFinancesTab = document.getElementById("admin-owner-finances-tab");
@@ -59,6 +72,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let matrixExplorerSelectedId = null;
   let paymentMethods = [];
   let paymentQrData = "";
+  let commercePackages = [];
   const pendingCounts = {};
 
   document.querySelectorAll("[data-production-tab]").forEach(button => button.addEventListener("click", async () => {
@@ -72,6 +86,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (target === "tab-finances") await loadFinances();
     if (target === "tab-matrix-viewer") await loadMatrixExplorer();
     if (target === "tab-payment-methods") await loadPaymentMethods();
+    if (target === "tab-commerce-packages") await loadCommercePackages();
   }));
   document.querySelectorAll("[data-production-approval-tab]").forEach(button => button.addEventListener("click", () => {
     const selected = button.dataset.productionApprovalTab;
@@ -92,6 +107,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   paymentQr.addEventListener("change", handlePaymentQrChange);
   paymentCancel.addEventListener("click", () => resetPaymentMethodForm());
   paymentMethodForm.addEventListener("submit", handlePaymentMethodSubmit);
+  commerceAddItem.addEventListener("click", () => addCommerceItemRow());
+  commercePackageCancel.addEventListener("click", () => resetCommercePackageForm());
+  commercePackageFilter.addEventListener("change", renderCommercePackages);
+  commercePackageForm.addEventListener("submit", handleCommercePackageSubmit);
   viewerPlanSelect.addEventListener("change", loadMatrixExplorer);
   treeMemberSearch.addEventListener("input", renderMatrixExplorerRows);
   [matrixExitFilter, matrixStatusFilter].forEach(input => input.addEventListener("change", renderMatrixExplorerRows));
@@ -140,7 +159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     memberRoles = new Map((roles || []).map(item => [item.memberId, item]));
     loginSection.style.display = "none"; content.style.display = "block"; adminUserStatus.style.display = "flex"; await loadAll();
   }
-  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts(), loadPaymentMethods()]); }
+  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts(), loadPaymentMethods(), loadCommercePackages()]); }
   async function loadMembers() {
     memberTableBody.innerHTML = `<tr><td colspan="8" class="empty-state">Loading member directory...</td></tr>`;
     const { data, error } = await window.matrixSupabase.rpc("admin_get_members", {
@@ -349,6 +368,151 @@ document.addEventListener("DOMContentLoaded", async () => {
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(file);
     });
+  }
+  async function loadCommercePackages() {
+    commercePackageList.innerHTML = `<div class="portal-card withdrawal-empty"><p>Loading packages...</p></div>`;
+    const { data, error } = await window.matrixSupabase.rpc("admin_get_commerce_packages");
+    if (error) {
+      commercePackageList.innerHTML = `<div class="portal-card withdrawal-empty"><p>Unable to load packages.</p></div>`;
+      return show(alertBox, error.message, "danger");
+    }
+    commercePackages = data || [];
+    renderCommercePackages();
+    if (!commerceItems.children.length) addCommerceItemRow();
+  }
+  function renderCommercePackages() {
+    const selectedType = commercePackageFilter.value;
+    const visiblePackages = selectedType === "all" ? commercePackages : commercePackages.filter(item => item.packageType === selectedType);
+    if (!visiblePackages.length) {
+      commercePackageList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No packages found</strong><p>Create a package on the left, then it will show here.</p></div>`;
+      return;
+    }
+    commercePackageList.innerHTML = visiblePackages.map(commercePackage => `
+      <article class="portal-card commerce-package-card" data-commerce-package-id="${escapeHtml(commercePackage.id)}">
+        <div class="withdrawal-history-topline">
+          <div>
+            <span class="withdrawal-reference-label">${escapeHtml(commercePackage.packageTypeLabel)} | Sort ${Number(commercePackage.sortOrder || 100)}</span>
+            <h2>${escapeHtml(commercePackage.packageName)}</h2>
+          </div>
+          <span class="withdrawal-status ${commercePackage.isActive ? "status-approved" : "status-rejected"}">${commercePackage.isActive ? "Active" : "Inactive"}</span>
+        </div>
+        ${commercePackage.description ? `<p class="withdrawal-history-note">${escapeHtml(commercePackage.description)}</p>` : ""}
+        <div class="commerce-package-total"><span>Total</span><strong>${money(commercePackage.totalPrice)}</strong></div>
+        <div class="commerce-package-items">
+          ${(commercePackage.items || []).map(item => `
+            <div class="commerce-package-item">
+              ${item.photoData ? `<img src="${escapeHtml(item.photoData)}" alt="${escapeHtml(item.itemName)}">` : `<span class="commerce-item-photo-empty">No Photo</span>`}
+              <div><strong>${escapeHtml(item.itemName)}</strong><span>${money(item.price)}</span></div>
+            </div>
+          `).join("")}
+        </div>
+        <div class="balance-card-buttons">
+          <button class="button button-outline button-small edit-commerce-package" type="button">Edit</button>
+          <button class="button button-outline button-small delete-commerce-package" type="button">Delete</button>
+        </div>
+      </article>
+    `).join("");
+    commercePackageList.querySelectorAll("[data-commerce-package-id]").forEach(card => {
+      const commercePackage = commercePackages.find(item => item.id === card.dataset.commercePackageId);
+      card.querySelector(".edit-commerce-package").addEventListener("click", () => populateCommercePackageForm(commercePackage));
+      card.querySelector(".delete-commerce-package").addEventListener("click", async () => {
+        if (!window.confirm(`Delete ${commercePackage.packageName}?`)) return;
+        const { error } = await window.matrixSupabase.rpc("admin_delete_commerce_package", { p_package_id: commercePackage.id });
+        if (error) return show(alertBox, error.message, "danger");
+        resetCommercePackageForm();
+        show(alertBox, "Package deleted.", "success");
+        await loadCommercePackages();
+      });
+    });
+  }
+  function addCommerceItemRow(item = {}) {
+    const row = document.createElement("article");
+    row.className = "package-item-row";
+    row.dataset.photoData = item.photoData || "";
+    row.innerHTML = `
+      <div class="package-item-photo-control">
+        ${item.photoData ? `<img src="${escapeHtml(item.photoData)}" alt="">` : `<span>No Photo</span>`}
+        <input class="package-item-photo-input" type="file" accept="image/*">
+      </div>
+      <div class="form-group"><label>Item name</label><input class="form-control package-item-name" type="text" maxlength="100" value="${escapeHtml(item.itemName || "")}" required></div>
+      <div class="form-group"><label>Price</label><input class="form-control package-item-price" type="number" min="0" max="1000000" step="0.01" value="${Number(item.price || 0)}" required></div>
+      <div class="form-group"><label>Sort</label><input class="form-control package-item-sort" type="number" min="0" max="9999" step="1" value="${Number(item.sortOrder || ((commerceItems.children.length + 1) * 10))}"></div>
+      <button class="button button-outline button-small remove-package-item" type="button">Remove</button>
+    `;
+    commerceItems.appendChild(row);
+    row.querySelector(".remove-package-item").addEventListener("click", () => {
+      if (commerceItems.children.length <= 1) {
+        return show(alertBox, "Each package needs at least one item.", "danger");
+      }
+      row.remove();
+    });
+    row.querySelector(".package-item-photo-input").addEventListener("change", async event => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        event.target.value = "";
+        return show(alertBox, "Upload an image file for the item photo.", "danger");
+      }
+      if (file.size > 900000) {
+        event.target.value = "";
+        return show(alertBox, "Item photo is too large. Please use an image under 900 KB.", "danger");
+      }
+      const dataUrl = await readFileAsDataUrl(file);
+      row.dataset.photoData = dataUrl;
+      row.querySelector(".package-item-photo-control").firstElementChild.outerHTML = `<img src="${escapeHtml(dataUrl)}" alt="">`;
+    });
+  }
+  function collectCommerceItems() {
+    return Array.from(commerceItems.querySelectorAll(".package-item-row")).map((row, index) => ({
+      itemName: row.querySelector(".package-item-name").value.trim(),
+      price: Number(row.querySelector(".package-item-price").value || 0),
+      photoData: row.dataset.photoData || "",
+      sortOrder: Number(row.querySelector(".package-item-sort").value || ((index + 1) * 10))
+    }));
+  }
+  async function handleCommercePackageSubmit(event) {
+    event.preventDefault();
+    commercePackageSave.disabled = true;
+    const { error } = await window.matrixSupabase.rpc("admin_save_commerce_package", {
+      p_package_id: commercePackageId.value || null,
+      p_package_type: commercePackageType.value,
+      p_package_name: commercePackageName.value.trim(),
+      p_description: commercePackageDescription.value.trim(),
+      p_is_active: commercePackageActive.checked,
+      p_sort_order: Number(commercePackageSort.value || 100),
+      p_items: collectCommerceItems()
+    });
+    commercePackageSave.disabled = false;
+    if (error) return show(alertBox, error.message, "danger");
+    resetCommercePackageForm();
+    show(alertBox, "Package saved.", "success");
+    await loadCommercePackages();
+  }
+  function populateCommercePackageForm(commercePackage) {
+    if (!commercePackage) return;
+    commercePackageId.value = commercePackage.id;
+    commercePackageType.value = commercePackage.packageType;
+    commercePackageName.value = commercePackage.packageName || "";
+    commercePackageDescription.value = commercePackage.description || "";
+    commercePackageSort.value = commercePackage.sortOrder || 100;
+    commercePackageActive.checked = Boolean(commercePackage.isActive);
+    commerceItems.innerHTML = "";
+    (commercePackage.items || []).forEach(item => addCommerceItemRow(item));
+    if (!commerceItems.children.length) addCommerceItemRow();
+    commercePackageCancel.hidden = false;
+    commercePackageSave.textContent = "Update Package";
+    commercePackageName.focus();
+  }
+  function resetCommercePackageForm() {
+    commercePackageForm.reset();
+    commercePackageId.value = "";
+    commercePackageType.value = "timeline_entry";
+    commercePackageSort.value = 100;
+    commercePackageActive.checked = true;
+    commerceItems.innerHTML = "";
+    addCommerceItemRow();
+    commercePackageCancel.hidden = true;
+    commercePackageSave.textContent = "Save Package";
   }
   async function activateMatrixViewer(memberId, planId = null) {
     if (planId && viewerPlanSelect.value !== planId) viewerPlanSelect.value = planId;
