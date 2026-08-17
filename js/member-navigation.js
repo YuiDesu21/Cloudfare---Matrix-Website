@@ -18,32 +18,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     { id: "upgrade-entry-production", label: "Entry Activation", href: "upgrade-entry-production.html" }
   ];
 
-  const member = await loadCurrentMember();
-  const isAdmin = member ? await loadAdminStatus(member) : false;
-  if (member) {
-    const displayName = member.fullName || member.username || "Member";
-    name.textContent = displayName;
-    avatar.textContent = displayName.charAt(0).toUpperCase();
-  }
-
-  const availablePages = isAdmin ? [...pages, { id: "admin", label: "Admin Portal", href: "admin.html" }] : pages;
-  menu.innerHTML = availablePages
-    .filter(page => page.id !== currentPage)
-    .map(page => `<a href="${page.href}">${page.label}</a>`)
-    .join("") + `<button type="button" class="account-menu-signout" data-member-signout>Sign Out</button>`;
-
+  renderMenu(pages);
   menuRoot.style.display = "flex";
+  bindSignOut();
 
   toggle.addEventListener("click", () => {
     const open = menu.hidden;
     menu.hidden = !open;
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
-  });
-
-  menu.querySelector("[data-member-signout]").addEventListener("click", async () => {
-    sessionStorage.removeItem("matrix_logged_in_member_id");
-    if (window.matrixSupabase) await window.matrixSupabase.auth.signOut();
-    window.location.href = "portal.html";
   });
 
   document.addEventListener("click", event => {
@@ -53,6 +35,36 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.addEventListener("keydown", event => {
     if (event.key === "Escape") closeMenu();
   });
+
+  const member = await loadCurrentMember();
+  const isAdmin = member ? await loadAdminStatus(member) : false;
+  if (member) {
+    const displayName = member.fullName || member.username || "Member";
+    name.textContent = displayName;
+    avatar.textContent = displayName.charAt(0).toUpperCase();
+  }
+
+  const availablePages = isAdmin ? [...pages, { id: "admin", label: "Admin Portal", href: "admin.html" }] : pages;
+  renderMenu(availablePages);
+  bindSignOut();
+
+  function renderMenu(availablePages) {
+    menu.innerHTML = availablePages
+      .filter(page => page.id !== currentPage)
+      .map(page => `<a href="${page.href}">${page.label}</a>`)
+      .join("") + `<button type="button" class="account-menu-signout" data-member-signout>Sign Out</button>`;
+  }
+
+  function bindSignOut() {
+    const signOut = menu.querySelector("[data-member-signout]");
+    if (!signOut || signOut.dataset.bound === "true") return;
+    signOut.dataset.bound = "true";
+    signOut.addEventListener("click", async () => {
+      sessionStorage.removeItem("matrix_logged_in_member_id");
+      if (window.matrixSupabase) await window.matrixSupabase.auth.signOut();
+      window.location.href = "portal.html";
+    });
+  }
 
   function closeMenu() {
     menu.hidden = true;
