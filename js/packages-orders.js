@@ -133,7 +133,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           ${items.map(item => `
             <figure>
               ${item.photoData ? `<img src="${escapeHtml(item.photoData)}" alt="${escapeHtml(item.itemName)}">` : `<span>No Photo</span>`}
-              <figcaption><strong>${escapeHtml(item.itemName)}</strong><small>${isVoucherPackage ? `${formatNumber(item.price)} vouchers` : `PHP ${formatNumber(item.price)}`}</small></figcaption>
+              <figcaption><strong>${escapeHtml(item.itemName)}${quantityBadge(item)}</strong><small>${isVoucherPackage ? `${formatNumber(item.price)} vouchers` : `PHP ${formatNumber(item.price)}`}${Number(item.quantity || 1) > 1 ? " each" : ""}</small></figcaption>
             </figure>
           `).join("")}
         </div>
@@ -412,6 +412,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function formatNumber(value) { return Number(value || 0).toLocaleString("en-US"); }
   function formatDate(value) { return value ? new Date(value).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"; }
   function capitalize(value) { const text = String(value || ""); return text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, " "); }
+  function quantityBadge(item) { const quantity = Number(item && item.quantity || 1); return quantity > 1 ? `<span class="commerce-item-quantity">x${quantity.toLocaleString()}</span>` : ""; }
   function escapeHtml(value) { return String(value == null ? "" : value).replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character])); }
   function showAlert(message, type) { pageAlert.className = `alert alert-${type}`; pageAlert.textContent = message; pageAlert.style.display = "block"; pageAlert.scrollIntoView({ behavior: "smooth", block: "center" }); }
   function showAccessError(message) { showAlert(message, "danger"); window.setTimeout(() => { window.location.href = "portal.html"; }, 1400); }

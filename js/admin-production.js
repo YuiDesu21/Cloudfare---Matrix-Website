@@ -439,7 +439,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           ${(commercePackage.items || []).map(item => `
             <div class="commerce-package-item">
               ${item.photoData ? `<img src="${escapeHtml(item.photoData)}" alt="${escapeHtml(item.itemName)}">` : `<span class="commerce-item-photo-empty">No Photo</span>`}
-              <div><strong>${escapeHtml(item.itemName)}</strong><span>${money(item.price)}</span></div>
+              <div><strong>${escapeHtml(item.itemName)}${quantityBadge(item)}</strong><span>${money(item.price)}${Number(item.quantity || 1) > 1 ? ` each` : ""}</span></div>
             </div>
           `).join("")}
         </div>
@@ -473,6 +473,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       </div>
       <div class="form-group"><label>Item name</label><input class="form-control package-item-name" type="text" maxlength="100" value="${escapeHtml(item.itemName || "")}" required></div>
       <div class="form-group"><label>Price</label><input class="form-control package-item-price" type="number" min="0" max="1000000" step="0.01" value="${Number(item.price || 0)}" required></div>
+      <div class="form-group"><label>Qty</label><input class="form-control package-item-quantity" type="number" min="1" max="999" step="1" value="${Number(item.quantity || 1)}" required></div>
       <div class="form-group"><label>Sort</label><input class="form-control package-item-sort" type="number" min="0" max="9999" step="1" value="${Number(item.sortOrder || ((commerceItems.children.length + 1) * 10))}"></div>
       <button class="button button-outline button-small remove-package-item" type="button">Remove</button>
     `;
@@ -503,6 +504,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     return Array.from(commerceItems.querySelectorAll(".package-item-row")).map((row, index) => ({
       itemName: row.querySelector(".package-item-name").value.trim(),
       price: Number(row.querySelector(".package-item-price").value || 0),
+      quantity: Number(row.querySelector(".package-item-quantity").value || 1),
       photoData: row.dataset.photoData || "",
       sortOrder: Number(row.querySelector(".package-item-sort").value || ((index + 1) * 10))
     }));
@@ -731,7 +733,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           : order.status === "payment_approved"
             ? `<form class="commerce-admin-ship-form"><div class="form-grid two-column"><div class="form-group"><label>Courier</label><input class="form-control commerce-admin-courier" type="text" minlength="2" maxlength="40" value="${escapeHtml(order.courierName || "J&T")}" required></div><div class="form-group"><label>Tracking number</label><input class="form-control commerce-admin-tracking" type="text" maxlength="80" placeholder="J&T tracking"></div></div><div class="form-group"><label>Shipping note</label><textarea class="form-control commerce-admin-shipping-note" rows="2" maxlength="240" placeholder="Optional shipping note"></textarea></div><div class="balance-card-buttons"><button class="button button-primary button-small mark-commerce-shipped" type="submit">Mark Shipped</button></div></form>`
           : `<div class="balance-card-buttons"><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div>`;
-      return `<article class="portal-card withdrawal-history-item" data-commerce-order-id="${escapeHtml(order.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(order.orderCode)} &middot; ${escapeHtml(order.packageTypeLabel)}</span><h2>${escapeHtml(packageSnapshot.packageName || "Package order")}</h2></div><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div><div class="withdrawal-history-details"><div><span>Member</span><strong>${escapeHtml(order.fullName)} (@${escapeHtml(order.username)})</strong></div><div><span>Package total</span><strong>${money(order.packageTotal)}</strong></div><div><span>Shipping fee</span><strong>${order.shippingFee == null ? "Pending" : money(order.shippingFee)}</strong></div><div><span>Total due</span><strong>${money(order.amountDue)}</strong></div><div><span>Voucher use</span><strong>${money(order.voucherAmount || 0)}</strong></div><div><span>Requested</span><strong>${new Date(order.createdAt).toLocaleString()}</strong></div></div><p class="withdrawal-history-note"><strong>Ship to:</strong> ${escapeHtml(address.fullName || "-")} &middot; ${escapeHtml(address.phone || "-")} &middot; ${escapeHtml(address.streetAddress || "-")}, ${escapeHtml(address.barangay || "-")}, ${escapeHtml(address.city || "-")}, ${escapeHtml(address.province || "-")}, ${escapeHtml(address.region || "-")} ${escapeHtml(address.postalCode || "")}</p>${order.memberNotes ? `<p class="withdrawal-history-note"><strong>Member note:</strong> ${escapeHtml(order.memberNotes)}</p>` : ""}${paymentDetails}${shippingDetails}<div class="commerce-admin-order-items">${items.map(item => `<span>${escapeHtml(item.itemName)} (${money(item.price)})</span>`).join("")}</div>${reviewControls}</article>`;
+      return `<article class="portal-card withdrawal-history-item" data-commerce-order-id="${escapeHtml(order.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(order.orderCode)} &middot; ${escapeHtml(order.packageTypeLabel)}</span><h2>${escapeHtml(packageSnapshot.packageName || "Package order")}</h2></div><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div><div class="withdrawal-history-details"><div><span>Member</span><strong>${escapeHtml(order.fullName)} (@${escapeHtml(order.username)})</strong></div><div><span>Package total</span><strong>${money(order.packageTotal)}</strong></div><div><span>Shipping fee</span><strong>${order.shippingFee == null ? "Pending" : money(order.shippingFee)}</strong></div><div><span>Total due</span><strong>${money(order.amountDue)}</strong></div><div><span>Voucher use</span><strong>${money(order.voucherAmount || 0)}</strong></div><div><span>Requested</span><strong>${new Date(order.createdAt).toLocaleString()}</strong></div></div><p class="withdrawal-history-note"><strong>Ship to:</strong> ${escapeHtml(address.fullName || "-")} &middot; ${escapeHtml(address.phone || "-")} &middot; ${escapeHtml(address.streetAddress || "-")}, ${escapeHtml(address.barangay || "-")}, ${escapeHtml(address.city || "-")}, ${escapeHtml(address.province || "-")}, ${escapeHtml(address.region || "-")} ${escapeHtml(address.postalCode || "")}</p>${order.memberNotes ? `<p class="withdrawal-history-note"><strong>Member note:</strong> ${escapeHtml(order.memberNotes)}</p>` : ""}${paymentDetails}${shippingDetails}<div class="commerce-admin-order-items">${items.map(item => `<span>${escapeHtml(item.itemName)}${quantityText(item)} (${money(item.price)}${Number(item.quantity || 1) > 1 ? " each" : ""})</span>`).join("")}</div>${reviewControls}</article>`;
     }).join("");
     commerceOrderList.querySelectorAll("[data-commerce-order-id]").forEach(card => {
       const orderId = card.dataset.commerceOrderId;
@@ -813,6 +815,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   function memberStatusClass(status) { return status === "active" ? "status-approved" : status === "suspended" ? "status-rejected" : "status-pending"; }
   function formatDate(value) { return value ? new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "-"; }
   function money(value) { return `PHP ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
+  function quantityBadge(item) { const quantity = Number(item && item.quantity || 1); return quantity > 1 ? `<span class="commerce-item-quantity">x${quantity.toLocaleString()}</span>` : ""; }
+  function quantityText(item) { const quantity = Number(item && item.quantity || 1); return quantity > 1 ? ` x${quantity.toLocaleString()}` : ""; }
   function shorten(value) { const text = String(value || ""); return text.length > 14 ? `${text.slice(0, 7)}...${text.slice(-4)}` : text || "-"; }
   function capitalize(value) { const text = String(value || ""); return text.charAt(0).toUpperCase() + text.slice(1); }
   function commerceOrderStatusLabel(status) {
