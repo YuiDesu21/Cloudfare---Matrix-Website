@@ -551,6 +551,10 @@ body.portal-body {
   margin-left: auto;
 }
 
+.user-status-strip[data-member-menu] {
+  display: flex !important;
+}
+
 .notification-menu-toggle {
   align-items: center;
   background: rgba(7, 20, 11, 0.92);
