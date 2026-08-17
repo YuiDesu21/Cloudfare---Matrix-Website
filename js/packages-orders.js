@@ -131,8 +131,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         ${commercePackage.description ? `<p>${escapeHtml(commercePackage.description)}</p>` : ""}
         <div class="commerce-browser-items">
           ${items.map(item => `
-            <figure>
-              ${item.photoData ? `<img src="${escapeHtml(item.photoData)}" alt="${escapeHtml(item.itemName)}">` : `<span>No Photo</span>`}
+            <figure class="commerce-browser-product">
+              ${item.photoData ? `<img class="${item.imageFit === "contain" ? "commerce-image-contain" : ""}" src="${escapeHtml(item.photoData)}" alt="${escapeHtml(item.itemName)}" loading="lazy">` : `<span>No Photo</span>`}
               <figcaption><strong>${escapeHtml(item.itemName)}${quantityBadge(item)}</strong><small>${isVoucherPackage ? `${formatNumber(item.price)} vouchers` : `PHP ${formatNumber(item.price)}`}${Number(item.quantity || 1) > 1 ? " each" : ""}</small></figcaption>
             </figure>
           `).join("")}
