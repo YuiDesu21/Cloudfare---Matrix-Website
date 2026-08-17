@@ -194,6 +194,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   requestWithdrawalBtn.hidden = !FEATURES.withdrawals;
   const passiveIncomeHistoryLink = document.getElementById("passive-income-history-link");
   if (passiveIncomeHistoryLink) passiveIncomeHistoryLink.hidden = !FEATURES.passiveIncomeHistory;
+  const passiveIncomeMenuButton = accountMenu.querySelector('[data-account-action="income"]');
+  if (passiveIncomeMenuButton) passiveIncomeMenuButton.hidden = !FEATURES.passiveIncomeHistory;
 
   const MATRIX_RULES = MatrixDB.getMatrixRules();
 
@@ -292,6 +294,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.location.href = "withdrawal-request.html";
       } else if (button.dataset.accountAction === "history") {
         window.location.href = "withdrawal-history.html";
+      } else if (button.dataset.accountAction === "income") {
+        window.location.href = "passive-income-history.html";
+      } else if (button.dataset.accountAction === "entry") {
+        window.location.href = "upgrade-entry-production.html";
       } else if (button.dataset.accountAction === "admin") {
         window.location.href = "admin.html";
       }

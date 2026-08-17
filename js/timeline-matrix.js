@@ -105,8 +105,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         closeAccountMenu();
         if (button.dataset.timelineAction === "profile") window.location.href = "portal.html#profile";
         if (button.dataset.timelineAction === "main") window.location.href = "portal.html";
+        if (button.dataset.timelineAction === "packages") window.location.href = "packages-orders.html";
         if (button.dataset.timelineAction === "withdraw") window.location.href = "withdrawal-request.html";
+        if (button.dataset.timelineAction === "withdrawal-history") window.location.href = "withdrawal-history.html";
         if (button.dataset.timelineAction === "history") window.location.href = "passive-income-history.html";
+        if (button.dataset.timelineAction === "entry") window.location.href = "upgrade-entry-production.html";
         if (button.dataset.timelineAction === "logout") logout();
       });
     });

@@ -193,8 +193,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       const action = button.dataset.timelineAction;
       if (action === "profile") window.location.href = "portal.html#profile";
       if (action === "main") window.location.href = "portal.html";
+      if (action === "packages") window.location.href = "packages-orders.html";
       if (action === "withdraw") window.location.href = "withdrawal-request.html";
+      if (action === "withdrawal-history") window.location.href = "withdrawal-history.html";
       if (action === "history") window.location.href = "passive-income-history.html";
+      if (action === "entry") window.location.href = "upgrade-entry-production.html";
       if (action === "logout") { await window.matrixSupabase.auth.signOut(); window.location.href = "portal.html"; }
     }));
     document.addEventListener("click", event => {

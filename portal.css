@@ -650,19 +650,23 @@ body.portal-body {
 }
 
 .account-menu[hidden] { display: none; }
-.account-menu button {
+.account-menu button,
+.account-menu a {
   background: transparent;
   border: 0;
   border-radius: 8px;
   color: var(--cream);
   cursor: pointer;
+  display: block;
   font: inherit;
   font-size: 0.82rem;
   font-weight: 700;
   padding: 0.75rem 0.85rem;
   text-align: left;
+  text-decoration: none;
 }
-.account-menu button:hover { background: rgba(255, 201, 28, 0.1); color: var(--gold-soft); }
+.account-menu button:hover,
+.account-menu a:hover { background: rgba(255, 201, 28, 0.1); color: var(--gold-soft); }
 .account-menu .account-menu-signout { border-top: 1px solid rgba(255, 201, 28, 0.15); color: #ff9b9b; margin-top: 0.25rem; }
 
 /* Slide-over membership profile */

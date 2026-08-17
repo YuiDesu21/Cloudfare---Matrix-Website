@@ -15,11 +15,14 @@
         <span class="brand-mark">M</span>
         <span><strong>Matrix</strong><small>Member Finance</small></span>
       </a>
-      <nav class="withdrawal-nav" aria-label="Member finance">
-        <a class="active" href="withdrawal-request.html">Request</a>
-        <a href="withdrawal-history.html">History</a>
-        <a href="portal.html">Dashboard</a>
-      </nav>
+      <div class="user-status-strip" data-member-menu data-current-page="withdrawal-request" style="display:none">
+        <button class="account-menu-toggle" type="button" aria-label="Open member menu" aria-expanded="false" data-member-menu-toggle>
+          <span class="header-avatar" data-member-menu-avatar>M</span>
+          <span class="account-menu-copy"><small>Member menu</small><strong data-member-menu-name>Member</strong></span>
+          <span class="account-chevron" aria-hidden="true">&#9662;</span>
+        </button>
+        <nav class="account-menu" aria-label="Member pages" data-member-menu-list hidden></nav>
+      </div>
     </div>
   </header>
 
@@ -88,6 +91,7 @@
   <script src="vendor/supabase.js"></script>
   <script src="js/supabase-client.js"></script>
   <script src="matrix-db.js"></script>
+  <script src="js/member-navigation.js"></script>
   <script src="js/withdrawals.js"></script>
 </body>
 </html>

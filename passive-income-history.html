@@ -12,12 +12,14 @@
   <header class="portal-header site-header">
     <div class="container header-wrapper withdrawal-header-wrapper">
       <a class="brand" href="portal.html"><span class="brand-mark">M</span><span><strong>Matrix</strong><small>Member Finance</small></span></a>
-      <nav class="withdrawal-nav" aria-label="Member finance">
-        <a class="active" href="passive-income-history.html">Income</a>
-        <a href="withdrawal-request.html">Withdraw</a>
-        <a href="withdrawal-history.html">Withdrawals</a>
-        <a href="portal.html">Dashboard</a>
-      </nav>
+      <div class="user-status-strip" data-member-menu data-current-page="passive-income-history" style="display:none">
+        <button class="account-menu-toggle" type="button" aria-label="Open member menu" aria-expanded="false" data-member-menu-toggle>
+          <span class="header-avatar" data-member-menu-avatar>M</span>
+          <span class="account-menu-copy"><small>Member menu</small><strong data-member-menu-name>Member</strong></span>
+          <span class="account-chevron" aria-hidden="true">&#9662;</span>
+        </button>
+        <nav class="account-menu" aria-label="Member pages" data-member-menu-list hidden></nav>
+      </div>
     </div>
   </header>
 
@@ -46,6 +48,7 @@
   <script src="vendor/supabase.js"></script>
   <script src="js/supabase-client.js"></script>
   <script src="matrix-db.js"></script>
+  <script src="js/member-navigation.js"></script>
   <script src="js/passive-income-history.js"></script>
 </body>
 </html>
