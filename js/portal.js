@@ -67,6 +67,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   const profileDrawer = document.getElementById("profile-drawer");
   const profileDrawerClose = document.getElementById("profile-drawer-close");
   const profileDrawerBackdrop = document.getElementById("profile-drawer-backdrop");
+  const profileDetailsAlert = document.getElementById("profile-details-alert");
+  const profileDetailsForm = document.getElementById("profile-details-form");
+  const profileFullName = document.getElementById("profile-full-name");
+  const profileUsername = document.getElementById("profile-username");
+  const profilePhone = document.getElementById("profile-phone");
+  const profileWallet = document.getElementById("profile-wallet");
+  const profileDetailsSave = document.getElementById("profile-details-save");
   const shippingAddressCount = document.getElementById("shipping-address-count");
   const shippingAddressAlert = document.getElementById("shipping-address-alert");
   const shippingAddressList = document.getElementById("shipping-address-list");
@@ -307,6 +314,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   copyRefBtn.addEventListener("click", copyReferralLink);
+  profileUsername.addEventListener("input", () => { profileUsername.value = profileUsername.value.replace(/[^A-Za-z0-9_]/g, "").slice(0, 30); });
+  profilePhone.addEventListener("input", () => { profilePhone.value = profilePhone.value.replace(/\D/g, "").slice(0, 11); });
+  profileWallet.addEventListener("input", () => { profileWallet.value = profileWallet.value.replace(/[^A-Za-z0-9:_-]/g, "").slice(0, 52); });
+  profileDetailsForm.addEventListener("submit", handleProfileDetailsSubmit);
   shippingPhone.addEventListener("input", () => { shippingPhone.value = shippingPhone.value.replace(/[^\d+]/g, "").slice(0, 13); });
   shippingPostal.addEventListener("input", () => { shippingPostal.value = shippingPostal.value.replace(/\D/g, "").slice(0, 4); });
   shippingCancelBtn.addEventListener("click", () => resetShippingAddressForm());
@@ -663,6 +674,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     dbPhone.textContent = pending.phone;
     dbJoinDate.textContent = formatDate(pending.createdAt);
     dbSponsor.textContent = pending.sponsorUsername ? `@${pending.sponsorUsername}` : "None";
+    populateProfileDetailsForm(pending);
 
     // Hide Referral link
     referralContainer.style.display = "none";
@@ -711,6 +723,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     dbPhone.textContent = member.phone;
     dbJoinDate.textContent = formatDate(member.createdAt);
     dbAccountId.textContent = member.accountCode;
+    populateProfileDetailsForm(member);
 
     // Resolve Sponsor Name
     let sponsorName = "None";
@@ -778,6 +791,41 @@ document.addEventListener("DOMContentLoaded", async () => {
         <span>${formatDateTime(item.createdAt)}</span>
       </article>
     `).join("") : `<div class="notification-empty">You have no new member updates.</div>`;
+  }
+
+  function populateProfileDetailsForm(member) {
+    if (!member) return;
+    profileFullName.value = member.fullName || "";
+    profileUsername.value = member.username || "";
+    profilePhone.value = member.phone || "";
+    profileWallet.value = member.walletAddress || "";
+  }
+
+  async function handleProfileDetailsSubmit(event) {
+    event.preventDefault();
+    profileDetailsAlert.style.display = "none";
+    profileDetailsSave.disabled = true;
+    try {
+      await MatrixDB.updateMyProfileDetails({
+        fullName: profileFullName.value.trim(),
+        username: profileUsername.value.trim(),
+        phone: profilePhone.value.trim(),
+        walletAddress: profileWallet.value.trim()
+      });
+      const updated = await MatrixDB.getAuthenticatedMember();
+      renderDashboard(updated);
+      showProfileDetailsAlert("Profile details updated.", "success");
+    } catch (error) {
+      showProfileDetailsAlert(error.message, "danger");
+    } finally {
+      profileDetailsSave.disabled = false;
+    }
+  }
+
+  function showProfileDetailsAlert(message, type) {
+    profileDetailsAlert.className = `alert alert-${type}`;
+    profileDetailsAlert.textContent = message;
+    profileDetailsAlert.style.display = "block";
   }
 
   function renderShippingAddresses(addresses = []) {
@@ -911,6 +959,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     dbWallet.textContent = shortenWallet(member.walletAddress); dbEmail.textContent = member.email; dbPhone.textContent = member.phone; dbJoinDate.textContent = formatDate(member.createdAt);
     dbAccountId.textContent = member.accountCode;
     dbSponsor.textContent = member.sponsorId ? `@${(MatrixDB.getMemberById(member.sponsorId) || {}).username || "member"}` : "None";
+    populateProfileDetailsForm(member);
     renderShippingAddresses(MatrixDB.getShippingAddresses());
     referralContainer.style.display = "none";
     dbWelcomeTitle.textContent = `Welcome, ${member.fullName}!`; dbWelcomeDesc.textContent = "Your free account is ready. Unlock Entry to join the Power of Three matrix.";

@@ -150,6 +150,17 @@ const MatrixDB = {
     await this.refreshSessionData();
     return data;
   },
+  async updateMyProfileDetails(details = {}) {
+    const { data, error } = await window.matrixSupabase.rpc("update_my_profile_details", {
+      p_full_name: details.fullName || "",
+      p_username: details.username || "",
+      p_phone: details.phone || "",
+      p_wallet_address: details.walletAddress || ""
+    });
+    if (error) throw error;
+    await this.refreshSessionData();
+    return data;
+  },
   getShippingAddresses() {
     return (state.dashboard && state.dashboard.shippingAddresses) || [];
   },

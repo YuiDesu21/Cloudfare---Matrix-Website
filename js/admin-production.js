@@ -51,6 +51,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   const voucherModal = document.getElementById("voucher-redemption-modal");
   const voucherForm = document.getElementById("voucher-redemption-form");
   const voucherAlert = document.getElementById("voucher-redemption-alert");
+  const memberEditModal = document.getElementById("member-edit-modal");
+  const memberEditForm = document.getElementById("member-edit-form");
+  const memberEditAlert = document.getElementById("member-edit-alert");
+  const memberEditId = document.getElementById("member-edit-id");
+  const memberEditFullName = document.getElementById("member-edit-full-name");
+  const memberEditUsername = document.getElementById("member-edit-username");
+  const memberEditPhone = document.getElementById("member-edit-phone");
+  const memberEditWallet = document.getElementById("member-edit-wallet");
+  const memberEditSubmit = document.getElementById("member-edit-submit");
   const timelineDecisionModal = document.getElementById("timeline-decision-modal");
   const timelineDecisionForm = document.getElementById("timeline-decision-form");
   const timelineDecisionAlert = document.getElementById("timeline-decision-alert");
@@ -68,6 +77,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let currentUserId = null;
   let ownerMode = false;
   let memberRoles = new Map();
+  let memberDirectory = new Map();
   let matrixExplorerNodes = [];
   let matrixExplorerExpanded = new Set();
   let matrixExplorerSelectedId = null;
@@ -119,6 +129,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("production-matrix-collapse-all").addEventListener("click", () => { matrixExplorerExpanded = new Set(matrixExplorerNodes.filter(node => !node.parentId && node.childIds.length).map(node => node.id)); renderMatrixExplorerRows(); });
   document.getElementById("voucher-redemption-close").addEventListener("click", closeVoucherModal);
   voucherModal.addEventListener("click", event => { if (event.target === voucherModal) closeVoucherModal(); });
+  document.getElementById("member-edit-close").addEventListener("click", closeMemberEditModal);
+  memberEditModal.addEventListener("click", event => { if (event.target === memberEditModal) closeMemberEditModal(); });
+  memberEditPhone.addEventListener("input", () => { memberEditPhone.value = memberEditPhone.value.replace(/\D/g, "").slice(0, 11); });
+  memberEditWallet.addEventListener("input", () => { memberEditWallet.value = memberEditWallet.value.replace(/[^A-Za-z0-9:_-]/g, "").slice(0, 52); });
+  memberEditUsername.addEventListener("input", () => { memberEditUsername.value = memberEditUsername.value.replace(/[^A-Za-z0-9_]/g, "").slice(0, 30); });
   document.getElementById("timeline-decision-close").addEventListener("click", closeTimelineDecision);
   timelineDecisionModal.addEventListener("click", event => { if (event.target === timelineDecisionModal) closeTimelineDecision(); });
   timelineDecisionForm.addEventListener("submit", async event => {
@@ -140,6 +155,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     submit.disabled = false;
     if (error) { voucherAlert.className="alert alert-danger"; voucherAlert.textContent=error.message; voucherAlert.style.display="block"; return; }
     closeVoucherModal(); show(alertBox, `Voucher redemption recorded. Remaining balance: ${money(data.balance)}.`, "success");
+  });
+  memberEditForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    memberEditAlert.style.display = "none";
+    memberEditSubmit.disabled = true;
+    const { error } = await window.matrixSupabase.rpc("admin_update_member_details", {
+      p_member_id: memberEditId.value,
+      p_full_name: memberEditFullName.value.trim(),
+      p_username: memberEditUsername.value.trim(),
+      p_phone: memberEditPhone.value.trim(),
+      p_wallet_address: memberEditWallet.value.trim()
+    });
+    memberEditSubmit.disabled = false;
+    if (error) return show(memberEditAlert, error.message, "danger");
+    closeMemberEditModal();
+    show(alertBox, "Member details updated.", "success");
+    await loadMembers();
   });
   document.addEventListener("click", () => closeMemberActionMenus());
   signout.addEventListener("click", async () => { await window.matrixSupabase.auth.signOut(); location.reload(); });
@@ -172,6 +204,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return show(alertBox, error.message, "danger");
     }
     const members = data.members || [];
+    memberDirectory = new Map(members.map(member => [member.id, member]));
     memberSummary.textContent = `${Number(data.total).toLocaleString()} member${Number(data.total) === 1 ? "" : "s"} found`;
     statMembers.textContent = Number(data.total).toLocaleString();
     if (!members.length) {
@@ -186,9 +219,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const parentLabel = main ? (main.parentUsername ? `@${main.parentUsername}` : "ROOT Node") : timeline ? (timeline.parentUsername ? `@${timeline.parentUsername}` : "ROOT Node") : "-";
         const sponsorLabel = member.sponsorName ? `@${member.sponsorName}` : "-";
         const viewControl = placements.length > 1 ? `<div class="member-actions-menu view-matrix-menu"><button class="button button-outline button-small view-member view-member-menu-toggle" type="button" aria-expanded="false">View</button><div class="member-actions-dropdown" hidden>${placements.map(placement => `<button class="member-menu-item view-member-plan" type="button" data-plan-id="${escapeHtml(placement.planId)}">${escapeHtml(placement.label)}</button>`).join("")}</div></div>` : `<button class="button button-outline button-small view-member" type="button" data-plan-id="${escapeHtml(placements[0]?.planId || "")}" ${placements.length ? "" : "disabled"}>View</button>`;
+        const editButton = `<button class="button button-outline button-small edit-member-details" type="button">Edit</button>`;
         const redeemButton = member.id === currentUserId ? "" : `<button class="button button-outline button-small redeem-voucher" type="button">Voucher</button>`;
         const menuButton = !ownerMode || member.id === currentUserId ? "" : `<div class="member-actions-menu"><button class="member-actions-toggle" type="button" aria-label="Open actions for ${escapeHtml(member.fullName)}" aria-expanded="false"><span></span><span></span><span></span></button><div class="member-actions-dropdown" hidden>${access.role === "admin" ? `<button class="member-menu-item remove-admin" type="button">Remove Admin</button>` : `<button class="member-menu-item invite-admin" type="button">Invite Admin</button>`}<button class="member-menu-item danger delete-member" type="button">Delete User</button></div></div>`;
-        return `<tr data-member-id="${escapeHtml(member.id)}" data-member-name="${escapeHtml(member.fullName)}"><td><strong>${escapeHtml(member.fullName)}</strong><br><small>${escapeHtml(member.accountCode)}</small></td><td><strong class="admin-table-handle">@${escapeHtml(member.username)}</strong><br><span class="withdrawal-status ${memberStatusClass(member.status)}">${access.isOwner ? "Owner" : access.role === "admin" ? "Admin" : escapeHtml(member.status)}</span></td><td><div class="matrix-plan-list">${planLabel}</div></td><td>${escapeHtml(parentLabel)}</td><td>${escapeHtml(sponsorLabel)}</td><td>${copyField(member.walletAddress)}</td><td>${formatDate(member.approvedAt || member.createdAt)}</td><td><div class="actions">${viewControl}${redeemButton}${menuButton}</div></td></tr>`;
+        return `<tr data-member-id="${escapeHtml(member.id)}" data-member-name="${escapeHtml(member.fullName)}"><td><strong>${escapeHtml(member.fullName)}</strong><br><small>${escapeHtml(member.accountCode)}</small></td><td><strong class="admin-table-handle">@${escapeHtml(member.username)}</strong><br><span class="withdrawal-status ${memberStatusClass(member.status)}">${access.isOwner ? "Owner" : access.role === "admin" ? "Admin" : escapeHtml(member.status)}</span></td><td><div class="matrix-plan-list">${planLabel}</div></td><td>${escapeHtml(parentLabel)}</td><td>${escapeHtml(sponsorLabel)}</td><td>${copyField(member.walletAddress)}</td><td>${formatDate(member.approvedAt || member.createdAt)}</td><td><div class="actions">${viewControl}${editButton}${redeemButton}${menuButton}</div></td></tr>`;
       }).join("");
       bindCopyButtons(memberTableBody);
       memberTableBody.querySelectorAll("[data-member-id]").forEach(row => {
@@ -233,6 +267,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         }));
         const redeem = row.querySelector(".redeem-voucher");
         if (redeem) redeem.addEventListener("click", () => { voucherMemberId=row.dataset.memberId; voucherForm.reset(); voucherAlert.style.display="none"; document.getElementById("voucher-redemption-member").textContent=`Member: ${row.dataset.memberName}`; voucherModal.style.display="flex"; document.getElementById("voucher-redemption-amount").focus(); });
+        const edit = row.querySelector(".edit-member-details");
+        if (edit) edit.addEventListener("click", () => openMemberEditModal(memberDirectory.get(row.dataset.memberId)));
         const directView = row.querySelector(".view-member[data-plan-id]");
         if (directView) directView.addEventListener("click", async () => { if (!directView.dataset.planId) return show(alertBox, "This member is not placed in a matrix yet.", "danger"); await activateMatrixViewer(row.dataset.memberId, directView.dataset.planId); });
       });
@@ -801,6 +837,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("timeline-decision-note").focus();
   }
   function closeTimelineDecision() { timelineDecisionModal.style.display = "none"; timelineDecision = null; }
+  function openMemberEditModal(member) {
+    if (!member) return show(alertBox, "Member details are not available yet.", "danger");
+    memberEditForm.reset();
+    memberEditAlert.style.display = "none";
+    memberEditId.value = member.id;
+    memberEditFullName.value = member.fullName || "";
+    memberEditUsername.value = member.username || "";
+    memberEditPhone.value = member.phone || "";
+    memberEditWallet.value = member.walletAddress || "";
+    document.getElementById("member-edit-summary").textContent = `${member.accountCode} | ${member.email}`;
+    memberEditModal.style.display = "flex";
+    memberEditFullName.focus();
+  }
+  function closeMemberEditModal() {
+    memberEditModal.style.display = "none";
+    memberEditForm.reset();
+    memberEditAlert.style.display = "none";
+  }
   function closeVoucherModal() { voucherModal.style.display="none"; voucherMemberId=null; }
   function getMemberPlacements(member) {
     const placements = [];
