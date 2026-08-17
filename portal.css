@@ -1932,6 +1932,10 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   padding: 1.2rem;
 }
 
+.commerce-package-card .balance-card-buttons {
+  margin-top: 1rem;
+}
+
 .commerce-package-total {
   align-items: center;
   background: rgba(255, 201, 28, 0.08);
