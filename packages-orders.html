@@ -74,6 +74,11 @@
           <button id="commerce-order-add-address" class="button button-outline button-small" type="button" hidden>Add Shipping Address</button>
         </div>
         <div id="commerce-order-address-preview" class="commerce-order-address-preview"></div>
+        <div id="commerce-order-upline-group" class="form-group" hidden>
+          <label for="commerce-order-upline-code">1200 Matrix Upline Code</label>
+          <input id="commerce-order-upline-code" class="form-control" type="text" maxlength="14" placeholder="M1200-XXXXXXXX" pattern="M1200-[A-Za-z0-9]{8}" autocomplete="off">
+          <small>Required only for 1200 Matrix entry packages.</small>
+        </div>
         <div class="form-group">
           <label for="commerce-order-notes">Order notes</label>
           <textarea id="commerce-order-notes" class="form-control" rows="3" maxlength="240"></textarea>

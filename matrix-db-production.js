@@ -84,8 +84,7 @@ const MatrixDB = {
           full_name: memberData.fullName,
           username: memberData.username,
           phone: memberData.phone,
-          wallet_address: memberData.walletAddress,
-          referral_code: memberData.referralCode || ""
+          wallet_address: memberData.walletAddress
         }
       }
     });
@@ -213,7 +212,8 @@ const MatrixDB = {
     const { data, error } = await window.matrixSupabase.rpc("request_commerce_order", {
       p_package_id: details.packageId,
       p_shipping_address_id: details.shippingAddressId,
-      p_member_notes: details.memberNotes || ""
+      p_member_notes: details.memberNotes || "",
+      p_matrix_upline_code: details.matrixUplineCode || ""
     });
     if (error) throw error;
     await this.refreshCommerceOrders();

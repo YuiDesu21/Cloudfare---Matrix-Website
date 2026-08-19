@@ -307,8 +307,7 @@ const SupabaseMatrixDB = {
           full_name: memberData.fullName,
           username: memberData.username,
           phone: memberData.phone,
-          wallet_address: memberData.walletAddress,
-          referral_code: memberData.referralCode || ""
+          wallet_address: memberData.walletAddress
         }
       }
     });

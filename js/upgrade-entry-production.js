@@ -4,6 +4,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const form = document.getElementById("upgrade-form");
   const submit = document.getElementById("upgrade-submit");
   const statusBadge = document.getElementById("upgrade-status");
+  const uplineCodeInput = document.getElementById("upgrade-upline-code");
+  const referenceInput = document.getElementById("upgrade-reference");
   try {
     const { data: sessionData } = await window.matrixSupabase.auth.getSession();
     if (!sessionData.session) return redirect("Sign in before requesting Entry activation.");
@@ -19,15 +21,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (pending) {
       statusBadge.textContent = "Pending Approval";
       submit.disabled = true;
-      document.getElementById("upgrade-reference").value = pending.referenceNumber;
+      referenceInput.value = pending.referenceNumber;
+      uplineCodeInput.value = pending.matrixUplineCode || "";
       show("Your Entry request is waiting for administrator review.", "info");
     }
     form.addEventListener("submit", async event => {
       event.preventDefault();
       if (!document.getElementById("upgrade-confirm").checked) return show("Confirm the payment details before submitting.", "danger");
       submit.disabled = true;
-      const reference = document.getElementById("upgrade-reference").value.trim();
-      const { error } = await window.matrixSupabase.rpc("request_entry_activation", { p_reference_number: reference });
+      const reference = referenceInput.value.trim();
+      const matrixUplineCode = uplineCodeInput.value.trim().toUpperCase();
+      const { error } = await window.matrixSupabase.rpc("request_entry_activation", { p_reference_number: reference, p_matrix_upline_code: matrixUplineCode });
       if (error) { submit.disabled = false; return show(error.message, "danger"); }
       statusBadge.textContent = "Pending Approval";
       show("Your Entry activation request was submitted securely.", "success");

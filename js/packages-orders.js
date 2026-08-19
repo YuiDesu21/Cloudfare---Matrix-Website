@@ -24,6 +24,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const commerceOrderAddress = document.getElementById("commerce-order-address");
   const commerceOrderAddAddress = document.getElementById("commerce-order-add-address");
   const commerceOrderAddressPreview = document.getElementById("commerce-order-address-preview");
+  const commerceOrderUplineGroup = document.getElementById("commerce-order-upline-group");
+  const commerceOrderUplineCode = document.getElementById("commerce-order-upline-code");
   const commerceOrderNotes = document.getElementById("commerce-order-notes");
   const commerceOrderNotesCount = document.getElementById("commerce-order-notes-count");
   const commerceOrderSubmit = document.getElementById("commerce-order-submit");
@@ -237,6 +239,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     commerceOrderForm.reset();
     commerceOrderNotesCount.textContent = "0";
     commerceOrderAlert.style.display = "none";
+    const needsUplineCode = commercePackage.packageType === "matrix_1200_entry";
+    commerceOrderUplineGroup.hidden = !needsUplineCode;
+    commerceOrderUplineCode.required = needsUplineCode;
+    commerceOrderUplineCode.value = "";
     commerceOrderSubmit.disabled = addresses.length === 0;
     commerceOrderAddress.disabled = addresses.length === 0;
     commerceOrderAddAddress.hidden = addresses.length > 0;
@@ -296,12 +302,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault();
     if (!pendingCommercePackage) return;
     commerceOrderAlert.style.display = "none";
+    const matrixUplineCode = pendingCommercePackage.packageType === "matrix_1200_entry" ? commerceOrderUplineCode.value.trim().toUpperCase() : "";
+    if (pendingCommercePackage.packageType === "matrix_1200_entry" && !matrixUplineCode) {
+      commerceOrderAlert.className = "alert alert-danger";
+      commerceOrderAlert.textContent = "Enter a 1200 Matrix upline code before requesting this package.";
+      commerceOrderAlert.style.display = "block";
+      commerceOrderUplineCode.focus();
+      return;
+    }
     commerceOrderSubmit.disabled = true;
     try {
       await MatrixDB.requestCommerceOrder({
         packageId: pendingCommercePackage.id,
         shippingAddressId: commerceOrderAddress.value,
-        memberNotes: commerceOrderNotes.value.trim()
+        memberNotes: commerceOrderNotes.value.trim(),
+        matrixUplineCode
       });
       closeCommerceOrderModal();
       renderCommercePackagesPanel();

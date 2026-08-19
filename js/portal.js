@@ -46,7 +46,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const regPasswordConfirm = document.getElementById("reg-password-confirm");
   const regPhone = document.getElementById("reg-phone");
   const regWallet = document.getElementById("reg-wallet");
-  const regSponsor = document.getElementById("reg-sponsor");
   const registerAlert = document.getElementById("register-alert");
 
   const successReqId = document.getElementById("success-req-id");
@@ -180,12 +179,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const errPasswordConfirm = document.getElementById("err-password-confirm");
   const errPhone = document.getElementById("err-phone");
   const errWallet = document.getElementById("err-wallet");
-  const errSponsor = document.getElementById("err-sponsor");
 
   // Route URL queries
   const params = new URLSearchParams(window.location.search);
   const action = params.get("action");
-  const refSponsor = params.get("ref");
   const FEATURES = (window.MATRIX_CONFIG && window.MATRIX_CONFIG.features) || {};
 
   accountMenu.querySelectorAll('[data-account-action="withdraw"], [data-account-action="history"]').forEach(button => {
@@ -226,9 +223,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   } else if (action === "register") {
     showRegister();
-    if (refSponsor) {
-      regSponsor.value = refSponsor;
-    }
   } else {
     showLogin();
   }
@@ -578,16 +572,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       hasErrors = true;
     }
 
-    // Referral check (if provided, it must identify an account)
-    const sponsorVal = regSponsor.value.trim();
-    if (sponsorVal && !window.MATRIX_USES_SUPABASE) {
-      const sponsor = MatrixDB.getMemberByAccountCode(sponsorVal);
-      if (!sponsor) {
-        errSponsor.textContent = "Upline Account ID / referral code not found. Leaving it blank is allowed.";
-        hasErrors = true;
-      }
-    }
-
     if (hasErrors) return;
 
     // Proceed to DB registration
@@ -597,8 +581,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         username: usernameVal,
         email: emailVal,
         phone: regPhone.value,
-        walletAddress: regWallet.value,
-        referralCode: sponsorVal
+        walletAddress: regWallet.value
       };
 
       if (window.MATRIX_USES_SUPABASE) {
@@ -679,10 +662,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     dbEmail.textContent = pending.email;
     dbPhone.textContent = pending.phone;
     dbJoinDate.textContent = formatDate(pending.createdAt);
-    dbSponsor.textContent = pending.sponsorUsername ? `@${pending.sponsorUsername}` : "None";
+    dbSponsor.textContent = "Not in 1200 Matrix yet";
     populateProfileDetailsForm(pending);
 
-    // Hide Referral link
+    // Hide 1200 Matrix upline code
     referralContainer.style.display = "none";
 
     // Fill Dashboard Views
@@ -731,18 +714,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     dbAccountId.textContent = member.accountCode;
     populateProfileDetailsForm(member);
 
-    // Resolve Sponsor Name
-    let sponsorName = "None";
-    if (member.sponsorId) {
-      const sp = MatrixDB.getMemberById(member.sponsorId);
-      sponsorName = sp ? `${sp.fullName} (@${sp.username})` : "Active Member";
-    }
-    dbSponsor.textContent = sponsorName;
+    dbSponsor.textContent = "Use this code for direct 1200 Matrix placement";
 
-    // Show Referral link panel
-    referralContainer.style.display = "block";
-    const refLink = `${window.location.origin}${window.location.pathname}?action=register&ref=${encodeURIComponent(member.accountCode)}`;
-    refLinkInput.value = refLink;
+    // Show 1200 Matrix upline code panel
+    referralContainer.style.display = member.matrixUplineCode ? "block" : "none";
+    refLinkInput.value = member.matrixUplineCode || "";
 
     // Welcome Box details
     dbWelcomeTitle.textContent = `Welcome Back, ${member.fullName}!`;
@@ -769,7 +745,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderShippingAddresses(MatrixDB.getShippingAddresses());
 
     if (pos) {
-      // Calculate referrals & downline children
+      // Calculate direct 1200 downlines and total downline children
       metricReferrals.textContent = Number(summary.referralCount || 0);
       metricChildren.textContent = Number(summary.descendantCount || 0);
 
@@ -964,7 +940,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     dbAvatarLetter.textContent = member.fullName.charAt(0).toUpperCase(); dbFullName.textContent = member.fullName; dbUsername.textContent = `@${member.username}`;
     dbWallet.textContent = shortenWallet(member.walletAddress); dbEmail.textContent = member.email; dbPhone.textContent = member.phone; dbJoinDate.textContent = formatDate(member.createdAt);
     dbAccountId.textContent = member.accountCode;
-    dbSponsor.textContent = member.sponsorId ? `@${(MatrixDB.getMemberById(member.sponsorId) || {}).username || "member"}` : "None";
+    dbSponsor.textContent = "Not in 1200 Matrix yet";
     populateProfileDetailsForm(member);
     renderShippingAddresses(MatrixDB.getShippingAddresses());
     referralContainer.style.display = "none";
@@ -1333,7 +1309,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await renderLevel(memberId);
   }
 
-  // Copy Referral link to clipboard
+  // Copy 1200 Matrix upline code to clipboard
   function copyReferralLink() {
     refLinkInput.select();
     refLinkInput.setSelectionRange(0, 99999); // For mobile devices

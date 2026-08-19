@@ -187,12 +187,6 @@
             <div class="form-error" id="err-wallet"></div>
           </div>
 
-          <div class="form-group">
-            <label for="reg-sponsor">Upline Account ID / Referral Code (Optional)</label>
-            <input type="text" id="reg-sponsor" class="form-control" placeholder="e.g. MCS-12AB34CD" autocomplete="off" maxlength="30">
-            <div class="form-error" id="err-sponsor"></div>
-          </div>
-
           <button type="submit" class="button button-primary btn-block">Create Account</button>
         </form>
 
@@ -263,18 +257,18 @@
               <span id="db-joindate" class="val"></span>
             </li>
             <li>
-              <span class="label">Invited Sponsor</span>
+              <span class="label">1200 Matrix Upline</span>
               <span id="db-sponsor" class="val">-</span>
             </li>
           </ul>
 
           <div id="referral-container" style="margin-top: 1.5rem; border-top: 1px solid rgba(255, 201, 28, 0.2); padding-top: 1.2rem; display: none;">
-            <label style="display: block; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 0.3rem;">Your Referral Link</label>
+            <label style="display: block; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 0.3rem;">Your 1200 Matrix Upline Code</label>
             <div class="copy-panel">
               <input type="text" id="ref-link-input" readonly>
-              <button id="copy-ref-btn" class="button button-primary btn-icon-only" title="Copy link">Copy</button>
+              <button id="copy-ref-btn" class="button button-primary btn-icon-only" title="Copy code">Copy</button>
             </div>
-            <div id="copy-toast" style="color: #4bd675; font-size: 0.68rem; margin-top: 0.3rem; font-weight: 800; display: none;">Link copied to clipboard!</div>
+            <div id="copy-toast" style="color: #4bd675; font-size: 0.68rem; margin-top: 0.3rem; font-weight: 800; display: none;">Code copied to clipboard!</div>
           </div>
 
           <section class="profile-commerce-section">
@@ -339,7 +333,7 @@
         <!-- Metrics Cards (Active only) -->
         <div id="active-metrics-row" class="metrics-row" style="display: none;">
           <div class="metric-card">
-            <span class="title">Personal Referrals <span class="metric-help" tabindex="0" aria-label="Members who created their account using your referral code." data-tooltip="Members who created their account using your referral code.">?</span></span>
+            <span class="title">Direct 1200 Downlines <span class="metric-help" tabindex="0" aria-label="Members directly placed under your 1200 Matrix code." data-tooltip="Members directly placed under your 1200 Matrix code.">?</span></span>
             <span id="metric-referrals" class="value">0</span>
           </div>
           <div class="metric-card">
