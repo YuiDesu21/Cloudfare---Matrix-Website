@@ -138,6 +138,8 @@ const LocalMatrixDB = {
   getMemberByAccountCode(accountCode) {
     return callMatrixApi("getMemberByAccountCode", { accountCode });
   },
+  getCommerceProducts() { return []; },
+  requestCommerceProductOrder() { throw new Error("Product Plus cart checkout is available on the live Supabase site."); },
 
   getMemberByCredential(emailOrWallet) {
     return callMatrixApi("getMemberByCredential", { emailOrWallet });
@@ -352,6 +354,8 @@ const SupabaseMatrixDB = {
   getPositionByMemberId(memberId) { return supabaseState.position && supabaseState.position.memberId === memberId ? supabaseState.position : null; },
   getPendingRegistrations() { return []; },
   getMemberByAccountCode() { return null; },
+  getCommerceProducts() { return (supabaseState.dashboard && supabaseState.dashboard.commerceProducts) || []; },
+  async requestCommerceProductOrder() { throw new Error("Product Plus cart checkout is available in the production adapter."); },
 
   async getMemberTree(memberId) {
     const { data, error } = await window.matrixSupabase.rpc("get_matrix_level", { p_root_member_id: memberId });

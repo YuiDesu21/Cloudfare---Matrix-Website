@@ -14,7 +14,7 @@ const MatrixDB = {
     return true;
   },
   async refreshSessionData() {
-    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse, notificationsResponse, addressesResponse, packagesResponse, ordersResponse, paymentMethodsResponse, timelineResponse] = await Promise.all([
+    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse, notificationsResponse, addressesResponse, packagesResponse, commerceProductsResponse, ordersResponse, paymentMethodsResponse, timelineResponse] = await Promise.all([
       window.matrixSupabase.rpc("get_my_dashboard"),
       window.matrixSupabase.rpc("get_pending_exit_balance"),
       window.matrixSupabase.rpc("get_my_exit_statuses"),
@@ -24,6 +24,7 @@ const MatrixDB = {
       window.matrixSupabase.rpc("get_my_notifications"),
       window.matrixSupabase.rpc("get_my_shipping_addresses"),
       window.matrixSupabase.rpc("get_active_commerce_packages", { p_package_type: null }),
+      window.matrixSupabase.rpc("get_active_commerce_products", { p_product_type: null }),
       window.matrixSupabase.rpc("get_my_commerce_orders"),
       window.matrixSupabase.rpc("get_active_payment_methods"),
       window.matrixSupabase.rpc("get_my_timeline_dashboard")
@@ -37,6 +38,7 @@ const MatrixDB = {
     if (notificationsResponse.error) throw notificationsResponse.error;
     if (addressesResponse.error) throw addressesResponse.error;
     if (packagesResponse.error) throw packagesResponse.error;
+    if (commerceProductsResponse.error) throw commerceProductsResponse.error;
     if (ordersResponse.error) throw ordersResponse.error;
     if (paymentMethodsResponse.error) throw paymentMethodsResponse.error;
     if (timelineResponse.error) throw timelineResponse.error;
@@ -48,6 +50,7 @@ const MatrixDB = {
       data.notifications = notificationsResponse.data || [];
       data.shippingAddresses = addressesResponse.data || [];
       data.commercePackages = packagesResponse.data || [];
+      data.commerceProducts = commerceProductsResponse.data || [];
       data.commerceOrders = ordersResponse.data || [];
       data.paymentMethods = paymentMethodsResponse.data || [];
       data.timelineDashboard = timelineResponse.data || null;
@@ -196,6 +199,9 @@ const MatrixDB = {
   getCommercePackages() {
     return (state.dashboard && state.dashboard.commercePackages) || [];
   },
+  getCommerceProducts() {
+    return (state.dashboard && state.dashboard.commerceProducts) || [];
+  },
   getCommerceOrders() {
     return (state.dashboard && state.dashboard.commerceOrders) || [];
   },
@@ -214,6 +220,17 @@ const MatrixDB = {
       p_shipping_address_id: details.shippingAddressId,
       p_member_notes: details.memberNotes || "",
       p_matrix_upline_code: details.matrixUplineCode || ""
+    });
+    if (error) throw error;
+    await this.refreshCommerceOrders();
+    return data;
+  },
+  async requestCommerceProductOrder(details = {}) {
+    const { data, error } = await window.matrixSupabase.rpc("request_commerce_product_order", {
+      p_product_type: details.productType,
+      p_shipping_address_id: details.shippingAddressId,
+      p_items: details.items || [],
+      p_member_notes: details.memberNotes || ""
     });
     if (error) throw error;
     await this.refreshCommerceOrders();

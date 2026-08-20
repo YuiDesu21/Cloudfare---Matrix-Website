@@ -40,6 +40,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   const commercePackageCancel = document.getElementById("admin-commerce-package-cancel");
   const commercePackageFilter = document.getElementById("admin-commerce-package-filter");
   const commercePackageList = document.getElementById("admin-commerce-package-list");
+  const commerceProductForm = document.getElementById("admin-commerce-product-form");
+  const commerceProductId = document.getElementById("admin-commerce-product-id");
+  const commerceProductType = document.getElementById("admin-commerce-product-type");
+  const commerceProductName = document.getElementById("admin-commerce-product-name");
+  const commerceProductDescription = document.getElementById("admin-commerce-product-description");
+  const commerceProductPrice = document.getElementById("admin-commerce-product-price");
+  const commerceProductSort = document.getElementById("admin-commerce-product-sort");
+  const commerceProductPhoto = document.getElementById("admin-commerce-product-photo");
+  const commerceProductPhotoPreview = document.getElementById("admin-commerce-product-photo-preview");
+  const commerceProductActive = document.getElementById("admin-commerce-product-active");
+  const commerceProductSave = document.getElementById("admin-commerce-product-save");
+  const commerceProductCancel = document.getElementById("admin-commerce-product-cancel");
+  const commerceProductFilter = document.getElementById("admin-commerce-product-filter");
+  const commerceProductList = document.getElementById("admin-commerce-product-list");
   const signout = document.getElementById("admin-signout");
   const adminUserStatus = document.getElementById("admin-user-status");
   const ownerFinancesTab = document.getElementById("admin-owner-finances-tab");
@@ -84,6 +98,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   let paymentMethods = [];
   let paymentQrData = "";
   let commercePackages = [];
+  let commerceProducts = [];
+  let commerceProductPhotoData = "";
   const pendingCounts = {};
 
   document.querySelectorAll("[data-production-tab]").forEach(button => button.addEventListener("click", async () => {
@@ -122,6 +138,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   commercePackageCancel.addEventListener("click", () => resetCommercePackageForm());
   commercePackageFilter.addEventListener("change", renderCommercePackages);
   commercePackageForm.addEventListener("submit", handleCommercePackageSubmit);
+  commerceProductPhoto.addEventListener("change", handleCommerceProductPhotoChange);
+  commerceProductCancel.addEventListener("click", () => resetCommerceProductForm());
+  commerceProductFilter.addEventListener("change", renderCommerceProducts);
+  commerceProductForm.addEventListener("submit", handleCommerceProductSubmit);
   viewerPlanSelect.addEventListener("change", loadMatrixExplorer);
   treeMemberSearch.addEventListener("input", renderMatrixExplorerRows);
   [matrixExitFilter, matrixStatusFilter].forEach(input => input.addEventListener("change", renderMatrixExplorerRows));
@@ -408,13 +428,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   async function loadCommercePackages() {
     commercePackageList.innerHTML = `<div class="portal-card withdrawal-empty"><p>Loading packages...</p></div>`;
-    const { data, error } = await window.matrixSupabase.rpc("admin_get_commerce_packages");
-    if (error) {
+    commerceProductList.innerHTML = `<div class="portal-card withdrawal-empty"><p>Loading products...</p></div>`;
+    const [{ data, error }, { data: productData, error: productError }] = await Promise.all([
+      window.matrixSupabase.rpc("admin_get_commerce_packages"),
+      window.matrixSupabase.rpc("admin_get_commerce_products")
+    ]);
+    if (error || productError) {
       commercePackageList.innerHTML = `<div class="portal-card withdrawal-empty"><p>Unable to load packages.</p></div>`;
-      return show(alertBox, error.message, "danger");
+      commerceProductList.innerHTML = `<div class="portal-card withdrawal-empty"><p>Unable to load products.</p></div>`;
+      return show(alertBox, (error || productError).message, "danger");
     }
-    commercePackages = data || [];
+    commercePackages = (data || []).filter(item => ["timeline_entry", "matrix_1200_entry"].includes(item.packageType));
+    commerceProducts = productData || [];
     renderCommercePackages();
+    renderCommerceProducts();
     if (!commerceItems.children.length) addCommerceItemRow();
   }
   function renderCommercePackages() {
@@ -552,6 +579,113 @@ document.addEventListener("DOMContentLoaded", async () => {
     addCommerceItemRow();
     commercePackageCancel.hidden = true;
     commercePackageSave.textContent = "Save Package";
+  }
+  function renderCommerceProducts() {
+    const selectedType = commerceProductFilter.value;
+    const visibleProducts = selectedType === "all" ? commerceProducts : commerceProducts.filter(item => item.productType === selectedType);
+    if (!visibleProducts.length) {
+      commerceProductList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No products found</strong><p>Create an individual Product Plus product on the left.</p></div>`;
+      return;
+    }
+    commerceProductList.innerHTML = visibleProducts.map(product => `
+      <article class="portal-card commerce-package-card" data-commerce-product-id="${escapeHtml(product.id)}">
+        <div class="withdrawal-history-topline">
+          <div>
+            <span class="withdrawal-reference-label">${escapeHtml(product.productTypeLabel)} | Sort ${Number(product.sortOrder || 100)}</span>
+            <h2>${escapeHtml(product.productName)}</h2>
+          </div>
+          <span class="withdrawal-status ${product.isActive ? "status-approved" : "status-rejected"}">${product.isActive ? "Active" : "Inactive"}</span>
+        </div>
+        ${product.description ? `<p class="withdrawal-history-note">${escapeHtml(product.description)}</p>` : ""}
+        <div class="commerce-package-item">
+          ${product.photoData ? `<img src="${escapeHtml(product.photoData)}" alt="${escapeHtml(product.productName)}">` : `<span class="commerce-item-photo-empty">No Photo</span>`}
+          <div><strong>${escapeHtml(product.productName)}</strong><span>${product.productType === "product_plus_voucher" ? `${money(product.price)} vouchers` : money(product.price)}</span></div>
+        </div>
+        <div class="balance-card-buttons">
+          <button class="button button-outline button-small edit-commerce-product" type="button">Edit</button>
+          <button class="button button-outline button-small delete-commerce-product" type="button">Delete</button>
+        </div>
+      </article>
+    `).join("");
+    commerceProductList.querySelectorAll("[data-commerce-product-id]").forEach(card => {
+      const product = commerceProducts.find(item => item.id === card.dataset.commerceProductId);
+      card.querySelector(".edit-commerce-product").addEventListener("click", () => populateCommerceProductForm(product));
+      card.querySelector(".delete-commerce-product").addEventListener("click", async () => {
+        if (!window.confirm(`Delete ${product.productName}?`)) return;
+        const { error } = await window.matrixSupabase.rpc("admin_delete_commerce_product", { p_product_id: product.id });
+        if (error) return show(alertBox, error.message, "danger");
+        resetCommerceProductForm();
+        show(alertBox, "Product deleted.", "success");
+        await loadCommercePackages();
+      });
+    });
+  }
+  async function handleCommerceProductPhotoChange(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      event.target.value = "";
+      return show(alertBox, "Upload an image file for the product photo.", "danger");
+    }
+    if (file.size > 900000) {
+      event.target.value = "";
+      return show(alertBox, "Product photo is too large. Please use an image under 900 KB.", "danger");
+    }
+    commerceProductPhotoData = await readFileAsDataUrl(file);
+    setCommerceProductPhotoPreview(commerceProductPhotoData);
+  }
+  async function handleCommerceProductSubmit(event) {
+    event.preventDefault();
+    commerceProductSave.disabled = true;
+    const { error } = await window.matrixSupabase.rpc("admin_save_commerce_product", {
+      p_product_id: commerceProductId.value || null,
+      p_product_type: commerceProductType.value,
+      p_product_name: commerceProductName.value.trim(),
+      p_description: commerceProductDescription.value.trim(),
+      p_price: Number(commerceProductPrice.value || 0),
+      p_photo_data: commerceProductPhotoData,
+      p_is_active: commerceProductActive.checked,
+      p_sort_order: Number(commerceProductSort.value || 100)
+    });
+    commerceProductSave.disabled = false;
+    if (error) return show(alertBox, error.message, "danger");
+    resetCommerceProductForm();
+    show(alertBox, "Product saved.", "success");
+    await loadCommercePackages();
+  }
+  function populateCommerceProductForm(product) {
+    if (!product) return;
+    commerceProductId.value = product.id;
+    commerceProductType.value = product.productType;
+    commerceProductName.value = product.productName || "";
+    commerceProductDescription.value = product.description || "";
+    commerceProductPrice.value = Number(product.price || 0);
+    commerceProductSort.value = product.sortOrder || 100;
+    commerceProductActive.checked = Boolean(product.isActive);
+    commerceProductPhotoData = product.photoData || "";
+    setCommerceProductPhotoPreview(commerceProductPhotoData);
+    commerceProductCancel.hidden = false;
+    commerceProductSave.textContent = "Update Product";
+    commerceProductName.focus();
+  }
+  function resetCommerceProductForm() {
+    commerceProductForm.reset();
+    commerceProductId.value = "";
+    commerceProductType.value = "product_plus_requirement";
+    commerceProductPrice.value = "";
+    commerceProductSort.value = 100;
+    commerceProductActive.checked = true;
+    commerceProductPhotoData = "";
+    setCommerceProductPhotoPreview("");
+    commerceProductCancel.hidden = true;
+    commerceProductSave.textContent = "Save Product";
+  }
+  function setCommerceProductPhotoPreview(photoData) {
+    const preview = document.getElementById("admin-commerce-product-photo-preview");
+    if (!preview) return;
+    preview.outerHTML = photoData
+      ? `<img id="admin-commerce-product-photo-preview" src="${escapeHtml(photoData)}" alt="">`
+      : `<span id="admin-commerce-product-photo-preview">No Photo</span>`;
   }
   async function activateMatrixViewer(memberId, planId = null) {
     if (planId && viewerPlanSelect.value !== planId) viewerPlanSelect.value = planId;
@@ -741,7 +875,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           : order.status === "payment_approved"
             ? `<form class="commerce-admin-ship-form"><div class="form-grid two-column"><div class="form-group"><label>Courier</label><input class="form-control commerce-admin-courier" type="text" minlength="2" maxlength="40" value="${escapeHtml(order.courierName || "J&T")}" required></div><div class="form-group"><label>Tracking number</label><input class="form-control commerce-admin-tracking" type="text" maxlength="80" placeholder="J&T tracking"></div></div><div class="form-group"><label>Shipping note</label><textarea class="form-control commerce-admin-shipping-note" rows="2" maxlength="240" placeholder="Optional shipping note"></textarea></div><div class="balance-card-buttons"><button class="button button-primary button-small mark-commerce-shipped" type="submit">Mark Shipped</button></div></form>`
           : `<div class="balance-card-buttons"><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div>`;
-      return `<article class="portal-card withdrawal-history-item" data-commerce-order-id="${escapeHtml(order.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(order.orderCode)} &middot; ${escapeHtml(order.packageTypeLabel)}</span><h2>${escapeHtml(packageSnapshot.packageName || "Package order")}</h2></div><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div><div class="withdrawal-history-details"><div><span>Member</span><strong>${escapeHtml(order.fullName)} (@${escapeHtml(order.username)})</strong></div><div><span>Package total</span><strong>${money(order.packageTotal)}</strong></div><div><span>Shipping fee</span><strong>${order.shippingFee == null ? "Pending" : money(order.shippingFee)}</strong></div><div><span>Total due</span><strong>${money(order.amountDue)}</strong></div><div><span>Voucher use</span><strong>${money(order.voucherAmount || 0)}</strong></div><div><span>Requested</span><strong>${new Date(order.createdAt).toLocaleString()}</strong></div></div><p class="withdrawal-history-note"><strong>Ship to:</strong> ${escapeHtml(address.fullName || "-")} &middot; ${escapeHtml(address.phone || "-")} &middot; ${escapeHtml(address.streetAddress || "-")}, ${escapeHtml(address.barangay || "-")}, ${escapeHtml(address.city || "-")}, ${escapeHtml(address.province || "-")}, ${escapeHtml(address.region || "-")} ${escapeHtml(address.postalCode || "")}</p>${uplineDetails}${order.memberNotes ? `<p class="withdrawal-history-note"><strong>Member note:</strong> ${escapeHtml(order.memberNotes)}</p>` : ""}${paymentDetails}${shippingDetails}<div class="commerce-admin-order-items">${items.map(item => `<span>${escapeHtml(item.itemName)}${quantityText(item)} (${money(item.price)}${Number(item.quantity || 1) > 1 ? " each" : ""})</span>`).join("")}</div>${reviewControls}</article>`;
+      return `<article class="portal-card withdrawal-history-item" data-commerce-order-id="${escapeHtml(order.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(order.orderCode)} &middot; ${escapeHtml(order.packageTypeLabel)}</span><h2>${escapeHtml(packageSnapshot.packageName || "Product order")}</h2></div><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div><div class="withdrawal-history-details"><div><span>Member</span><strong>${escapeHtml(order.fullName)} (@${escapeHtml(order.username)})</strong></div><div><span>Order subtotal</span><strong>${money(order.packageTotal)}</strong></div><div><span>Shipping fee</span><strong>${order.shippingFee == null ? "Pending" : money(order.shippingFee)}</strong></div><div><span>Total due</span><strong>${money(order.amountDue)}</strong></div><div><span>Voucher use</span><strong>${money(order.voucherAmount || 0)}</strong></div><div><span>Requested</span><strong>${new Date(order.createdAt).toLocaleString()}</strong></div></div><p class="withdrawal-history-note"><strong>Ship to:</strong> ${escapeHtml(address.fullName || "-")} &middot; ${escapeHtml(address.phone || "-")} &middot; ${escapeHtml(address.streetAddress || "-")}, ${escapeHtml(address.barangay || "-")}, ${escapeHtml(address.city || "-")}, ${escapeHtml(address.province || "-")}, ${escapeHtml(address.region || "-")} ${escapeHtml(address.postalCode || "")}</p>${uplineDetails}${order.memberNotes ? `<p class="withdrawal-history-note"><strong>Member note:</strong> ${escapeHtml(order.memberNotes)}</p>` : ""}${paymentDetails}${shippingDetails}<div class="commerce-admin-order-items">${items.map(item => `<span>${escapeHtml(item.itemName)}${quantityText(item)} (${money(item.price)}${Number(item.quantity || 1) > 1 ? " each" : ""})</span>`).join("")}</div>${reviewControls}</article>`;
     }).join("");
     commerceOrderList.querySelectorAll("[data-commerce-order-id]").forEach(card => {
       const orderId = card.dataset.commerceOrderId;

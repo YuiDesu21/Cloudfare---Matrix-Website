@@ -116,13 +116,13 @@
 
       <section id="tab-commerce-packages" class="admin-section">
         <div class="portal-card" style="padding:1.5rem;margin-bottom:1.5rem">
-          <h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Package Manager</h3>
-          <p style="font-size:.82rem;color:var(--muted);margin:0">Create package entries and Product Plus packages. Items added here will be shown to members in the next ordering phase.</p>
+          <h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Entry Packages &amp; Product Plus Products</h3>
+          <p style="font-size:.82rem;color:var(--muted);margin:0">Create Timeline/1200 entry packages, then add individual Product Plus products for cart checkout.</p>
         </div>
         <div class="admin-commerce-layout">
           <form id="admin-commerce-package-form" class="portal-card admin-commerce-form">
             <input id="admin-commerce-package-id" type="hidden">
-            <div class="form-group"><label for="admin-commerce-package-type">Package type</label><select id="admin-commerce-package-type" class="form-control" required><option value="timeline_entry">Timeline Matrix Package Entry</option><option value="matrix_1200_entry">PHP 1,200 Matrix Package Entry</option><option value="product_plus_requirement">Product Plus Buy Requirement</option><option value="product_plus_voucher">Product Plus Voucher Package</option></select></div>
+            <div class="form-group"><label for="admin-commerce-package-type">Package type</label><select id="admin-commerce-package-type" class="form-control" required><option value="timeline_entry">Timeline Matrix Package Entry</option><option value="matrix_1200_entry">PHP 1,200 Matrix Package Entry</option></select></div>
             <div class="form-group"><label for="admin-commerce-package-name">Package name</label><input id="admin-commerce-package-name" class="form-control" type="text" maxlength="100" required></div>
             <div class="form-group"><label for="admin-commerce-package-description">Description</label><textarea id="admin-commerce-package-description" class="form-control" rows="4" maxlength="420"></textarea></div>
             <div class="form-group"><label for="admin-commerce-package-sort">Sort order</label><input id="admin-commerce-package-sort" class="form-control" type="number" min="0" max="9999" step="1" value="100"></div>
@@ -137,10 +137,31 @@
           <div>
             <div class="admin-commerce-filter-row">
               <label for="admin-commerce-package-filter">Show type</label>
-              <select id="admin-commerce-package-filter" class="form-control"><option value="all">All package types</option><option value="timeline_entry">Timeline Matrix Package Entry</option><option value="matrix_1200_entry">PHP 1,200 Matrix Package Entry</option><option value="product_plus_requirement">Product Plus Buy Requirement</option><option value="product_plus_voucher">Product Plus Voucher Package</option></select>
+              <select id="admin-commerce-package-filter" class="form-control"><option value="all">All entry package types</option><option value="timeline_entry">Timeline Matrix Package Entry</option><option value="matrix_1200_entry">PHP 1,200 Matrix Package Entry</option></select>
             </div>
             <div id="admin-commerce-package-list" class="admin-commerce-package-list">
               <div class="portal-card withdrawal-empty"><p>No packages yet.</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="admin-commerce-layout admin-product-layout">
+          <form id="admin-commerce-product-form" class="portal-card admin-commerce-form">
+            <input id="admin-commerce-product-id" type="hidden">
+            <div class="form-group"><label for="admin-commerce-product-type">Product type</label><select id="admin-commerce-product-type" class="form-control" required><option value="product_plus_requirement">Product Plus Buy Requirement</option><option value="product_plus_voucher">Product Plus Voucher Product</option></select></div>
+            <div class="form-group"><label for="admin-commerce-product-name">Product name</label><input id="admin-commerce-product-name" class="form-control" type="text" maxlength="100" required></div>
+            <div class="form-group"><label for="admin-commerce-product-description">Description</label><textarea id="admin-commerce-product-description" class="form-control" rows="3" maxlength="420"></textarea></div>
+            <div class="form-grid two-column"><div class="form-group"><label for="admin-commerce-product-price">Price</label><input id="admin-commerce-product-price" class="form-control" type="number" min="0.01" max="1000000" step="0.01" required></div><div class="form-group"><label for="admin-commerce-product-sort">Sort order</label><input id="admin-commerce-product-sort" class="form-control" type="number" min="0" max="9999" step="1" value="100"></div></div>
+            <div class="package-item-photo-control product-photo-control"><span id="admin-commerce-product-photo-preview">No Photo</span><input id="admin-commerce-product-photo" class="package-item-photo-input" type="file" accept="image/*"></div>
+            <label class="checkbox-line"><input id="admin-commerce-product-active" type="checkbox" checked> Active for members</label>
+            <div class="profile-form-actions"><button id="admin-commerce-product-save" class="button button-primary button-small" type="submit">Save Product</button><button id="admin-commerce-product-cancel" class="button button-outline button-small" type="button" hidden>Cancel Edit</button></div>
+          </form>
+          <div>
+            <div class="admin-commerce-filter-row">
+              <label for="admin-commerce-product-filter">Show products</label>
+              <select id="admin-commerce-product-filter" class="form-control"><option value="all">All Product Plus products</option><option value="product_plus_requirement">Buy Requirement</option><option value="product_plus_voucher">Voucher Products</option></select>
+            </div>
+            <div id="admin-commerce-product-list" class="admin-commerce-package-list">
+              <div class="portal-card withdrawal-empty"><p>No products yet.</p></div>
             </div>
           </div>
         </div>

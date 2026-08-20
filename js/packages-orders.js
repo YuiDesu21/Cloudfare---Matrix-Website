@@ -3,8 +3,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     { id: "timeline_entry", label: "Timeline Entry" },
     { id: "matrix_1200_entry", label: "1200 Entry" },
     { id: "product_plus_requirement", label: "Product Plus Buy" },
-    { id: "product_plus_voucher", label: "Voucher Packages" }
+    { id: "product_plus_voucher", label: "Voucher Products" }
   ];
+  const PRODUCT_PLUS_TYPES = ["product_plus_requirement", "product_plus_voucher"];
 
   const pageAlert = document.getElementById("packages-orders-alert");
   const content = document.getElementById("packages-orders-content");
@@ -44,7 +45,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   let member = null;
   let selectedCommercePackageType = "timeline_entry";
   let pendingCommercePackage = null;
+  let pendingProductCartType = null;
   let pendingPaymentOrder = null;
+  const productCarts = { product_plus_requirement: [], product_plus_voucher: [] };
 
   if (!window.MatrixDB) {
     showAccessError("Please sign in through your member dashboard before opening packages.");
@@ -84,11 +87,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderCommercePackagesPanel() {
     const summary = MatrixDB.getMemberMatrixSummary(member.id);
     const packages = MatrixDB.getCommercePackages();
+    const products = MatrixDB.getCommerceProducts();
     const orders = MatrixDB.getCommerceOrders();
     const visiblePackages = packages.filter(item => item.packageType === selectedCommercePackageType);
-    commercePackageCount.textContent = `${packages.length} Package${packages.length === 1 ? "" : "s"}`;
+    const visibleProducts = products.filter(item => item.productType === selectedCommercePackageType);
+    commercePackageCount.textContent = `${packages.length + products.length} Item${packages.length + products.length === 1 ? "" : "s"}`;
     commercePackageTabs.innerHTML = COMMERCE_PACKAGE_TYPES.map(type => {
-      const count = packages.filter(item => item.packageType === type.id).length;
+      const count = PRODUCT_PLUS_TYPES.includes(type.id)
+        ? products.filter(item => item.productType === type.id).length
+        : packages.filter(item => item.packageType === type.id).length;
       return `<button class="matrix-tab ${selectedCommercePackageType === type.id ? "active" : ""} ${count ? "" : "locked"}" type="button" data-commerce-type="${type.id}" role="tab" aria-selected="${selectedCommercePackageType === type.id}"><strong>${escapeHtml(type.label)}</strong><span class="matrix-tab-status"><span>${count}</span></span></button>`;
     }).join("");
     commercePackageTabs.querySelectorAll("[data-commerce-type]").forEach(button => {
@@ -99,7 +106,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     enableDragScroll(commercePackageTabs);
 
-    if (!visiblePackages.length) {
+    if (PRODUCT_PLUS_TYPES.includes(selectedCommercePackageType)) {
+      renderProductPlusShop(visibleProducts, summary, orders);
+    } else if (!visiblePackages.length) {
       commercePackageList.innerHTML = `<div class="empty-state"><p>No active packages for this type yet.</p></div>`;
     } else {
       commercePackageList.innerHTML = visiblePackages.map(commercePackage => renderCommercePackageCard(commercePackage, summary, orders)).join("");
@@ -145,6 +154,123 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
       </article>
     `;
+  }
+
+  function renderProductPlusShop(products, summary, orders = []) {
+    const isVoucherMode = selectedCommercePackageType === "product_plus_voucher";
+    const cart = productCarts[selectedCommercePackageType] || [];
+    const voucherBalanceValue = Number(summary && summary.vouchers ? summary.vouchers.balance : 0);
+    const reservedVoucherValue = getReservedVoucherValue(orders);
+    const availableVoucherValue = Math.max(voucherBalanceValue - reservedVoucherValue, 0);
+    const cartTotal = getProductCartTotal(selectedCommercePackageType);
+    const canCheckout = cart.length > 0 && (!isVoucherMode || availableVoucherValue >= cartTotal);
+    commercePackageList.innerHTML = `
+      <div class="commerce-product-shop">
+        <section class="commerce-product-grid">
+          ${products.length ? products.map(product => renderCommerceProductCard(product, isVoucherMode)).join("") : `<div class="empty-state"><p>No active products for this type yet.</p></div>`}
+        </section>
+        <aside class="commerce-cart-panel">
+          <div class="commerce-cart-heading">
+            <div><span>${isVoucherMode ? "Voucher checkout" : "Buy requirement checkout"}</span><strong>Cart</strong></div>
+            <b>${cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0)} item${cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0) === 1 ? "" : "s"}</b>
+          </div>
+          <div class="commerce-cart-lines">
+            ${cart.length ? cart.map(item => renderCartLine(item, products, isVoucherMode)).join("") : `<p class="commerce-cart-empty">Add products to start checkout.</p>`}
+          </div>
+          <div class="commerce-cart-total"><span>${isVoucherMode ? "Voucher total" : "PHP total"}</span><strong>${isVoucherMode ? `${formatNumber(cartTotal)} vouchers` : `PHP ${formatNumber(cartTotal)}`}</strong></div>
+          ${isVoucherMode ? `<p class="commerce-voucher-note">Available: PHP ${formatNumber(availableVoucherValue)}${reservedVoucherValue > 0 ? ` | Reserved: PHP ${formatNumber(reservedVoucherValue)}` : ""}</p>` : `<p class="commerce-voucher-note">Shipping fee is added after admin checks J&T.</p>`}
+          <button class="button button-primary button-small commerce-cart-checkout" type="button" ${canCheckout ? "" : "disabled"}>${isVoucherMode && cartTotal > availableVoucherValue ? "Need More Vouchers" : "Request Checkout"}</button>
+        </aside>
+      </div>
+    `;
+    commercePackageList.querySelectorAll("[data-product-id]").forEach(card => {
+      const product = products.find(item => item.id === card.dataset.productId);
+      card.querySelectorAll("[data-qty-step]").forEach(button => button.addEventListener("click", () => {
+        const input = card.querySelector(".commerce-product-qty");
+        input.value = String(Math.max(1, Math.min(999, Number(input.value || 1) + Number(button.dataset.qtyStep))));
+      }));
+      card.querySelector(".add-product-cart").addEventListener("click", () => {
+        addProductToCart(product, Number(card.querySelector(".commerce-product-qty").value || 1));
+        renderCommercePackagesPanel();
+      });
+    });
+    commercePackageList.querySelectorAll("[data-cart-product-id]").forEach(line => {
+      line.querySelectorAll("[data-cart-action]").forEach(button => button.addEventListener("click", () => {
+        updateCartLine(selectedCommercePackageType, line.dataset.cartProductId, button.dataset.cartAction);
+        renderCommercePackagesPanel();
+      }));
+    });
+    const checkout = commercePackageList.querySelector(".commerce-cart-checkout");
+    if (checkout) checkout.addEventListener("click", () => openProductCartOrderModal(selectedCommercePackageType));
+  }
+
+  function renderCommerceProductCard(product, isVoucherMode) {
+    return `
+      <article class="commerce-product-card" data-product-id="${escapeHtml(product.id)}">
+        ${product.photoData ? `<img src="${escapeHtml(product.photoData)}" alt="${escapeHtml(product.productName)}" loading="lazy">` : `<span class="commerce-product-empty">No Photo</span>`}
+        <div class="commerce-product-body">
+          <span>${escapeHtml(product.productTypeLabel)}</span>
+          <h4>${escapeHtml(product.productName)}</h4>
+          ${product.description ? `<p>${escapeHtml(product.description)}</p>` : ""}
+          <strong>${isVoucherMode ? `${formatNumber(product.price)} vouchers` : `PHP ${formatNumber(product.price)}`}</strong>
+        </div>
+        <div class="commerce-product-actions">
+          <div class="quantity-stepper" aria-label="Quantity">
+            <button type="button" data-qty-step="-1">-</button>
+            <input class="commerce-product-qty" type="number" min="1" max="999" step="1" value="1">
+            <button type="button" data-qty-step="1">+</button>
+          </div>
+          <button class="button button-primary button-small add-product-cart" type="button">Add</button>
+        </div>
+      </article>
+    `;
+  }
+
+  function renderCartLine(cartItem, products, isVoucherMode) {
+    const product = products.find(item => item.id === cartItem.productId) || {};
+    const price = Number(product.price || cartItem.price || 0);
+    return `
+      <div class="commerce-cart-line" data-cart-product-id="${escapeHtml(cartItem.productId)}">
+        <div><strong>${escapeHtml(product.productName || cartItem.productName || "Product")}</strong><span>${cartItem.quantity} x ${isVoucherMode ? `${formatNumber(price)} vouchers` : `PHP ${formatNumber(price)}`}</span></div>
+        <div class="commerce-cart-line-actions">
+          <button type="button" data-cart-action="dec">-</button>
+          <button type="button" data-cart-action="inc">+</button>
+          <button type="button" data-cart-action="remove">Remove</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function addProductToCart(product, quantity) {
+    if (!product) return;
+    const cart = productCarts[selectedCommercePackageType];
+    const existing = cart.find(item => item.productId === product.id);
+    const nextQuantity = Math.max(1, Math.min(999, Number(quantity || 1)));
+    if (existing) {
+      existing.quantity = Math.min(999, Number(existing.quantity || 1) + nextQuantity);
+    } else {
+      cart.push({ productId: product.id, quantity: nextQuantity, price: Number(product.price || 0), productName: product.productName });
+    }
+  }
+
+  function updateCartLine(type, productId, action) {
+    const cart = productCarts[type] || [];
+    const index = cart.findIndex(item => item.productId === productId);
+    if (index < 0) return;
+    if (action === "remove") cart.splice(index, 1);
+    if (action === "inc") cart[index].quantity = Math.min(999, Number(cart[index].quantity || 1) + 1);
+    if (action === "dec") {
+      cart[index].quantity = Number(cart[index].quantity || 1) - 1;
+      if (cart[index].quantity <= 0) cart.splice(index, 1);
+    }
+  }
+
+  function getProductCartTotal(type) {
+    const products = MatrixDB.getCommerceProducts();
+    return (productCarts[type] || []).reduce((sum, item) => {
+      const product = products.find(productItem => productItem.id === item.productId);
+      return sum + Number(product ? product.price : item.price || 0) * Number(item.quantity || 1);
+    }, 0);
   }
 
   function getCommercePackageRequestState(commercePackage, summary, orders, availableVoucherValue) {
@@ -235,6 +361,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function openCommerceOrderModal(commercePackage) {
     pendingCommercePackage = commercePackage;
+    pendingProductCartType = null;
     const addresses = MatrixDB.getShippingAddresses();
     commerceOrderForm.reset();
     commerceOrderNotesCount.textContent = "0";
@@ -255,10 +382,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (addresses.length) commerceOrderAddress.focus(); else commerceOrderAddAddress.focus();
   }
 
+  function openProductCartOrderModal(productType) {
+    const cart = productCarts[productType] || [];
+    if (!cart.length) return;
+    pendingCommercePackage = null;
+    pendingProductCartType = productType;
+    const addresses = MatrixDB.getShippingAddresses();
+    commerceOrderForm.reset();
+    commerceOrderNotesCount.textContent = "0";
+    commerceOrderAlert.style.display = "none";
+    commerceOrderUplineGroup.hidden = true;
+    commerceOrderUplineCode.required = false;
+    commerceOrderUplineCode.value = "";
+    commerceOrderSubmit.disabled = addresses.length === 0;
+    commerceOrderAddress.disabled = addresses.length === 0;
+    commerceOrderAddAddress.hidden = addresses.length > 0;
+    const total = getProductCartTotal(productType);
+    const totalQuantity = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+    commerceOrderSummary.textContent = `${totalQuantity} product${totalQuantity === 1 ? "" : "s"} | ${productType === "product_plus_voucher" ? `${formatNumber(total)} vouchers` : `PHP ${formatNumber(total)}`}`;
+    commerceOrderAddress.innerHTML = addresses.length
+      ? addresses.map(address => `<option value="${escapeHtml(address.id)}" ${address.isDefault ? "selected" : ""}>${escapeHtml(address.fullName)} - ${escapeHtml(address.city)}, ${escapeHtml(address.province)}</option>`).join("")
+      : `<option value="">Add a shipping address first</option>`;
+    renderSelectedCommerceAddress();
+    commerceOrderModal.style.display = "flex";
+    if (addresses.length) commerceOrderAddress.focus(); else commerceOrderAddAddress.focus();
+  }
+
   function closeCommerceOrderModal() {
     if (!commerceOrderModal || commerceOrderModal.style.display === "none") return;
     commerceOrderModal.style.display = "none";
     pendingCommercePackage = null;
+    pendingProductCartType = null;
   }
 
   function openCommercePaymentModal(order) {
@@ -300,10 +454,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function handleCommerceOrderSubmit(event) {
     event.preventDefault();
-    if (!pendingCommercePackage) return;
+    if (!pendingCommercePackage && !pendingProductCartType) return;
     commerceOrderAlert.style.display = "none";
-    const matrixUplineCode = pendingCommercePackage.packageType === "matrix_1200_entry" ? commerceOrderUplineCode.value.trim().toUpperCase() : "";
-    if (pendingCommercePackage.packageType === "matrix_1200_entry" && !matrixUplineCode) {
+    const matrixUplineCode = pendingCommercePackage && pendingCommercePackage.packageType === "matrix_1200_entry" ? commerceOrderUplineCode.value.trim().toUpperCase() : "";
+    if (pendingCommercePackage && pendingCommercePackage.packageType === "matrix_1200_entry" && !matrixUplineCode) {
       commerceOrderAlert.className = "alert alert-danger";
       commerceOrderAlert.textContent = "Enter a 1200 Matrix upline code before requesting this package.";
       commerceOrderAlert.style.display = "block";
@@ -312,12 +466,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     commerceOrderSubmit.disabled = true;
     try {
-      await MatrixDB.requestCommerceOrder({
-        packageId: pendingCommercePackage.id,
-        shippingAddressId: commerceOrderAddress.value,
-        memberNotes: commerceOrderNotes.value.trim(),
-        matrixUplineCode
-      });
+      if (pendingProductCartType) {
+        await MatrixDB.requestCommerceProductOrder({
+          productType: pendingProductCartType,
+          shippingAddressId: commerceOrderAddress.value,
+          items: productCarts[pendingProductCartType].map(item => ({ productId: item.productId, quantity: item.quantity })),
+          memberNotes: commerceOrderNotes.value.trim()
+        });
+        productCarts[pendingProductCartType] = [];
+      } else {
+        await MatrixDB.requestCommerceOrder({
+          packageId: pendingCommercePackage.id,
+          shippingAddressId: commerceOrderAddress.value,
+          memberNotes: commerceOrderNotes.value.trim(),
+          matrixUplineCode
+        });
+      }
       closeCommerceOrderModal();
       renderCommercePackagesPanel();
       commercePackagesCard.scrollIntoView({ behavior: "smooth", block: "start" });
