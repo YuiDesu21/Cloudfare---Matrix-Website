@@ -1898,6 +1898,31 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   gap: 0.8rem;
 }
 
+.admin-commerce-panel > div:last-child {
+  min-height: 0;
+}
+
+.admin-commerce-package-list {
+  max-height: clamp(420px, 64vh, 720px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.35rem;
+}
+
+.admin-commerce-package-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.admin-commerce-package-list::-webkit-scrollbar-track {
+  background: rgba(255, 201, 28, 0.06);
+  border-radius: 999px;
+}
+
+.admin-commerce-package-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 201, 28, 0.38);
+  border-radius: 999px;
+}
+
 .package-item-editor {
   overflow-x: auto;
   padding-bottom: 0.2rem;
