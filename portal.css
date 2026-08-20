@@ -1844,9 +1844,17 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
 }
 
 .admin-product-layout {
-  border-top: 1px solid rgba(255, 201, 28, 0.16);
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.admin-commerce-mode-tabs {
+  margin-bottom: 1rem;
+}
+
+.admin-commerce-panel[hidden] {
+  display: none;
 }
 
 .admin-commerce-form {

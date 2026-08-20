@@ -43,7 +43,7 @@
         <button class="tab-btn" type="button" data-production-tab="tab-approvals">Pending Requests <span id="badge-pending-count" class="badge badge-pending" style="display:none">0</span></button>
         <button class="tab-btn" type="button" data-production-tab="tab-members">Members Directory</button>
         <button class="tab-btn" type="button" data-production-tab="tab-payment-methods">Payment Methods</button>
-        <button class="tab-btn" type="button" data-production-tab="tab-commerce-packages">Packages</button>
+        <button class="tab-btn" type="button" data-production-tab="tab-commerce-packages">Products</button>
         <button class="tab-btn" type="button" data-production-tab="tab-matrix-viewer">Matrix Viewer</button>
         <button id="admin-owner-finances-tab" class="tab-btn" type="button" data-production-tab="tab-finances" hidden>Owner Finances</button>
       </nav>
@@ -119,7 +119,11 @@
           <h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Entry Packages &amp; Product Plus Products</h3>
           <p style="font-size:.82rem;color:var(--muted);margin:0">Create Timeline/1200 entry packages, then add individual Product Plus products for cart checkout.</p>
         </div>
-        <div class="admin-commerce-layout">
+        <nav class="approval-queue-tabs admin-commerce-mode-tabs" role="tablist" aria-label="Product manager types">
+          <button class="active" type="button" role="tab" data-commerce-manager-tab="packages" aria-selected="true">Package</button>
+          <button type="button" role="tab" data-commerce-manager-tab="product-plus" aria-selected="false">Product Plus</button>
+        </nav>
+        <div class="admin-commerce-layout admin-commerce-panel" data-commerce-manager-panel="packages">
           <form id="admin-commerce-package-form" class="portal-card admin-commerce-form">
             <input id="admin-commerce-package-id" type="hidden">
             <div class="form-group"><label for="admin-commerce-package-type">Package type</label><select id="admin-commerce-package-type" class="form-control" required><option value="timeline_entry">Timeline Matrix Package Entry</option><option value="matrix_1200_entry">PHP 1,200 Matrix Package Entry</option></select></div>
@@ -144,7 +148,7 @@
             </div>
           </div>
         </div>
-        <div class="admin-commerce-layout admin-product-layout">
+        <div class="admin-commerce-layout admin-product-layout admin-commerce-panel" data-commerce-manager-panel="product-plus" hidden>
           <form id="admin-commerce-product-form" class="portal-card admin-commerce-form">
             <input id="admin-commerce-product-id" type="hidden">
             <div class="form-group"><label for="admin-commerce-product-type">Product type</label><select id="admin-commerce-product-type" class="form-control" required><option value="product_plus_requirement">Product Plus Buy Requirement</option><option value="product_plus_voucher">Product Plus Voucher Product</option></select></div>

@@ -120,6 +120,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.querySelectorAll("[data-production-approval-tab]").forEach(tab => { const active = tab === button; tab.classList.toggle("active", active); tab.setAttribute("aria-selected", active ? "true" : "false"); });
     document.querySelectorAll("[data-production-approval-panel]").forEach(panel => { panel.hidden = panel.dataset.productionApprovalPanel !== selected; });
   }));
+  document.querySelectorAll("[data-commerce-manager-tab]").forEach(button => button.addEventListener("click", () => {
+    const selected = button.dataset.commerceManagerTab;
+    document.querySelectorAll("[data-commerce-manager-tab]").forEach(tab => {
+      const active = tab === button;
+      tab.classList.toggle("active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    document.querySelectorAll("[data-commerce-manager-panel]").forEach(panel => {
+      panel.hidden = panel.dataset.commerceManagerPanel !== selected;
+    });
+  }));
   document.getElementById("admin-login-form").addEventListener("submit", async event => {
     event.preventDefault(); loginAlert.style.display = "none";
     const { error } = await window.matrixSupabase.auth.signInWithPassword({ email: document.getElementById("admin-email").value.trim(), password: document.getElementById("admin-password").value });
