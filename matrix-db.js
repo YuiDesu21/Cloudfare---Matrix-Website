@@ -5,7 +5,8 @@
 
 const MATRIX_PLANS = {
   "power3-passive": { id: "power3-passive", name: "Power of Three Passive Income", maxChildren: 3, price: 20, pesoValue: 1200 },
-  "timeline-power3": { id: "timeline-power3", name: "Power of Three Timeline Matrix", maxChildren: 3, price: 693, pesoValue: 693 }
+  "timeline-power3": { id: "timeline-power3", name: "Power of Three Timeline Matrix", maxChildren: 3, price: 693, pesoValue: 693 },
+  "patronizing-income": { id: "patronizing-income", name: "Patronizing Income", maxChildren: 3, price: 0, pesoValue: 0 }
 };
 
 function callMatrixApi(action, payload = {}) {
@@ -140,6 +141,9 @@ const LocalMatrixDB = {
   },
   getCommerceProducts() { return []; },
   requestCommerceProductOrder() { throw new Error("Product Plus cart checkout is available on the live Supabase site."); },
+  getPatronizingDashboard() { return null; },
+  requestPatronizingTokenEntry() { throw new Error("Patronizing Income is available on the live Supabase site."); },
+  requestPatronizingProductOrder() { throw new Error("Patronizing Income checkout is available on the live Supabase site."); },
 
   getMemberByCredential(emailOrWallet) {
     return callMatrixApi("getMemberByCredential", { emailOrWallet });
@@ -261,19 +265,22 @@ const SupabaseMatrixDB = {
   },
 
   async refreshSessionData() {
-    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse] = await Promise.all([
+    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, patronizingResponse] = await Promise.all([
       window.matrixSupabase.rpc("get_my_dashboard"),
       window.matrixSupabase.rpc("get_pending_exit_balance"),
       window.matrixSupabase.rpc("get_my_exit_statuses"),
-      window.matrixSupabase.rpc("get_my_reward_schedule")
+      window.matrixSupabase.rpc("get_my_reward_schedule"),
+      window.matrixSupabase.rpc("get_my_patronizing_dashboard")
     ]);
     if (error) throw error;
     if (pendingExitResponse.error) throw pendingExitResponse.error;
     if (exitsResponse.error) throw exitsResponse.error;
     if (scheduleResponse.error) throw scheduleResponse.error;
+    if (patronizingResponse.error) throw patronizingResponse.error;
     if (data) {
       data.pendingExitBalance = Number(pendingExitResponse.data || 0);
       data.exits = (exitsResponse.data || []).map(exit => ({ ...exit, ...(scheduleResponse.data[String(exit.exit)] || {}) }));
+      data.patronizingDashboard = patronizingResponse.data || null;
     }
     if (data && data.rules && data.rules.entry) Object.assign(data.rules.entry, { holdPesoValue: 1200, passiveAllocation: 900, matrixAllocation: 300 });
     supabaseState.dashboard = data;
@@ -356,6 +363,29 @@ const SupabaseMatrixDB = {
   getMemberByAccountCode() { return null; },
   getCommerceProducts() { return (supabaseState.dashboard && supabaseState.dashboard.commerceProducts) || []; },
   async requestCommerceProductOrder() { throw new Error("Product Plus cart checkout is available in the production adapter."); },
+  getPatronizingDashboard() { return (supabaseState.dashboard && supabaseState.dashboard.patronizingDashboard) || null; },
+  async requestPatronizingTokenEntry(details = {}) {
+    const { data, error } = await window.matrixSupabase.rpc("request_patronizing_token_entry", {
+      p_payment_method_id: details.paymentMethodId,
+      p_reference_number: details.referenceNumber || "",
+      p_notes: details.notes || ""
+    });
+    if (error) throw error;
+    await this.refreshSessionData();
+    return data;
+  },
+  async requestPatronizingProductOrder(details = {}) {
+    const { data, error } = await window.matrixSupabase.rpc("request_patronizing_product_order", {
+      p_order_purpose: details.orderPurpose,
+      p_shipping_address_id: details.shippingAddressId,
+      p_items: details.items || [],
+      p_member_notes: details.memberNotes || "",
+      p_exit_number: details.exitNumber || null
+    });
+    if (error) throw error;
+    await this.refreshSessionData();
+    return data;
+  },
 
   async getMemberTree(memberId) {
     const { data, error } = await window.matrixSupabase.rpc("get_matrix_level", { p_root_member_id: memberId });

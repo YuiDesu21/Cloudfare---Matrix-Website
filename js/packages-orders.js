@@ -6,6 +6,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     { id: "product_plus_voucher", label: "Voucher Products" }
   ];
   const PRODUCT_PLUS_TYPES = ["product_plus_requirement", "product_plus_voucher"];
+  const PATRONIZING_PURPOSES = ["patronizing_entry_product", "patronizing_monthly_requirement", "patronizing_exit_discount"];
+  const queryParams = new URLSearchParams(window.location.search);
+  const patronizingPurpose = PATRONIZING_PURPOSES.includes(queryParams.get("purpose")) ? queryParams.get("purpose") : "";
+  const patronizingExitNumber = Number(queryParams.get("exit") || 0);
 
   const pageAlert = document.getElementById("packages-orders-alert");
   const content = document.getElementById("packages-orders-content");
@@ -46,8 +50,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   let selectedCommercePackageType = "timeline_entry";
   let pendingCommercePackage = null;
   let pendingProductCartType = null;
+  let pendingPatronizingPurpose = "";
+  let pendingPatronizingExit = null;
   let pendingPaymentOrder = null;
   const productCarts = { product_plus_requirement: [], product_plus_voucher: [] };
+  if (patronizingPurpose) selectedCommercePackageType = "product_plus_requirement";
 
   if (!window.MatrixDB) {
     showAccessError("Please sign in through your member dashboard before opening packages.");
@@ -89,26 +96,35 @@ document.addEventListener("DOMContentLoaded", async () => {
     const packages = MatrixDB.getCommercePackages();
     const products = MatrixDB.getCommerceProducts();
     const orders = MatrixDB.getCommerceOrders();
+    const patronizing = typeof MatrixDB.getPatronizingDashboard === "function" ? MatrixDB.getPatronizingDashboard() : null;
     const visiblePackages = packages.filter(item => item.packageType === selectedCommercePackageType);
     const visibleProducts = products.filter(item => item.productType === selectedCommercePackageType);
     commercePackageCount.textContent = `${packages.length + products.length} Item${packages.length + products.length === 1 ? "" : "s"}`;
-    commercePackageTabs.innerHTML = COMMERCE_PACKAGE_TYPES.map(type => {
-      const count = PRODUCT_PLUS_TYPES.includes(type.id)
-        ? products.filter(item => item.productType === type.id).length
-        : packages.filter(item => item.packageType === type.id).length;
-      return `<button class="matrix-tab ${selectedCommercePackageType === type.id ? "active" : ""} ${count ? "" : "locked"}" type="button" data-commerce-type="${type.id}" role="tab" aria-selected="${selectedCommercePackageType === type.id}"><strong>${escapeHtml(type.label)}</strong><span class="matrix-tab-status"><span>${count}</span></span></button>`;
-    }).join("");
-    commercePackageTabs.querySelectorAll("[data-commerce-type]").forEach(button => {
-      button.addEventListener("click", () => {
-        selectedCommercePackageType = button.dataset.commerceType;
-        renderCommercePackagesPanel();
+    if (patronizingPurpose) {
+      commercePackageTabs.hidden = true;
+      commercePackageCount.textContent = `${visibleProducts.length} Product${visibleProducts.length === 1 ? "" : "s"}`;
+    } else {
+      commercePackageTabs.hidden = false;
+      commercePackageTabs.innerHTML = COMMERCE_PACKAGE_TYPES.map(type => {
+        const count = PRODUCT_PLUS_TYPES.includes(type.id)
+          ? products.filter(item => item.productType === type.id).length
+          : packages.filter(item => item.packageType === type.id).length;
+        return `<button class="matrix-tab ${selectedCommercePackageType === type.id ? "active" : ""} ${count ? "" : "locked"}" type="button" data-commerce-type="${type.id}" role="tab" aria-selected="${selectedCommercePackageType === type.id}"><strong>${escapeHtml(type.label)}</strong><span class="matrix-tab-status"><span>${count}</span></span></button>`;
+      }).join("");
+      commercePackageTabs.querySelectorAll("[data-commerce-type]").forEach(button => {
+        button.addEventListener("click", () => {
+          selectedCommercePackageType = button.dataset.commerceType;
+          renderCommercePackagesPanel();
+        });
       });
-    });
-    enableDragScroll(commercePackageTabs);
+      enableDragScroll(commercePackageTabs);
+    }
     commercePackageList.classList.toggle("commerce-product-browser", PRODUCT_PLUS_TYPES.includes(selectedCommercePackageType));
 
-    if (PRODUCT_PLUS_TYPES.includes(selectedCommercePackageType)) {
-      renderProductPlusShop(visibleProducts, summary, orders);
+    if (patronizingPurpose) {
+      renderProductPlusShop(visibleProducts, summary, orders, patronizing);
+    } else if (PRODUCT_PLUS_TYPES.includes(selectedCommercePackageType)) {
+      renderProductPlusShop(visibleProducts, summary, orders, null);
     } else if (!visiblePackages.length) {
       commercePackageList.innerHTML = `<div class="empty-state"><p>No active packages for this type yet.</p></div>`;
     } else {
@@ -157,28 +173,35 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   }
 
-  function renderProductPlusShop(products, summary, orders = []) {
+  function renderProductPlusShop(products, summary, orders = [], patronizing = null) {
     const isVoucherMode = selectedCommercePackageType === "product_plus_voucher";
     const cart = productCarts[selectedCommercePackageType] || [];
     const voucherBalanceValue = Number(summary && summary.vouchers ? summary.vouchers.balance : 0);
     const reservedVoucherValue = getReservedVoucherValue(orders);
     const availableVoucherValue = Math.max(voucherBalanceValue - reservedVoucherValue, 0);
     const cartTotal = getProductCartTotal(selectedCommercePackageType);
-    const canCheckout = cart.length > 0 && (!isVoucherMode || availableVoucherValue >= cartTotal);
+    const patronizingContext = getPatronizingCheckoutContext(patronizing, cartTotal);
+    const canCheckout = patronizingContext
+      ? cart.length > 0 && patronizingContext.canCheckout
+      : cart.length > 0 && (!isVoucherMode || availableVoucherValue >= cartTotal);
     commercePackageList.innerHTML = `
       <div class="commerce-product-shop">
         <aside class="commerce-cart-panel">
           <div class="commerce-cart-heading">
-            <div><span>${isVoucherMode ? "Voucher checkout" : "Buy requirement checkout"}</span><strong>Cart</strong></div>
+            <div><span>${escapeHtml(patronizingContext ? patronizingContext.eyebrow : (isVoucherMode ? "Voucher checkout" : "Buy requirement checkout"))}</span><strong>Cart</strong></div>
             <b>${cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0)} item${cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0) === 1 ? "" : "s"}</b>
           </div>
           <div class="commerce-cart-lines">
             ${cart.length ? cart.map(item => renderCartLine(item, products, isVoucherMode)).join("") : `<p class="commerce-cart-empty">Add products to start checkout.</p>`}
           </div>
-          <div class="commerce-cart-total"><span>${isVoucherMode ? "Voucher total" : "PHP total"}</span><strong>${isVoucherMode ? `${formatNumber(cartTotal)} vouchers` : `PHP ${formatNumber(cartTotal)}`}</strong></div>
+          <div class="commerce-cart-total">
+            <span>${escapeHtml(patronizingContext ? patronizingContext.totalLabel : (isVoucherMode ? "Voucher total" : "PHP total"))}</span>
+            <strong>${escapeHtml(patronizingContext ? patronizingContext.totalValue : (isVoucherMode ? `${formatNumber(cartTotal)} vouchers` : `PHP ${formatNumber(cartTotal)}`))}</strong>
+            ${patronizingContext && patronizingContext.discountValue ? `<small>Discount: ${escapeHtml(patronizingContext.discountValue)}</small>` : ""}
+          </div>
           <div class="commerce-cart-action">
-            ${isVoucherMode ? `<p class="commerce-voucher-note">Available: PHP ${formatNumber(availableVoucherValue)}${reservedVoucherValue > 0 ? ` | Reserved: PHP ${formatNumber(reservedVoucherValue)}` : ""}</p>` : `<p class="commerce-voucher-note">Shipping fee is added after admin checks J&T.</p>`}
-            <button class="button button-primary button-small commerce-cart-checkout" type="button" ${canCheckout ? "" : "disabled"}>${isVoucherMode && cartTotal > availableVoucherValue ? "Need More Vouchers" : "Request Checkout"}</button>
+            ${patronizingContext ? `<p class="commerce-voucher-note">${escapeHtml(patronizingContext.hint)}</p>` : (isVoucherMode ? `<p class="commerce-voucher-note">Available: PHP ${formatNumber(availableVoucherValue)}${reservedVoucherValue > 0 ? ` | Reserved: PHP ${formatNumber(reservedVoucherValue)}` : ""}</p>` : `<p class="commerce-voucher-note">Shipping fee is added after admin checks J&T.</p>`)}
+            <button class="button button-primary button-small commerce-cart-checkout" type="button" ${canCheckout ? "" : "disabled"}>${escapeHtml(patronizingContext ? patronizingContext.buttonLabel : (isVoucherMode && cartTotal > availableVoucherValue ? "Need More Vouchers" : "Request Checkout"))}</button>
           </div>
         </aside>
         <section class="commerce-product-grid">
@@ -204,7 +227,55 @@ document.addEventListener("DOMContentLoaded", async () => {
       }));
     });
     const checkout = commercePackageList.querySelector(".commerce-cart-checkout");
-    if (checkout) checkout.addEventListener("click", () => openProductCartOrderModal(selectedCommercePackageType));
+    if (checkout) checkout.addEventListener("click", () => openProductCartOrderModal(selectedCommercePackageType, patronizingContext));
+  }
+
+  function getPatronizingCheckoutContext(patronizing, cartTotal) {
+    if (!patronizingPurpose) return null;
+    if (patronizingPurpose === "patronizing_entry_product") {
+      const remaining = Math.max(5818 - Number(cartTotal || 0), 0);
+      return {
+        purpose: patronizingPurpose,
+        eyebrow: "Patronizing Product Entry",
+        totalLabel: "Entry Cart",
+        totalValue: `PHP ${formatNumber(cartTotal)}`,
+        hint: remaining > 0 ? `Add PHP ${formatNumber(remaining)} more to reach the PHP 5,818 product entry.` : "Shipping fee is added after admin checks J&T.",
+        buttonLabel: remaining > 0 ? "Need More Products" : "Request Entry Checkout",
+        canCheckout: remaining <= 0
+      };
+    }
+    if (patronizingPurpose === "patronizing_monthly_requirement") {
+      const summary = patronizing && patronizing.monthlySummary ? patronizing.monthlySummary : {};
+      const remaining = Math.max(Number(summary.remainingRequirement || 0) - Number(cartTotal || 0), 0);
+      return {
+        purpose: patronizingPurpose,
+        eyebrow: "Patronizing Monthly Requirement",
+        totalLabel: "Requirement Cart",
+        totalValue: `PHP ${formatNumber(cartTotal)}`,
+        hint: remaining > 0 ? `PHP ${formatNumber(remaining)} requirement remains after this cart. Shipping fee is added after admin checks J&T.` : "This cart can cover the stacked monthly requirement once approved.",
+        buttonLabel: "Request Requirement Checkout",
+        canCheckout: cartTotal > 0
+      };
+    }
+    const exits = patronizing && patronizing.exits ? patronizing.exits : [];
+    const exit = exits.find(item => Number(item.exit) === patronizingExitNumber);
+    const maxPurchase = Number(exit ? exit.maxPurchase : 0);
+    const usedPurchase = Number(exit ? exit.usedPurchase : 0);
+    const remaining = Math.max(maxPurchase - usedPurchase, 0);
+    const discountPercent = Number(exit ? exit.discountPercent : 0);
+    const discount = Math.round(Number(cartTotal || 0) * discountPercent) / 100;
+    const discountedTotal = Math.max(Number(cartTotal || 0) - discount, 0);
+    return {
+      purpose: patronizingPurpose,
+      exitNumber: patronizingExitNumber,
+      eyebrow: `Patronizing Exit ${patronizingExitNumber} Discount`,
+      totalLabel: "Discounted Total",
+      totalValue: `PHP ${formatNumber(discountedTotal)}`,
+      discountValue: `PHP ${formatNumber(discount)} (${formatNumber(discountPercent)}%)`,
+      hint: cartTotal > remaining ? `This cart exceeds the remaining Exit ${patronizingExitNumber} limit of PHP ${formatNumber(remaining)}.` : `Remaining Exit ${patronizingExitNumber} limit after this cart: PHP ${formatNumber(Math.max(remaining - cartTotal, 0))}. Shipping fee is added after admin checks J&T.`,
+      buttonLabel: cartTotal > remaining ? "Over Exit Limit" : "Request Discount Checkout",
+      canCheckout: Boolean(exit && exit.status === "active") && cartTotal > 0 && cartTotal <= remaining
+    };
   }
 
   function renderCommerceProductCard(product, isVoucherMode) {
@@ -385,11 +456,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (addresses.length) commerceOrderAddress.focus(); else commerceOrderAddAddress.focus();
   }
 
-  function openProductCartOrderModal(productType) {
+  function openProductCartOrderModal(productType, patronizingContext = null) {
     const cart = productCarts[productType] || [];
     if (!cart.length) return;
     pendingCommercePackage = null;
     pendingProductCartType = productType;
+    pendingPatronizingPurpose = patronizingContext ? patronizingContext.purpose : "";
+    pendingPatronizingExit = patronizingContext && patronizingContext.exitNumber ? patronizingContext.exitNumber : null;
     const addresses = MatrixDB.getShippingAddresses();
     commerceOrderForm.reset();
     commerceOrderNotesCount.textContent = "0";
@@ -402,7 +475,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     commerceOrderAddAddress.hidden = addresses.length > 0;
     const total = getProductCartTotal(productType);
     const totalQuantity = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-    commerceOrderSummary.textContent = `${totalQuantity} product${totalQuantity === 1 ? "" : "s"} | ${productType === "product_plus_voucher" ? `${formatNumber(total)} vouchers` : `PHP ${formatNumber(total)}`}`;
+    commerceOrderSummary.textContent = patronizingContext
+      ? `${totalQuantity} product${totalQuantity === 1 ? "" : "s"} | ${patronizingContext.eyebrow} | ${patronizingContext.totalValue}`
+      : `${totalQuantity} product${totalQuantity === 1 ? "" : "s"} | ${productType === "product_plus_voucher" ? `${formatNumber(total)} vouchers` : `PHP ${formatNumber(total)}`}`;
     commerceOrderAddress.innerHTML = addresses.length
       ? addresses.map(address => `<option value="${escapeHtml(address.id)}" ${address.isDefault ? "selected" : ""}>${escapeHtml(address.fullName)} - ${escapeHtml(address.city)}, ${escapeHtml(address.province)}</option>`).join("")
       : `<option value="">Add a shipping address first</option>`;
@@ -416,6 +491,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     commerceOrderModal.style.display = "none";
     pendingCommercePackage = null;
     pendingProductCartType = null;
+    pendingPatronizingPurpose = "";
+    pendingPatronizingExit = null;
   }
 
   function openCommercePaymentModal(order) {
@@ -470,12 +547,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     commerceOrderSubmit.disabled = true;
     try {
       if (pendingProductCartType) {
-        await MatrixDB.requestCommerceProductOrder({
-          productType: pendingProductCartType,
-          shippingAddressId: commerceOrderAddress.value,
-          items: productCarts[pendingProductCartType].map(item => ({ productId: item.productId, quantity: item.quantity })),
-          memberNotes: commerceOrderNotes.value.trim()
-        });
+        if (pendingPatronizingPurpose) {
+          await MatrixDB.requestPatronizingProductOrder({
+            orderPurpose: pendingPatronizingPurpose,
+            exitNumber: pendingPatronizingExit,
+            shippingAddressId: commerceOrderAddress.value,
+            items: productCarts[pendingProductCartType].map(item => ({ productId: item.productId, quantity: item.quantity })),
+            memberNotes: commerceOrderNotes.value.trim()
+          });
+        } else {
+          await MatrixDB.requestCommerceProductOrder({
+            productType: pendingProductCartType,
+            shippingAddressId: commerceOrderAddress.value,
+            items: productCarts[pendingProductCartType].map(item => ({ productId: item.productId, quantity: item.quantity })),
+            memberNotes: commerceOrderNotes.value.trim()
+          });
+        }
         productCarts[pendingProductCartType] = [];
       } else {
         await MatrixDB.requestCommerceOrder({

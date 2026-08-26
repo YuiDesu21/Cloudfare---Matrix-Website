@@ -282,6 +282,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         openProfileDrawer();
       } else if (button.dataset.accountAction === "packages") {
         window.location.href = "packages-orders.html";
+      } else if (button.dataset.accountAction === "patronizing") {
+        window.location.href = "patronizing-income.html";
       } else if (button.dataset.accountAction === "timeline") {
         window.location.href = "timeline-matrix.html";
       } else if (button.dataset.accountAction === "withdraw") {

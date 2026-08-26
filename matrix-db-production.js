@@ -1,6 +1,8 @@
 /** Supabase-only production data adapter. Local JSON and sandbox controls are intentionally excluded. */
 const MATRIX_PLANS = {
-  "power3-passive": { id: "power3-passive", name: "Power of Three Passive Income", maxChildren: 3, price: 20, pesoValue: 1200 }
+  "power3-passive": { id: "power3-passive", name: "Power of Three Passive Income", maxChildren: 3, price: 20, pesoValue: 1200 },
+  "timeline-power3": { id: "timeline-power3", name: "Power of Three Timeline Matrix", maxChildren: 3, price: 693, pesoValue: 693 },
+  "patronizing-income": { id: "patronizing-income", name: "Patronizing Income", maxChildren: 3, price: 0, pesoValue: 0 }
 };
 
 const state = { dashboard: null, member: null, position: null };
@@ -14,7 +16,7 @@ const MatrixDB = {
     return true;
   },
   async refreshSessionData() {
-    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse, notificationsResponse, addressesResponse, packagesResponse, commerceProductsResponse, ordersResponse, paymentMethodsResponse, timelineResponse] = await Promise.all([
+    const [{ data, error }, pendingExitResponse, exitsResponse, scheduleResponse, productsResponse, vouchersResponse, notificationsResponse, addressesResponse, packagesResponse, commerceProductsResponse, ordersResponse, paymentMethodsResponse, timelineResponse, patronizingResponse] = await Promise.all([
       window.matrixSupabase.rpc("get_my_dashboard"),
       window.matrixSupabase.rpc("get_pending_exit_balance"),
       window.matrixSupabase.rpc("get_my_exit_statuses"),
@@ -27,7 +29,8 @@ const MatrixDB = {
       window.matrixSupabase.rpc("get_active_commerce_products", { p_product_type: null }),
       window.matrixSupabase.rpc("get_my_commerce_orders"),
       window.matrixSupabase.rpc("get_active_payment_methods"),
-      window.matrixSupabase.rpc("get_my_timeline_dashboard")
+      window.matrixSupabase.rpc("get_my_timeline_dashboard"),
+      window.matrixSupabase.rpc("get_my_patronizing_dashboard")
     ]);
     if (error) throw error;
     if (pendingExitResponse.error) throw pendingExitResponse.error;
@@ -42,6 +45,7 @@ const MatrixDB = {
     if (ordersResponse.error) throw ordersResponse.error;
     if (paymentMethodsResponse.error) throw paymentMethodsResponse.error;
     if (timelineResponse.error) throw timelineResponse.error;
+    if (patronizingResponse.error) throw patronizingResponse.error;
     if (data) {
       data.pendingExitBalance = Number(pendingExitResponse.data || 0);
       data.exits = (exitsResponse.data || []).map(exit => ({ ...exit, ...(scheduleResponse.data[String(exit.exit)] || {}) }));
@@ -54,6 +58,7 @@ const MatrixDB = {
       data.commerceOrders = ordersResponse.data || [];
       data.paymentMethods = paymentMethodsResponse.data || [];
       data.timelineDashboard = timelineResponse.data || null;
+      data.patronizingDashboard = patronizingResponse.data || null;
     }
     if (data && data.rules && data.rules.entry) Object.assign(data.rules.entry, { holdPesoValue: 1200, tokenHoldingAllocation: 900, matrixAllocation: 300 });
     state.dashboard = data;
@@ -208,6 +213,9 @@ const MatrixDB = {
   getPaymentMethods() {
     return (state.dashboard && state.dashboard.paymentMethods) || [];
   },
+  getPatronizingDashboard() {
+    return (state.dashboard && state.dashboard.patronizingDashboard) || null;
+  },
   async refreshCommerceOrders() {
     const { data, error } = await window.matrixSupabase.rpc("get_my_commerce_orders");
     if (error) throw error;
@@ -234,6 +242,28 @@ const MatrixDB = {
     });
     if (error) throw error;
     await this.refreshCommerceOrders();
+    return data;
+  },
+  async requestPatronizingTokenEntry(details = {}) {
+    const { data, error } = await window.matrixSupabase.rpc("request_patronizing_token_entry", {
+      p_payment_method_id: details.paymentMethodId,
+      p_reference_number: details.referenceNumber || "",
+      p_notes: details.notes || ""
+    });
+    if (error) throw error;
+    await this.refreshSessionData();
+    return data;
+  },
+  async requestPatronizingProductOrder(details = {}) {
+    const { data, error } = await window.matrixSupabase.rpc("request_patronizing_product_order", {
+      p_order_purpose: details.orderPurpose,
+      p_shipping_address_id: details.shippingAddressId,
+      p_items: details.items || [],
+      p_member_notes: details.memberNotes || "",
+      p_exit_number: details.exitNumber || null
+    });
+    if (error) throw error;
+    await this.refreshSessionData();
     return data;
   },
   async submitCommerceOrderPayment(details = {}) {

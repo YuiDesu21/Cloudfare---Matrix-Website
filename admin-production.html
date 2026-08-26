@@ -69,6 +69,7 @@
           <button type="button" role="tab" data-production-approval-tab="withdrawals" aria-selected="false">Withdrawals <span id="production-count-withdrawals">0</span></button>
           <button type="button" role="tab" data-production-approval-tab="products" aria-selected="false">Products Plus <span id="production-count-products">0</span></button>
           <button type="button" role="tab" data-production-approval-tab="orders" aria-selected="false">Orders <span id="production-count-orders">0</span></button>
+          <button type="button" role="tab" data-production-approval-tab="patronizing" aria-selected="false">Patronizing <span id="production-count-patronizing">0</span></button>
         </nav>
           <section data-production-approval-panel="entry" class="approval-queue-panel active"><div class="table-container"><div id="admin-entry-list" class="withdrawal-history-list"></div></div></section>
           <section data-production-approval-panel="timeline" class="approval-queue-panel" hidden><div class="table-container"><div id="admin-timeline-list" class="withdrawal-history-list"></div></div></section>
@@ -76,6 +77,7 @@
         <section data-production-approval-panel="withdrawals" class="approval-queue-panel" hidden><div class="table-container"><div id="admin-withdrawal-list" class="withdrawal-history-list"></div></div></section>
         <section data-production-approval-panel="products" class="approval-queue-panel" hidden><div class="table-container"><div id="admin-products-list" class="withdrawal-history-list"></div></div></section>
         <section data-production-approval-panel="orders" class="approval-queue-panel" hidden><div class="table-container"><div id="admin-commerce-order-list" class="withdrawal-history-list"></div></div></section>
+        <section data-production-approval-panel="patronizing" class="approval-queue-panel" hidden><div class="table-container"><div id="admin-patronizing-list" class="withdrawal-history-list"></div></div></section>
       </section>
 
       <section id="tab-members" class="admin-section">
@@ -175,7 +177,7 @@
         <div class="portal-card" style="padding:1.5rem;margin-bottom:1.5rem">
           <div class="matrix-explorer-heading"><div><h3>Global Matrix Explorer</h3><p>Search, filter, and expand the branches you need. Select a member to inspect placement and progress.</p></div><span id="production-matrix-explorer-count" class="badge">0 members</span></div>
           <div class="matrix-explorer-controls">
-            <div class="form-group"><label for="production-viewer-plan-select">Matrix</label><select id="production-viewer-plan-select" class="form-control"><option value="power3-passive">Power of Three Passive Income</option><option value="timeline-power3">Power of Three Timeline Matrix</option></select></div>
+            <div class="form-group"><label for="production-viewer-plan-select">Matrix</label><select id="production-viewer-plan-select" class="form-control"><option value="power3-passive">Power of Three Passive Income</option><option value="timeline-power3">Power of Three Timeline Matrix</option><option value="patronizing-income">Patronizing Income</option></select></div>
             <div class="form-group matrix-explorer-search"><label for="production-tree-member-search">Search Members</label><input id="production-tree-member-search" class="form-control" type="search" placeholder="Name, username, wallet, or member ID"></div>
             <div class="form-group"><label for="production-matrix-exit-filter">Exit</label><select id="production-matrix-exit-filter" class="form-control"><option value="all">All exits</option><option value="0">Entry</option><option value="1">Exit 1</option><option value="2">Exit 2</option><option value="3">Exit 3</option><option value="4">Exit 4</option><option value="5">Exit 5</option><option value="6">Exit 6</option><option value="7">Exit 7</option><option value="8">Exit 8</option><option value="9">Exit 9</option><option value="10">Exit 10</option><option value="11">Exit 11</option><option value="12">Exit 12</option><option value="13">Exit 13</option></select></div>
             <div class="form-group"><label for="production-matrix-status-filter">Status</label><select id="production-matrix-status-filter" class="form-control"><option value="all">All statuses</option><option value="active">Active</option><option value="qualified">Qualified</option><option value="pending">Pending</option></select></div>

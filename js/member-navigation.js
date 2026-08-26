@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     { id: "profile", label: "Profile", href: "portal.html#profile" },
     { id: "dashboard", label: "Dashboard", href: "portal.html" },
     { id: "packages-orders", label: "Packages & Orders", href: "packages-orders.html" },
+    { id: "patronizing-income", label: "Patronizing Income", href: "patronizing-income.html" },
     { id: "timeline-matrix", label: "Timeline Matrix", href: "timeline-matrix.html" },
     { id: "withdrawal-request", label: "Balance Withdrawal", href: "withdrawal-request.html" },
     { id: "withdrawal-history", label: "Withdrawal History", href: "withdrawal-history.html" },

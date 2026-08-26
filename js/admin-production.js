@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const withdrawalList = document.getElementById("admin-withdrawal-list");
   const productsList = document.getElementById("admin-products-list");
   const commerceOrderList = document.getElementById("admin-commerce-order-list");
+  const patronizingList = document.getElementById("admin-patronizing-list");
   const memberTableBody = document.getElementById("admin-member-table-body");
   const memberSummary = document.getElementById("admin-member-summary");
   const memberPagination = document.getElementById("admin-member-pagination");
@@ -223,7 +224,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     memberRoles = new Map((roles || []).map(item => [item.memberId, item]));
     loginSection.style.display = "none"; content.style.display = "block"; adminUserStatus.style.display = "flex"; await loadAll();
   }
-  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts(), loadCommerceOrders(), loadPaymentMethods(), loadCommercePackages()]); }
+  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts(), loadCommerceOrders(), loadPatronizing(), loadPaymentMethods(), loadCommercePackages()]); }
   async function loadMembers() {
     memberTableBody.innerHTML = `<tr><td colspan="8" class="empty-state">Loading member directory...</td></tr>`;
     const { data, error } = await window.matrixSupabase.rpc("admin_get_members", {
@@ -859,6 +860,57 @@ document.addEventListener("DOMContentLoaded", async () => {
       card.querySelector(".reject-product").addEventListener("click", async () => act("admin_reject_product_plus_claim", { p_claim_id: card.dataset.productClaimId }));
     });
   }
+  async function loadPatronizing() {
+    const { data: requests, error } = await window.matrixSupabase.rpc("admin_get_patronizing_token_requests");
+    if (error) return show(alertBox, error.message, "danger");
+    const pending = (requests || []).filter(request => request.status === "pending");
+    updateCount("patronizing", pending.length);
+    if (!pending.length) {
+      patronizingList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No pending Patronizing entries</strong><p>F3 Token entry requests will appear here.</p></div>`;
+      return;
+    }
+    patronizingList.innerHTML = pending.map(request => {
+      const method = request.paymentMethod || {};
+      const methodLine = [method.methodName, method.accountName, method.accountNumber].filter(Boolean).join(" · ");
+      return `<article class="portal-card withdrawal-history-item" data-patronizing-request-id="${escapeHtml(request.id)}">
+        <div class="withdrawal-history-topline">
+          <div><span class="withdrawal-reference-label">${escapeHtml(request.accountCode)} &middot; Patronizing F3 Token Entry</span><h2>${escapeHtml(request.fullName)} (@${escapeHtml(request.username)})</h2></div>
+          <span class="withdrawal-status status-pending">Pending</span>
+        </div>
+        <div class="withdrawal-history-details">
+          <div><span>Entry amount</span><strong>${money(request.amount)}</strong></div>
+          <div><span>F3 tokens</span><strong>${Number(request.f3Tokens || 0).toLocaleString()} F3</strong></div>
+          <div><span>Payment sent to</span><strong>${escapeHtml(methodLine || "Selected payment method")}</strong></div>
+          <div><span>Reference</span><strong>${escapeHtml(request.referenceNumber || "-")}</strong></div>
+          <div><span>F3 wallet</span>${copyField(request.walletAddress)}</div>
+          <div><span>Requested</span><strong>${new Date(request.createdAt).toLocaleString()}</strong></div>
+        </div>
+        ${request.notes ? `<p class="withdrawal-history-note"><strong>Member note:</strong> ${escapeHtml(request.notes)}</p>` : ""}
+        <form class="patronizing-admin-review">
+          <div class="form-group"><label>Decision note</label><textarea class="form-control patronizing-admin-note" rows="2" maxlength="240" placeholder="Optional approval note or rejection reason"></textarea></div>
+          <div class="balance-card-buttons"><button class="button button-primary button-small approve-patronizing" type="submit">Approve &amp; Activate</button><button class="button button-outline button-small reject-patronizing" type="button">Reject</button></div>
+        </form>
+      </article>`;
+    }).join("");
+    bindCopyButtons(patronizingList);
+    patronizingList.querySelectorAll("[data-patronizing-request-id]").forEach(card => {
+      const requestId = card.dataset.patronizingRequestId;
+      const form = card.querySelector(".patronizing-admin-review");
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        await act("admin_approve_patronizing_token_request", {
+          p_request_id: requestId,
+          p_decision_note: card.querySelector(".patronizing-admin-note").value.trim()
+        });
+      });
+      card.querySelector(".reject-patronizing").addEventListener("click", async () => {
+        const note = card.querySelector(".patronizing-admin-note").value.trim();
+        if (!note) return show(alertBox, "Add a reason before rejecting the Patronizing entry.", "danger");
+        if (!window.confirm("Reject this Patronizing F3 Token entry request?")) return;
+        await act("admin_reject_patronizing_token_request", { p_request_id: requestId, p_decision_note: note });
+      });
+    });
+  }
   async function loadCommerceOrders() {
     const { data: orders, error } = await window.matrixSupabase.rpc("admin_get_commerce_orders");
     if (error) return show(alertBox, error.message, "danger");
@@ -879,6 +931,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       const uplineDetails = order.packageType === "matrix_1200_entry"
         ? `<p class="withdrawal-history-note"><strong>1200 Matrix upline:</strong> ${escapeHtml(upline.fullName || "Selected member")} ${upline.username ? `(@${escapeHtml(upline.username)})` : ""} &middot; ${escapeHtml(order.matrixUplineCode || "-")}</p>`
         : "";
+      const purposeDetails = order.orderPurpose && order.orderPurpose !== "standard"
+        ? `<p class="withdrawal-history-note"><strong>Patronizing purpose:</strong> ${escapeHtml(patronizingPurposeLabel(order))}</p>`
+        : "";
+      const discountDetails = Number(order.discountAmount || 0) > 0
+        ? `<div><span>Discount</span><strong>${money(order.discountAmount)} (${Number(order.discountPercent || 0).toLocaleString()}%)</strong></div>`
+        : "";
       const reviewControls = order.status === "pending_shipping_fee"
         ? `<form class="commerce-admin-order-review"><div class="form-group"><label>Shipping fee</label><input class="form-control commerce-admin-shipping-fee" type="number" min="0" max="100000" step="0.01" value="0" required></div><div class="form-group"><label>Admin note</label><textarea class="form-control commerce-admin-note" rows="2" maxlength="320" placeholder="J&T fee note or reason"></textarea></div><div class="balance-card-buttons"><button class="button button-primary button-small approve-commerce-order" type="submit">Approve Fee</button><button class="button button-outline button-small reject-commerce-order" type="button">Reject</button></div></form>`
         : order.status === "payment_submitted"
@@ -886,7 +944,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           : order.status === "payment_approved"
             ? `<form class="commerce-admin-ship-form"><div class="form-grid two-column"><div class="form-group"><label>Courier</label><input class="form-control commerce-admin-courier" type="text" minlength="2" maxlength="40" value="${escapeHtml(order.courierName || "J&T")}" required></div><div class="form-group"><label>Tracking number</label><input class="form-control commerce-admin-tracking" type="text" maxlength="80" placeholder="J&T tracking"></div></div><div class="form-group"><label>Shipping note</label><textarea class="form-control commerce-admin-shipping-note" rows="2" maxlength="240" placeholder="Optional shipping note"></textarea></div><div class="balance-card-buttons"><button class="button button-primary button-small mark-commerce-shipped" type="submit">Mark Shipped</button></div></form>`
           : `<div class="balance-card-buttons"><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div>`;
-      return `<article class="portal-card withdrawal-history-item" data-commerce-order-id="${escapeHtml(order.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(order.orderCode)} &middot; ${escapeHtml(order.packageTypeLabel)}</span><h2>${escapeHtml(packageSnapshot.packageName || "Product order")}</h2></div><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div><div class="withdrawal-history-details"><div><span>Member</span><strong>${escapeHtml(order.fullName)} (@${escapeHtml(order.username)})</strong></div><div><span>Order subtotal</span><strong>${money(order.packageTotal)}</strong></div><div><span>Shipping fee</span><strong>${order.shippingFee == null ? "Pending" : money(order.shippingFee)}</strong></div><div><span>Total due</span><strong>${money(order.amountDue)}</strong></div><div><span>Voucher use</span><strong>${money(order.voucherAmount || 0)}</strong></div><div><span>Requested</span><strong>${new Date(order.createdAt).toLocaleString()}</strong></div></div><p class="withdrawal-history-note"><strong>Ship to:</strong> ${escapeHtml(address.fullName || "-")} &middot; ${escapeHtml(address.phone || "-")} &middot; ${escapeHtml(address.streetAddress || "-")}, ${escapeHtml(address.barangay || "-")}, ${escapeHtml(address.city || "-")}, ${escapeHtml(address.province || "-")}, ${escapeHtml(address.region || "-")} ${escapeHtml(address.postalCode || "")}</p>${uplineDetails}${order.memberNotes ? `<p class="withdrawal-history-note"><strong>Member note:</strong> ${escapeHtml(order.memberNotes)}</p>` : ""}${paymentDetails}${shippingDetails}<div class="commerce-admin-order-items">${items.map(item => `<span>${escapeHtml(item.itemName)}${quantityText(item)} (${money(item.price)}${Number(item.quantity || 1) > 1 ? " each" : ""})</span>`).join("")}</div>${reviewControls}</article>`;
+      return `<article class="portal-card withdrawal-history-item" data-commerce-order-id="${escapeHtml(order.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(order.orderCode)} &middot; ${escapeHtml(order.packageTypeLabel)}</span><h2>${escapeHtml(packageSnapshot.packageName || "Product order")}</h2></div><span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span></div><div class="withdrawal-history-details"><div><span>Member</span><strong>${escapeHtml(order.fullName)} (@${escapeHtml(order.username)})</strong></div><div><span>Order subtotal</span><strong>${money(order.packageTotal)}</strong></div>${discountDetails}<div><span>Shipping fee</span><strong>${order.shippingFee == null ? "Pending" : money(order.shippingFee)}</strong></div><div><span>Total due</span><strong>${money(order.amountDue)}</strong></div><div><span>Voucher use</span><strong>${money(order.voucherAmount || 0)}</strong></div><div><span>Requested</span><strong>${new Date(order.createdAt).toLocaleString()}</strong></div></div><p class="withdrawal-history-note"><strong>Ship to:</strong> ${escapeHtml(address.fullName || "-")} &middot; ${escapeHtml(address.phone || "-")} &middot; ${escapeHtml(address.streetAddress || "-")}, ${escapeHtml(address.barangay || "-")}, ${escapeHtml(address.city || "-")}, ${escapeHtml(address.province || "-")}, ${escapeHtml(address.region || "-")} ${escapeHtml(address.postalCode || "")}</p>${purposeDetails}${uplineDetails}${order.memberNotes ? `<p class="withdrawal-history-note"><strong>Member note:</strong> ${escapeHtml(order.memberNotes)}</p>` : ""}${paymentDetails}${shippingDetails}<div class="commerce-admin-order-items">${items.map(item => `<span>${escapeHtml(item.itemName)}${quantityText(item)} (${money(item.price)}${Number(item.quantity || 1) > 1 ? " each" : ""})</span>`).join("")}</div>${reviewControls}</article>`;
     }).join("");
     commerceOrderList.querySelectorAll("[data-commerce-order-id]").forEach(card => {
       const orderId = card.dataset.commerceOrderId;
@@ -983,6 +1041,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   function commercePaymentStatusLabel(status) {
     return ({ submitted: "For Review", approved: "Approved", rejected: "Rejected" })[status] || capitalize(status || "submitted");
   }
+  function patronizingPurposeLabel(order) {
+    const labels = {
+      patronizing_entry_product: "Product entry toward Patronizing Income",
+      patronizing_monthly_requirement: "Monthly required product purchase",
+      patronizing_exit_discount: `Exit ${Number(order.patronizingExit || 0).toLocaleString()} discount checkout`
+    };
+    return labels[order.orderPurpose] || "Patronizing Income";
+  }
   function openTimelineDecision(request, action) {
     timelineDecision = { requestId: request.id, rpc: action === "approve" ? "admin_approve_timeline_request" : "admin_reject_timeline_request" };
     document.getElementById("timeline-decision-title").textContent = `${action === "approve" ? "Approve" : "Reject"} Timeline Request`;
@@ -1017,6 +1083,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const placements = [];
     if (member.mainPosition) placements.push({ planId: "power3-passive", label: "PHP 1,200 Matrix" });
     if (member.timelinePosition) placements.push({ planId: "timeline-power3", label: "PHP 693 Timeline" });
+    if (member.patronizingPosition) placements.push({ planId: "patronizing-income", label: "Patronizing Income" });
     return placements;
   }
   function exitActionAmountLabel(request) {

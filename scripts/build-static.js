@@ -10,6 +10,7 @@ const publicFiles = [
   "withdrawal-request.html",
   "withdrawal-history.html",
   "passive-income-history.html",
+  "patronizing-income.html",
   "packages-orders.html",
   "timeline-matrix.html",
   "styles.css",
@@ -18,7 +19,7 @@ const publicFiles = [
   "robots.txt"
 ];
 const publicDirectories = ["assets"];
-const publicJavaScript = ["index.js", "portal.js", "runtime-config.js", "supabase-client.js", "withdrawals.js", "passive-income-history.js", "packages-orders.js", "exit-action.js", "timeline-matrix.js", "timeline-matrix-production.js"];
+const publicJavaScript = ["index.js", "portal.js", "runtime-config.js", "supabase-client.js", "withdrawals.js", "passive-income-history.js", "patronizing-income.js", "packages-orders.js", "exit-action.js", "timeline-matrix.js", "timeline-matrix-production.js"];
 const mappedProductionFiles = [
   ["upgrade-entry-production.html", "upgrade-entry.html"],
   ["admin-production.html", "admin.html"],
