@@ -2344,7 +2344,10 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   box-sizing: border-box;
   display: grid;
   gap: 1rem;
-  grid-template-columns: minmax(180px, 0.85fr) minmax(260px, 1.35fr) minmax(160px, 0.72fr) minmax(220px, 0.9fr);
+  grid-template-areas:
+    "heading total action"
+    "lines lines lines";
+  grid-template-columns: minmax(220px, 1fr) minmax(220px, 0.9fr) minmax(260px, 1fr);
   padding: 1rem;
   width: 100%;
 }
@@ -2367,6 +2370,22 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   border-radius: 8px;
   min-width: 0;
   padding: 0.85rem;
+}
+
+.commerce-cart-heading {
+  grid-area: heading;
+}
+
+.commerce-cart-lines {
+  grid-area: lines;
+}
+
+.commerce-cart-total {
+  grid-area: total;
+}
+
+.commerce-cart-action {
+  grid-area: action;
 }
 
 .commerce-cart-heading > div {
@@ -2668,8 +2687,13 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   .commerce-package-browser { grid-template-columns: 1fr; }
   .commerce-product-shop { grid-template-columns: 1fr; }
   .commerce-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .commerce-cart-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .commerce-cart-panel .commerce-voucher-note { grid-column: 1 / -1; }
+  .commerce-cart-panel {
+    grid-template-areas:
+      "heading total"
+      "action action"
+      "lines lines";
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .commerce-cart-checkout { width: 100%; }
   .patronizing-entry-grid { grid-template-columns: 1fr; }
   .package-item-row { grid-template-columns: 86px minmax(150px, 1fr) 112px 82px 82px 112px; }
@@ -2702,8 +2726,14 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   .commerce-product-actions .button,
   .quantity-stepper { width: 100%; }
   .quantity-stepper { grid-template-columns: 44px 1fr 44px; }
-  .commerce-cart-panel { grid-template-columns: 1fr; }
-  .commerce-cart-panel .commerce-voucher-note { grid-column: auto; }
+  .commerce-cart-panel {
+    grid-template-areas:
+      "heading"
+      "total"
+      "action"
+      "lines";
+    grid-template-columns: 1fr;
+  }
   .commerce-cart-line { align-items: stretch; flex-direction: column; }
   .commerce-payment-method-preview,
   .commerce-admin-order-review { grid-template-columns: 1fr; }
