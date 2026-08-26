@@ -23,7 +23,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   menuRoot.style.display = "flex";
   bindSignOut();
 
-  toggle.addEventListener("click", () => {
+  toggle.addEventListener("click", event => {
+    event.preventDefault();
+    event.stopPropagation();
     const open = menu.hidden;
     menu.hidden = !open;
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
