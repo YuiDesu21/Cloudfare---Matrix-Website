@@ -105,6 +105,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     });
     enableDragScroll(commercePackageTabs);
+    commercePackageList.classList.toggle("commerce-product-browser", PRODUCT_PLUS_TYPES.includes(selectedCommercePackageType));
 
     if (PRODUCT_PLUS_TYPES.includes(selectedCommercePackageType)) {
       renderProductPlusShop(visibleProducts, summary, orders);

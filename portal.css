@@ -2056,6 +2056,10 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   margin-top: 1.25rem;
 }
 
+.commerce-package-browser.commerce-product-browser {
+  grid-template-columns: 1fr;
+}
+
 .commerce-browser-package {
   background: rgba(9, 28, 14, 0.92);
   border: 1px solid rgba(255, 201, 28, 0.22);
@@ -2226,7 +2230,7 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
 .commerce-product-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .commerce-product-card {
@@ -2558,6 +2562,7 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   .admin-payment-layout { grid-template-columns: 1fr; }
   .commerce-package-browser { grid-template-columns: 1fr; }
   .commerce-product-shop { grid-template-columns: 1fr; }
+  .commerce-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .commerce-cart-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .commerce-cart-panel .commerce-voucher-note { grid-column: 1 / -1; }
   .commerce-cart-checkout { width: 100%; }
