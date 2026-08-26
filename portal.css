@@ -2336,14 +2336,17 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
 }
 
 .commerce-cart-panel {
-  align-items: center;
-  background: rgba(2, 7, 4, 0.42);
-  border: 1px solid rgba(255, 201, 28, 0.2);
+  align-items: stretch;
+  background: linear-gradient(135deg, rgba(2, 7, 4, 0.72), rgba(12, 35, 18, 0.92));
+  border: 1px solid rgba(255, 201, 28, 0.28);
   border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 201, 28, 0.12);
+  box-sizing: border-box;
   display: grid;
-  gap: 0.9rem 1rem;
-  grid-template-columns: minmax(180px, 0.9fr) minmax(220px, 1.35fr) minmax(180px, 0.85fr) auto;
+  gap: 1rem;
+  grid-template-columns: minmax(180px, 0.85fr) minmax(260px, 1.35fr) minmax(160px, 0.72fr) minmax(220px, 0.9fr);
   padding: 1rem;
+  width: 100%;
 }
 
 .commerce-cart-heading,
@@ -2355,13 +2358,36 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   justify-content: space-between;
 }
 
+.commerce-cart-heading,
+.commerce-cart-lines,
+.commerce-cart-total,
+.commerce-cart-action {
+  background: rgba(255, 201, 28, 0.045);
+  border: 1px solid rgba(255, 201, 28, 0.12);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 0.85rem;
+}
+
+.commerce-cart-heading > div {
+  display: grid;
+  gap: 0.3rem;
+}
+
 .commerce-cart-panel .commerce-voucher-note {
-  grid-column: 3 / 4;
+  font-size: 0.74rem;
   margin: 0;
 }
 
+.commerce-cart-action {
+  align-content: center;
+  display: grid;
+  gap: 0.8rem;
+}
+
 .commerce-cart-checkout {
-  min-width: 190px;
+  min-height: 46px;
+  width: 100%;
 }
 
 .commerce-cart-heading strong,
@@ -2371,18 +2397,26 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
 }
 
 .commerce-cart-heading b {
+  align-self: flex-start;
+  background: rgba(255, 201, 28, 0.1);
+  border: 1px solid rgba(255, 201, 28, 0.16);
+  border-radius: 999px;
   color: var(--gold);
   font-size: 0.78rem;
+  padding: 0.32rem 0.55rem;
+  white-space: nowrap;
 }
 
 .commerce-cart-lines {
   display: grid;
   gap: 0.65rem;
-  max-height: 320px;
+  max-height: 128px;
+  min-height: 72px;
   overflow: auto;
 }
 
 .commerce-cart-empty {
+  align-self: center;
   color: var(--muted);
   font-size: 0.82rem;
   margin: 0;
@@ -2415,8 +2449,11 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
 }
 
 .commerce-cart-total {
-  border-top: 1px solid rgba(255, 201, 28, 0.14);
-  padding-top: 0.8rem;
+  align-content: center;
+  border-top: 0;
+  display: grid;
+  gap: 0.45rem;
+  justify-content: stretch;
 }
 
 .commerce-cart-total span {

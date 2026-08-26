@@ -176,8 +176,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             ${cart.length ? cart.map(item => renderCartLine(item, products, isVoucherMode)).join("") : `<p class="commerce-cart-empty">Add products to start checkout.</p>`}
           </div>
           <div class="commerce-cart-total"><span>${isVoucherMode ? "Voucher total" : "PHP total"}</span><strong>${isVoucherMode ? `${formatNumber(cartTotal)} vouchers` : `PHP ${formatNumber(cartTotal)}`}</strong></div>
-          ${isVoucherMode ? `<p class="commerce-voucher-note">Available: PHP ${formatNumber(availableVoucherValue)}${reservedVoucherValue > 0 ? ` | Reserved: PHP ${formatNumber(reservedVoucherValue)}` : ""}</p>` : `<p class="commerce-voucher-note">Shipping fee is added after admin checks J&T.</p>`}
-          <button class="button button-primary button-small commerce-cart-checkout" type="button" ${canCheckout ? "" : "disabled"}>${isVoucherMode && cartTotal > availableVoucherValue ? "Need More Vouchers" : "Request Checkout"}</button>
+          <div class="commerce-cart-action">
+            ${isVoucherMode ? `<p class="commerce-voucher-note">Available: PHP ${formatNumber(availableVoucherValue)}${reservedVoucherValue > 0 ? ` | Reserved: PHP ${formatNumber(reservedVoucherValue)}` : ""}</p>` : `<p class="commerce-voucher-note">Shipping fee is added after admin checks J&T.</p>`}
+            <button class="button button-primary button-small commerce-cart-checkout" type="button" ${canCheckout ? "" : "disabled"}>${isVoucherMode && cartTotal > availableVoucherValue ? "Need More Vouchers" : "Request Checkout"}</button>
+          </div>
         </aside>
         <section class="commerce-product-grid">
           ${products.length ? products.map(product => renderCommerceProductCard(product, isVoucherMode)).join("") : `<div class="empty-state"><p>No active products for this type yet.</p></div>`}
