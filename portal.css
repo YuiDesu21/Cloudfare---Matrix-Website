@@ -549,6 +549,8 @@ body.portal-body {
   gap: 0.55rem;
   position: relative;
   margin-left: auto;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .user-status-strip[data-member-menu] {
@@ -604,10 +606,12 @@ body.portal-body {
   background: rgba(7, 20, 11, 0.92);
   border: 1px solid rgba(255, 201, 28, 0.35);
   border-radius: 999px;
+  box-sizing: border-box;
   color: #fff;
   cursor: pointer;
   display: flex;
   gap: 0.65rem;
+  min-height: 44px;
   min-width: 180px;
   padding: 0.38rem 0.65rem 0.38rem 0.4rem;
   text-align: left;
@@ -635,7 +639,7 @@ body.portal-body {
 
 .account-menu-copy { display: grid; min-width: 0; }
 .account-menu-copy small { color: var(--muted); font-size: 0.62rem; text-transform: uppercase; }
-.account-menu-copy strong { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-menu-copy strong { max-width: min(150px, 38vw); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .account-chevron { color: var(--gold); margin-left: auto; }
 
 .account-menu {
@@ -645,7 +649,8 @@ body.portal-body {
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
   display: grid;
   min-width: 245px;
-  overflow: hidden;
+  max-height: min(520px, calc(100vh - 92px));
+  overflow: auto;
   padding: 0.4rem;
   position: absolute;
   right: 0;
@@ -708,9 +713,15 @@ body.profile-open { overflow-x: clip; }
 #withdrawal-history:focus { outline: 2px solid var(--gold); outline-offset: 5px; }
 
 @media (max-width: 680px) {
-  .account-menu-copy { display: none; }
-  .account-menu-toggle { min-width: auto; }
-  .account-menu { right: 0; }
+  .account-menu-toggle {
+    min-width: min(180px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+  }
+  .account-menu {
+    min-width: min(245px, calc(100vw - 32px));
+    right: 0;
+    width: min(245px, calc(100vw - 32px));
+  }
   .portal-container { width: min(100% - 20px, 1200px); }
 
   .metrics-row {
@@ -735,6 +746,14 @@ body.profile-open { overflow-x: clip; }
 }
 
 @media (max-width: 380px) {
+  .account-menu-copy { display: none; }
+  .account-menu-toggle {
+    justify-content: center;
+    min-width: 46px;
+    padding: 0.32rem;
+    width: 46px;
+  }
+  .account-chevron { margin-left: 0; }
   .brand small { display: none; }
   .profile-drawer-card { padding: 1.4rem; }
   .matrix-overview-card { padding: 1.15rem; }
@@ -806,6 +825,7 @@ textarea.form-control { min-height: 92px; resize: vertical; }
   .admin-directory-filters { grid-template-columns: 1fr; }
   .admin-member-card .withdrawal-history-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .withdrawal-header-wrapper { align-items: flex-start; flex-direction: column; padding: 0.75rem 0; }
+  .withdrawal-header-wrapper .user-status-strip[data-member-menu] { align-self: flex-end; margin-left: 0; }
   .withdrawal-nav { justify-content: space-between; margin: 0; overflow-x: auto; width: 100%; }
   .withdrawal-nav a { flex: 0 0 auto; }
   .withdrawal-hero { align-items: flex-start; flex-direction: column; gap: 1rem; }
