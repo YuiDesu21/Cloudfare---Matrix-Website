@@ -51,12 +51,26 @@
     <div id="timeline-alert" class="alert" style="display:none"></div>
 
     <section id="timeline-activation-card" class="portal-card matrix-overview-card" style="display:none">
-      <div class="matrix-card-header">
-        <div>
-          <h3>Activate Timeline Matrix</h3>
-          <p>Submit a PHP 693 activation request. Admin approval places your account in the next open timeline slot.</p>
+        <div class="matrix-card-header">
+          <div>
+            <h3>Activate Timeline Matrix</h3>
+            <p>Submit a PHP 693 activation request. Admin approval places your account in the next open timeline slot.</p>
+          </div>
+          <span class="badge">PHP 693</span>
         </div>
-        <span class="badge">PHP 693</span>
+      <div id="timeline-product-progress" class="entry-progress-panel" hidden>
+        <div>
+          <span class="withdrawal-eyebrow">Product Entry Progress</span>
+          <strong id="timeline-product-progress-label">PHP 0 / PHP 693</strong>
+          <p>Approved product purchases count toward Timeline Matrix entry. Placement starts once the requirement is complete.</p>
+        </div>
+        <div class="entry-progress-meter"><span id="timeline-product-progress-bar"></span></div>
+        <dl class="entry-progress-stats">
+          <div><dt>Approved</dt><dd id="timeline-product-approved">PHP 0</dd></div>
+          <div><dt>Pending</dt><dd id="timeline-product-pending">PHP 0</dd></div>
+          <div><dt>Remaining</dt><dd id="timeline-product-remaining">PHP 693</dd></div>
+        </dl>
+        <a class="button button-primary button-small" href="packages-orders.html?type=timeline_entry">Continue Buying Products</a>
       </div>
       <form id="timeline-activation-form" novalidate>
         <div class="withdrawal-fields-grid">

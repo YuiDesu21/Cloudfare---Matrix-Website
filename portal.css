@@ -2584,6 +2584,106 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   padding-top: 1rem;
 }
 
+.product-entry-progress-card {
+  display: grid;
+  gap: 1rem;
+  grid-column: 1 / -1;
+}
+
+.entry-progress-panel {
+  background: rgba(255, 201, 28, 0.055);
+  border: 1px solid rgba(255, 201, 28, 0.18);
+  border-radius: 10px;
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 1.2rem;
+  padding: 1rem;
+}
+
+.entry-progress-panel strong {
+  color: #fff;
+  display: block;
+  font-size: 1.15rem;
+  margin-top: 0.25rem;
+}
+
+.entry-progress-panel p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin: 0.35rem 0 0;
+}
+
+.entry-progress-meter {
+  background: rgba(2, 7, 4, 0.75);
+  border: 1px solid rgba(255, 201, 28, 0.18);
+  border-radius: 999px;
+  height: 12px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.entry-progress-meter span {
+  background: linear-gradient(90deg, var(--gold-soft), var(--gold));
+  display: block;
+  height: 100%;
+  min-width: 0;
+  transition: width 0.25s ease;
+  width: 0;
+}
+
+.entry-progress-stats {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+
+.entry-progress-stats div,
+.entry-progress-compact {
+  background: rgba(2, 7, 4, 0.45);
+  border: 1px solid rgba(255, 201, 28, 0.12);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.entry-progress-stats dt {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.entry-progress-stats dd {
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 900;
+  margin: 0.2rem 0 0;
+}
+
+.entry-progress-compact {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.entry-progress-compact strong,
+.entry-progress-compact small {
+  display: block;
+}
+
+.entry-progress-compact strong {
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.entry-progress-compact small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.45;
+  margin-top: 0.2rem;
+}
+
 .commerce-order-modal-content {
   max-width: 560px;
 }
@@ -2765,6 +2865,7 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   .commerce-cart-line { align-items: stretch; flex-direction: column; }
   .commerce-payment-method-preview,
   .commerce-admin-order-review { grid-template-columns: 1fr; }
+  .entry-progress-stats { grid-template-columns: 1fr; }
 }
 
 @keyframes pulseHighlight {

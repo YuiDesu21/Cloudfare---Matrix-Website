@@ -89,10 +89,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function renderEntryOptions(isActive, pendingToken, pendingProduct) {
-    const disabled = isActive || pendingToken || pendingProduct;
+    const tokenDisabled = isActive || pendingToken || pendingProduct;
+    const productDisabled = isActive || pendingToken;
     const plans = dashboard.plans || [];
     const token = plans.find(plan => plan.entryType === "f3_token") || { entryAmount: 2100, f3Tokens: 35, monthlyRequirement: 1000, monthlyIncome: 200, durationMonths: 24 };
     const product = plans.find(plan => plan.entryType === "products") || { entryAmount: 5818, monthlyRequirement: 1250, monthlyIncome: 250, durationMonths: 24 };
+    const productProgress = getProductEntryProgress(product.entryAmount);
     return `
       <article class="patronizing-entry-option">
         <span>F3 Token Entry</span>
@@ -102,7 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           <li>Required PHP ${formatNumber(token.monthlyRequirement)} worth product purchases per month</li>
           <li>PHP ${formatNumber(token.monthlyIncome)} per month</li>
         </ul>
-        <button class="button button-primary button-small" type="button" data-patronizing-entry="token" ${disabled ? "disabled" : ""}>Request F3 Token Entry</button>
+        <button class="button button-primary button-small" type="button" data-patronizing-entry="token" ${tokenDisabled ? "disabled" : ""}>Request F3 Token Entry</button>
       </article>
       <article class="patronizing-entry-option">
         <span>Product Entry</span>
@@ -112,9 +114,29 @@ document.addEventListener("DOMContentLoaded", async () => {
           <li>Required PHP ${formatNumber(product.monthlyRequirement)} worth product purchases per month</li>
           <li>PHP ${formatNumber(product.monthlyIncome)} per month</li>
         </ul>
-        <a class="button button-primary button-small ${disabled ? "disabled" : ""}" href="${disabled ? "#" : "packages-orders.html?purpose=patronizing_entry_product"}">Choose Products</a>
+        <div class="entry-progress-compact">
+          <div class="entry-progress-meter"><span style="width:${productProgress.percent}%"></span></div>
+          <div><strong>PHP ${formatNumber(productProgress.approved)} approved</strong><small>PHP ${formatNumber(productProgress.pending)} pending · PHP ${formatNumber(productProgress.remaining)} remaining</small></div>
+        </div>
+        <a class="button button-primary button-small ${productDisabled ? "disabled" : ""}" href="${productDisabled ? "#" : "packages-orders.html?purpose=patronizing_entry_product"}">${productProgress.approved > 0 || productProgress.pending > 0 ? "Continue Products" : "Choose Products"}</a>
       </article>
     `;
+  }
+
+  function getProductEntryProgress(targetAmount) {
+    const approvedStatuses = ["payment_approved", "shipped", "received"];
+    const pendingStatuses = ["pending_shipping_fee", "approved_for_payment", "payment_submitted"];
+    const orders = typeof MatrixDB.getCommerceOrders === "function" ? MatrixDB.getCommerceOrders() : [];
+    const entryOrders = orders.filter(order => order.orderPurpose === "patronizing_entry_product");
+    const approved = entryOrders.filter(order => approvedStatuses.includes(order.status)).reduce((sum, order) => sum + Number(order.packageTotal || 0), 0);
+    const pending = entryOrders.filter(order => pendingStatuses.includes(order.status)).reduce((sum, order) => sum + Number(order.packageTotal || 0), 0);
+    const target = Number(targetAmount || 5818);
+    return {
+      approved,
+      pending,
+      remaining: Math.max(target - approved, 0),
+      percent: target > 0 ? Math.min(approved / target * 100, 100) : 0
+    };
   }
 
   function bindEntryButtons() {

@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const queryParams = new URLSearchParams(window.location.search);
   const patronizingPurpose = PATRONIZING_PURPOSES.includes(queryParams.get("purpose")) ? queryParams.get("purpose") : "";
   const patronizingExitNumber = Number(queryParams.get("exit") || 0);
+  const requestedPackageType = COMMERCE_PACKAGE_TYPES.some(type => type.id === queryParams.get("type")) ? queryParams.get("type") : "";
 
   const pageAlert = document.getElementById("packages-orders-alert");
   const content = document.getElementById("packages-orders-content");
@@ -54,6 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let pendingPatronizingExit = null;
   let pendingPaymentOrder = null;
   const productCarts = { product_plus_requirement: [], product_plus_voucher: [] };
+  if (requestedPackageType) selectedCommercePackageType = requestedPackageType;
   if (patronizingPurpose) selectedCommercePackageType = "product_plus_requirement";
 
   if (!window.MatrixDB) {
@@ -233,15 +235,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   function getPatronizingCheckoutContext(patronizing, cartTotal) {
     if (!patronizingPurpose) return null;
     if (patronizingPurpose === "patronizing_entry_product") {
-      const remaining = Math.max(5818 - Number(cartTotal || 0), 0);
+      const progress = getEntryProgressFromOrders(MatrixDB.getCommerceOrders(), "patronizing_entry_product", 5818);
+      const projectedApproved = Number(progress.approved || 0) + Number(cartTotal || 0);
+      const remaining = Math.max(5818 - projectedApproved, 0);
       return {
         purpose: patronizingPurpose,
         eyebrow: "Patronizing Product Entry",
         totalLabel: "Entry Cart",
         totalValue: `PHP ${formatNumber(cartTotal)}`,
-        hint: remaining > 0 ? `Add PHP ${formatNumber(remaining)} more to reach the PHP 5,818 product entry.` : "Shipping fee is added after admin checks J&T.",
-        buttonLabel: remaining > 0 ? "Need More Products" : "Request Entry Checkout",
-        canCheckout: remaining <= 0
+        hint: remaining > 0 ? `After approval, PHP ${formatNumber(remaining)} will remain before Patronizing Income activates.` : "This cart can complete the Patronizing product entry once approved.",
+        buttonLabel: remaining > 0 ? "Request Partial Checkout" : "Request Entry Checkout",
+        canCheckout: cartTotal > 0
       };
     }
     if (patronizingPurpose === "patronizing_monthly_requirement") {
@@ -350,7 +354,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   function getCommercePackageRequestState(commercePackage, summary, orders, availableVoucherValue) {
     const activeStatuses = ["pending_shipping_fee", "approved_for_payment", "payment_submitted", "payment_approved", "shipped"];
     const hasActiveSamePackage = orders.some(order => order.packageId === commercePackage.id && activeStatuses.includes(order.status));
-    const hasActiveSameType = orders.some(order => order.packageType === commercePackage.packageType && activeStatuses.includes(order.status));
     const isMainActive = Boolean(summary && summary.position);
     const isTimelineActive = Boolean(summary && summary.timelineDashboard && summary.timelineDashboard.isActive);
     const hasPendingTimelineRequest = Boolean(summary && summary.timelineDashboard && summary.timelineDashboard.pendingRequest);
@@ -359,10 +362,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (commercePackage.packageType === "matrix_1200_entry" && isMainActive) return { canRequest: false, buttonLabel: "Already Active", hint: "Your PHP 1,200 Matrix is already active." };
     if (commercePackage.packageType === "timeline_entry" && isTimelineActive) return { canRequest: false, buttonLabel: "Already Active", hint: "Your Timeline Matrix is already active." };
     if (commercePackage.packageType === "timeline_entry" && hasPendingTimelineRequest) return { canRequest: false, buttonLabel: "Request Active", hint: "You already have a pending Timeline Matrix request." };
-    if (["matrix_1200_entry", "timeline_entry"].includes(commercePackage.packageType) && hasActiveSameType) return { canRequest: false, buttonLabel: "Request Active", hint: "You already have an active request for this entry type." };
     if (hasActiveSamePackage) return { canRequest: false, buttonLabel: "Order Active", hint: "You already have an active order for this package." };
     if (commercePackage.packageType === "product_plus_voucher" && availableVoucherValue < total) return { canRequest: false, buttonLabel: "Need More Vouchers", hint: "Save more vouchers before requesting this package." };
+    if (commercePackage.packageType === "matrix_1200_entry") {
+      const progress = getEntryProgressFromOrders(orders, "matrix_1200_entry", 1200);
+      const remainingAfterThis = Math.max(1200 - Number(progress.approved || 0) - total, 0);
+      return {
+        canRequest: true,
+        buttonLabel: remainingAfterThis > 0 ? "Buy Toward Entry" : "Complete Entry",
+        hint: remainingAfterThis > 0 ? `Approved: PHP ${formatNumber(progress.approved)}. This order leaves PHP ${formatNumber(remainingAfterThis)} remaining after approval.` : "This order can complete the PHP 1,200 Matrix entry once approved."
+      };
+    }
+    if (commercePackage.packageType === "timeline_entry") {
+      const progress = getEntryProgressFromOrders(orders, "timeline_entry", 693);
+      const remainingAfterThis = Math.max(693 - Number(progress.approved || 0) - total, 0);
+      return {
+        canRequest: true,
+        buttonLabel: remainingAfterThis > 0 ? "Buy Toward Entry" : "Complete Entry",
+        hint: remainingAfterThis > 0 ? `Approved: PHP ${formatNumber(progress.approved)}. This order leaves PHP ${formatNumber(remainingAfterThis)} remaining after approval.` : "This order can complete the Timeline Matrix entry once approved."
+      };
+    }
     return { canRequest: true, buttonLabel: "Request Order", hint: "Shipping fee added after admin checks J&T." };
+  }
+
+  function getEntryProgressFromOrders(orders = [], entryType, target) {
+    const approvedStatuses = ["payment_approved", "shipped", "received"];
+    const pendingStatuses = ["pending_shipping_fee", "approved_for_payment", "payment_submitted"];
+    const filtered = orders.filter(order => {
+      if (entryType === "patronizing_entry_product") return order.orderPurpose === "patronizing_entry_product";
+      return order.packageType === entryType && (order.orderPurpose || "standard") === "standard";
+    });
+    const approved = filtered.filter(order => approvedStatuses.includes(order.status)).reduce((sum, order) => sum + Number(order.packageTotal || 0), 0);
+    const pending = filtered.filter(order => pendingStatuses.includes(order.status)).reduce((sum, order) => sum + Number(order.packageTotal || 0), 0);
+    return { approved, pending, remaining: Math.max(Number(target || 0) - approved, 0) };
   }
 
   function getReservedVoucherValue(orders = []) {

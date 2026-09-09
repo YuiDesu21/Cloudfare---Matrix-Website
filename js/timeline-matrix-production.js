@@ -20,6 +20,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     gcashNumber: document.getElementById("timeline-gcash-number"),
     reference: document.getElementById("timeline-reference"),
     submit: document.getElementById("timeline-submit"),
+    productProgress: document.getElementById("timeline-product-progress"),
+    productProgressLabel: document.getElementById("timeline-product-progress-label"),
+    productProgressBar: document.getElementById("timeline-product-progress-bar"),
+    productApproved: document.getElementById("timeline-product-approved"),
+    productPending: document.getElementById("timeline-product-pending"),
+    productRemaining: document.getElementById("timeline-product-remaining"),
     dashboard: document.getElementById("timeline-dashboard"),
     balance: document.getElementById("timeline-balance"),
     balanceBadge: document.getElementById("timeline-balance-total-badge"),
@@ -36,6 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let member = null;
   let mainDashboard = null;
   let timelineDashboard = null;
+  let productEntryProgress = null;
   let availableBalance = 0;
   let selectedExit = 1;
 
@@ -54,15 +61,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function refresh() {
     hideAlert();
-    const [mainResponse, timelineResponse, pendingExitResponse] = await Promise.all([
+    const [mainResponse, timelineResponse, pendingExitResponse, productProgressResponse] = await Promise.all([
       window.matrixSupabase.rpc("get_my_dashboard"),
       window.matrixSupabase.rpc("get_my_timeline_dashboard"),
-      window.matrixSupabase.rpc("get_pending_exit_balance")
+      window.matrixSupabase.rpc("get_pending_exit_balance"),
+      window.matrixSupabase.rpc("get_my_product_entry_progress", { p_entry_type: "timeline_entry" })
     ]);
-    const error = mainResponse.error || timelineResponse.error || pendingExitResponse.error;
+    const error = mainResponse.error || timelineResponse.error || pendingExitResponse.error || productProgressResponse.error;
     if (error) return showAlert(error.message, "danger");
     mainDashboard = mainResponse.data;
     timelineDashboard = timelineResponse.data;
+    productEntryProgress = productProgressResponse.data;
     member = mainDashboard && mainDashboard.member;
     if (!member) return showAlert("Your member profile could not be loaded.", "danger");
     availableBalance = Math.max(
@@ -89,6 +98,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.statusBadge.className = `badge ${isActive ? "badge-active" : "badge-pending"}`;
     elements.activationCard.style.display = isActive ? "none" : "block";
     elements.dashboard.style.display = isActive ? "grid" : "none";
+    renderProductEntryProgress(isActive);
     elements.submit.disabled = Boolean(pending);
     elements.submit.textContent = pending ? "Timeline Activation Pending" : "Submit Timeline Activation";
 
@@ -109,6 +119,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderPaymentMode() {
     const balancePayment = elements.paymentMethod.value === "available_balance";
     elements.gcashFields.forEach(field => { field.style.display = balancePayment ? "none" : ""; });
+  }
+
+  function renderProductEntryProgress(isActive) {
+    if (!elements.productProgress) return;
+    elements.productProgress.hidden = Boolean(isActive);
+    const progress = productEntryProgress || {};
+    const approved = Number(progress.approvedAmount || 0);
+    const pending = Number(progress.pendingAmount || 0);
+    const target = Number(progress.targetAmount || 693);
+    const remaining = Math.max(Number(progress.remainingAmount || target), 0);
+    const percent = target > 0 ? Math.min(approved / target * 100, 100) : 0;
+    elements.productProgressLabel.textContent = `${money(approved)} / ${money(target)}`;
+    elements.productProgressBar.style.width = `${percent}%`;
+    elements.productApproved.textContent = money(approved);
+    elements.productPending.textContent = money(pending);
+    elements.productRemaining.textContent = money(remaining);
   }
 
   async function submitActivation(event) {

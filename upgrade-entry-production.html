@@ -8,6 +8,19 @@
     <section id="upgrade-layout" class="withdrawal-form-layout" style="display:none">
       <aside class="portal-card withdrawal-balance-card"><span class="withdrawal-eyebrow">Activation amount</span><strong class="withdrawal-balance-value">PHP 1,200</strong><div class="withdrawal-balance-row"><span>Allocation</span><strong>PHP 900 Passive + PHP 300 Matrix</strong></div><div class="withdrawal-balance-row"><span>GCash name</span><strong>Anelyn Lariba</strong></div><div class="withdrawal-balance-row"><span>GCash number</span><strong>09912054007</strong></div><p>The administrator verifies payment outside the website before activating Entry.</p></aside>
       <section class="portal-card withdrawal-form-card"><div class="withdrawal-section-heading"><div><span class="withdrawal-step">01</span><h2>Payment Verification</h2></div><span id="upgrade-status" class="badge badge-pending">Not submitted</span></div><form id="upgrade-form"><div class="form-group"><label for="upgrade-upline-code">1200 Matrix Upline Code</label><input id="upgrade-upline-code" class="form-control" maxlength="14" placeholder="M1200-XXXXXXXX" pattern="M1200-[A-Za-z0-9]{8}" autocomplete="off" required><small class="upgrade-help">Ask an active 1200 Matrix member with an open direct slot for this code.</small></div><div class="form-group"><label for="upgrade-reference">GCash Transaction Reference Number</label><input id="upgrade-reference" class="form-control" maxlength="40" pattern="[A-Za-z0-9-]{6,40}" autocomplete="off" required><small class="upgrade-help">Enter the exact 6–40 character reference from your receipt.</small></div><label class="withdrawal-confirmation"><input id="upgrade-confirm" type="checkbox" required><span>I confirm that I sent PHP 1,200 to the displayed GCash account, entered the correct reference, and used the right 1200 Matrix upline code.</span></label><button id="upgrade-submit" class="button button-primary withdrawal-submit" type="submit">Request Entry Activation</button></form></section>
+      <section id="upgrade-product-progress" class="portal-card product-entry-progress-card">
+        <div class="matrix-card-header">
+          <div><h3>Product Entry Progress</h3><p>Buy entry packages gradually. Approved payments count toward the PHP 1,200 requirement.</p></div>
+          <span id="upgrade-product-progress-badge" class="badge">PHP 0</span>
+        </div>
+        <div class="entry-progress-meter"><span id="upgrade-product-progress-bar"></span></div>
+        <dl class="entry-progress-stats">
+          <div><dt>Approved</dt><dd id="upgrade-product-approved">PHP 0</dd></div>
+          <div><dt>Pending</dt><dd id="upgrade-product-pending">PHP 0</dd></div>
+          <div><dt>Remaining</dt><dd id="upgrade-product-remaining">PHP 1,200</dd></div>
+        </dl>
+        <a class="button button-primary button-small" href="packages-orders.html?type=matrix_1200_entry">Continue Buying Products</a>
+      </section>
     </section>
   </main>
   <script src="js/runtime-config.js"></script><script src="vendor/supabase.js"></script><script src="js/supabase-client.js"></script><script src="js/member-navigation.js"></script><script src="js/upgrade-entry-production.js"></script>
