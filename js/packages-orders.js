@@ -57,6 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let pendingPatronizingExit = null;
   let pendingPaymentOrder = null;
   const productCarts = { product_plus_requirement: [], product_plus_voucher: [] };
+  const checkoutDraftKey = "matrix-checkout-address-draft";
   if (requestedPackageType) selectedCommercePackageType = requestedPackageType;
   if (patronizingPurpose || budgetPurpose) selectedCommercePackageType = "product_plus_requirement";
 
@@ -72,6 +73,24 @@ document.addEventListener("DOMContentLoaded", async () => {
       showAccessError("Your member session is no longer available. Please sign in again.");
       return;
     }
+    try {
+      const draft = JSON.parse(sessionStorage.getItem(checkoutDraftKey) || "null");
+      if (draft && draft.memberId === member.id && draft.search === window.location.search
+        && PRODUCT_PLUS_TYPES.includes(draft.type) && Array.isArray(draft.items)) {
+        const products = MatrixDB.getCommerceProducts();
+        productCarts[draft.type] = draft.items.map(item => {
+          const product = products.find(candidate => candidate.id === item.productId && candidate.isActive);
+          const quantity = Number(item.quantity);
+          return product && Number.isInteger(quantity) && quantity >= 1 && quantity <= 999
+            ? { productId: product.id, quantity, price: Number(product.price), productName: product.productName }
+            : null;
+        }).filter(Boolean);
+        selectedCommercePackageType = draft.type;
+      }
+    } catch (_) {
+      // A stale checkout draft should never block the catalog.
+    }
+    sessionStorage.removeItem(checkoutDraftKey);
     content.style.display = "block";
     renderCommercePackagesPanel();
   } catch (error) {
@@ -82,7 +101,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   commerceOrderModal.addEventListener("click", event => { if (event.target === commerceOrderModal) closeCommerceOrderModal(); });
   commerceOrderNotes.addEventListener("input", () => { commerceOrderNotesCount.textContent = commerceOrderNotes.value.length; });
   commerceOrderAddress.addEventListener("change", renderSelectedCommerceAddress);
-  commerceOrderAddAddress.addEventListener("click", () => { window.location.href = "portal.html#profile"; });
+  commerceOrderAddAddress.addEventListener("click", () => {
+    if (pendingProductCartType) {
+      sessionStorage.setItem(checkoutDraftKey, JSON.stringify({
+        memberId: member.id,
+        search: window.location.search,
+        type: pendingProductCartType,
+        items: productCarts[pendingProductCartType].map(item => ({ productId: item.productId, quantity: item.quantity }))
+      }));
+    }
+    const returnTo = `packages-orders.html${window.location.search}`;
+    window.location.href = `portal.html?returnTo=${encodeURIComponent(returnTo)}#profile`;
+  });
   commerceOrderForm.addEventListener("submit", handleCommerceOrderSubmit);
   commercePaymentClose.addEventListener("click", closeCommercePaymentModal);
   commercePaymentModal.addEventListener("click", event => { if (event.target === commercePaymentModal) closeCommercePaymentModal(); });
@@ -301,12 +331,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function renderCommerceProductCard(product, isVoucherMode) {
+    const budgetCategory = { pc: "PC Products", groceries: "Groceries", lifestyle: "Lifestyle" }[product.budgetCategory] || product.budgetCategory;
     return `
       <article class="commerce-product-card" data-product-id="${escapeHtml(product.id)}">
         ${product.photoData ? `<img src="${escapeHtml(product.photoData)}" alt="${escapeHtml(product.productName)}" loading="lazy">` : `<span class="commerce-product-empty">No Photo</span>`}
         <div class="commerce-product-body">
           <span>${budgetPurpose ? "Budget Plan Product" : escapeHtml(product.productTypeLabel)}</span>
-          ${budgetPurpose ? `<small>${escapeHtml(product.budgetCategory.replace(/_/g, " "))} | ${({ pc: 25, groceries: 10, lifestyle: 25, f3_token: 80 })[product.budgetCategory]}% qualifies</small>` : ""}
+          ${budgetPurpose ? `<small>${escapeHtml(budgetCategory)} | ${({ pc: 25, groceries: 10, lifestyle: 25 })[product.budgetCategory]}% qualifies</small>` : ""}
           <h4>${escapeHtml(product.productName)}</h4>
           ${product.description ? `<p>${escapeHtml(product.description)}</p>` : ""}
           <strong>${isVoucherMode ? `${formatNumber(product.price)} vouchers` : `PHP ${formatNumber(product.price)}`}</strong>

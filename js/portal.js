@@ -904,6 +904,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       renderShippingAddresses(MatrixDB.getShippingAddresses());
       resetShippingAddressForm();
       showShippingAddressAlert("Shipping address saved.", "success");
+      const returnTo = params.get("returnTo");
+      if (returnTo) {
+        const returnUrl = new URL(returnTo, window.location.origin);
+        if (returnUrl.origin === window.location.origin && returnUrl.pathname === "/packages-orders.html") {
+          window.location.assign(`${returnUrl.pathname}${returnUrl.search}`);
+        }
+      }
     } catch (error) {
       showShippingAddressAlert(error.message, "danger");
     } finally {

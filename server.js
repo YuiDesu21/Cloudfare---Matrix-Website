@@ -14,6 +14,8 @@ const MAX_DATABASE_BACKUPS = 50;
 const MATRIX_RULES_FILE = path.join(DATA_DIR, "matrix-rules.json");
 const SUPABASE_BROWSER_FILE = path.join(__dirname, "node_modules", "@supabase", "supabase-js", "dist", "umd", "supabase.js");
 const SANDBOX_RUNTIME_CONFIG = path.join(__dirname, "js", "runtime-config.sandbox.js");
+const STAGING_RUNTIME_CONFIG = path.join(__dirname, "js", "runtime-config.staging.js");
+const PRODUCTION_DATA_ADAPTER = path.join(__dirname, "matrix-db-production.js");
 const PRODUCTION_ENTRY_PAGE = path.join(__dirname, "upgrade-entry-production.html");
 const PRODUCTION_ADMIN_PAGE = path.join(__dirname, "admin-production.html");
 const AUTH_SESSIONS = new Map();
@@ -2240,12 +2242,16 @@ function serveStatic(request, response) {
     ? SUPABASE_BROWSER_FILE
     : (pathname === "/js/runtime-config.js" && process.env.MATRIX_MODE === "sandbox")
       ? SANDBOX_RUNTIME_CONFIG
+      : (pathname === "/js/runtime-config.js" && process.env.MATRIX_MODE === "staging")
+        ? STAGING_RUNTIME_CONFIG
+      : (pathname === "/matrix-db.js" && process.env.MATRIX_MODE === "staging")
+        ? PRODUCTION_DATA_ADAPTER
       : (pathname === "/upgrade-entry.html" && process.env.MATRIX_MODE !== "sandbox")
         ? PRODUCTION_ENTRY_PAGE
         : (pathname === "/admin.html" && process.env.MATRIX_MODE !== "sandbox")
           ? PRODUCTION_ADMIN_PAGE
       : path.normalize(path.join(PUBLIC_DIR, pathname));
-  const isApprovedExternalFile = filePath === SUPABASE_BROWSER_FILE || filePath === SANDBOX_RUNTIME_CONFIG;
+  const isApprovedExternalFile = filePath === SUPABASE_BROWSER_FILE || filePath === SANDBOX_RUNTIME_CONFIG || filePath === STAGING_RUNTIME_CONFIG;
   if ((!isApprovedExternalFile && !filePath.startsWith(PUBLIC_DIR)) || filePath.includes(`${path.sep}.git${path.sep}`) || filePath.startsWith(DATA_DIR)) {
     response.writeHead(403);
     response.end("Forbidden");
