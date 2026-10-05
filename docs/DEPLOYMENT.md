@@ -1,8 +1,17 @@
 # Supabase and Cloudflare deployment handoff
 
-## Current status (July 22, 2026)
+## Current status (October 6, 2026)
 
-- Supabase project `rvylugnfclguwhdvxprn` is linked and healthy.
+- This checkout is linked to staging project `sssfvmyukpmzbktdlybg`, not live.
+- Staging has migrations through `202610050015`; live project `rvylugnfclguwhdvxprn` stops at `202609090002`. Do not run a live migration from the staging link.
+- The 693 Timeline investment schedule remains in `docs/TIMELINE-INVESTMENT-DRAFT.sql` and is not a deployable migration.
+- The live database was exported to a local, Git-ignored archive. Archive readability was checked, but an isolated restore has not been rehearsed. Supabase Storage files are not in the database archive.
+- Staging rollback-only funds and payment-review smoke tests pass. The clean-room pilot, JavaScript checks, static build, and error-level staging security advisors pass. Signed-in browser acceptance testing is still pending.
+- Before live rollout: confirm the investment terms and required legal authority, back up Storage files, rehearse a restore, complete signed-in member/admin acceptance testing, and take a fresh backup immediately before applying migrations.
+
+## Historical status (July 22, 2026)
+
+- Supabase project `rvylugnfclguwhdvxprn` was linked and healthy at that time.
 - Local and remote migration history match through `202607220004`.
 - James is verified as the original Owner and administrator.
 - Supabase Auth is reachable and public signup is enabled.
@@ -22,7 +31,7 @@ The repository contains the production Supabase database, browser adapter, Cloud
 - The production build uses `matrix-db-production.js`; local JSON and sandbox admin capabilities are not included.
 - `npm run sandbox` runs the legacy JSON-backed testing environment locally. `npm run build` creates the Supabase-only Cloudflare artifact.
 
-## Owner actions required
+## Historical setup checklist
 
 1. Create a Supabase project and save its project URL and publishable key.
 2. Install the Supabase CLI, link the project, and apply the migration to a non-production project first.
@@ -33,7 +42,7 @@ The repository contains the production Supabase database, browser adapter, Cloud
 7. Provide a sanitized export of legitimate members. Do not migrate `data/matrix-db.json` as production data without reviewing every record.
 8. Obtain legal and privacy approval before accepting deposits, investments, or withdrawals.
 
-## Remaining engineering after Supabase is available
+## Historical implementation checklist
 
 1. Add Supabase Auth signup, login, recovery, and logout to the member portal.
 2. Replace the browser's `sessionStorage` member/admin flags with Supabase sessions and role checks.

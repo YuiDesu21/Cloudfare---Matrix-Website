@@ -15,6 +15,8 @@ declare
   topup_id uuid;
   withdrawal_id uuid;
   investment_request_id uuid;
+  contract_id uuid;
+  renewal_index integer;
   transfer_result jsonb;
   available_main numeric;
   available_investment numeric;
@@ -36,10 +38,13 @@ begin
 
   update public.user_roles set role = 'admin' where user_id = owner_id;
   insert into public.organization_owners(user_id) values (owner_id);
-  insert into public.matrix_positions(member_id, plan_id, parent_member_id)
-  values (owner_id, 'budget-plan', null);
-  insert into public.budget_plan_rank_progress(member_id, rank_number)
-  values (owner_id, 0);
+  if not exists (select 1 from public.matrix_positions
+    where plan_id = 'budget-plan' and parent_member_id is null) then
+    insert into public.matrix_positions(member_id, plan_id, parent_member_id)
+    values (owner_id, 'budget-plan', null);
+    insert into public.budget_plan_rank_progress(member_id, rank_number)
+    values (owner_id, 0);
+  end if;
   insert into public.payment_methods(id, method_name, account_name, account_number)
   values (payment_method_id, 'Test Bank', 'Staging Test Owner', 'TEST-ACCOUNT-001');
 
@@ -206,6 +211,72 @@ begin
     if sqlerrm not like '%Unlocked Investment Funds are not enough%' then
       raise;
     end if;
+  end;
+
+  available_main := public.member_main_available(member_id);
+  topup_id := (public.request_member_fund_topup(333, payment_method_id,
+    'STAGING-TOPUP-REJECT') ->> 'id')::uuid;
+  perform set_config('request.jwt.claim.sub', owner_id::text, true);
+  perform public.admin_review_member_fund_topup(topup_id, false, 'Smoke test rejection');
+  perform set_config('request.jwt.claim.sub', member_id::text, true);
+  if public.member_main_available(member_id) <> available_main then
+    raise exception 'Rejected top-up changed available Main Funds.';
+  end if;
+
+  topup_id := (public.request_member_fund_topup(2000, payment_method_id,
+    'STAGING-TOPUP-RENEWAL') ->> 'id')::uuid;
+  perform set_config('request.jwt.claim.sub', owner_id::text, true);
+  perform public.admin_review_member_fund_topup(topup_id, true, 'Smoke test');
+  perform set_config('request.jwt.claim.sub', member_id::text, true);
+  available_main := public.member_main_available(member_id);
+
+  withdrawal_id := (public.request_withdrawal(500,
+    'Staging Funds Test', '09000000000', '') ->> 'id')::uuid;
+  if public.member_main_available(member_id) <> available_main - 500 then
+    raise exception 'Pending withdrawal was not reserved.';
+  end if;
+  perform set_config('request.jwt.claim.sub', owner_id::text, true);
+  perform public.admin_reject_withdrawal(withdrawal_id);
+  perform set_config('request.jwt.claim.sub', member_id::text, true);
+  if public.member_main_available(member_id) <> available_main then
+    raise exception 'Rejected withdrawal did not release reserved funds.';
+  end if;
+
+  insert into public.budget_plan_rank_progress(member_id, rank_number)
+  select member_id, rank from generate_series(2, 4) as rank;
+  perform public.transfer_main_to_investment(1125);
+
+  for renewal_index in 1..3 loop
+    investment_request_id := (public.request_budget_investment(4::smallint) ->> 'id')::uuid;
+    if (select months from public.budget_investment_requests
+        where id = investment_request_id) <> 2 then
+      raise exception 'Gentleness contract must last two months.';
+    end if;
+    perform set_config('request.jwt.claim.sub', owner_id::text, true);
+    perform public.admin_review_budget_investment(investment_request_id, true, 'Smoke test');
+    select id into contract_id from public.budget_investment_contracts
+    where request_id = investment_request_id;
+    if (select count(*) from public.budget_investment_income income
+        where income.contract_id = contract_id) <> 2 then
+      raise exception 'Contract did not schedule two monthly payments.';
+    end if;
+    perform set_config('request.jwt.claim.sub', member_id::text, true);
+    if public.member_investment_available(member_id) <> 0 then
+      raise exception 'New contract principal was not locked.';
+    end if;
+    update public.budget_investment_contracts
+    set started_at = now() - interval '3 months',
+        unlocks_at = now() - interval '1 month'
+    where id = contract_id;
+    if public.member_investment_available(member_id) <> 1125 then
+      raise exception 'Matured contract principal was not unlocked.';
+    end if;
+  end loop;
+  begin
+    perform public.request_budget_investment(4::smallint);
+    raise exception 'Fourth Gentleness contract should be rejected.';
+  exception when sqlstate '22023' then
+    if sqlerrm not like '%completed its eligible investment months%' then raise; end if;
   end;
 end;
 $$;

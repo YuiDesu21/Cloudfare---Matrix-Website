@@ -1126,9 +1126,15 @@ function getOperationsReport(db) {
     }
   }
   const activeMemberIds = new Set((db.members || []).filter(member => member.status === "active").map(member => member.id));
+  const knownMemberIds = new Set((db.members || []).map(member => member.id));
+  const activeTimelineMemberIds = new Set((db.timelineRequests || [])
+    .filter(request => request.status === "approved").map(request => request.memberId));
   for (const position of db.positions || []) {
-    if (!activeMemberIds.has(position.memberId)) {
-      exceptions.push({ category: "Matrix placement", severity: "high", reference: position.id, detail: "Placement belongs to a member that is not active." });
+    const activationMatchesPlan = position.planId === "timeline-power3"
+      ? activeTimelineMemberIds.has(position.memberId)
+      : position.planId === "power3-passive" && activeMemberIds.has(position.memberId);
+    if (!knownMemberIds.has(position.memberId) || !activationMatchesPlan) {
+      exceptions.push({ category: "Matrix placement", severity: "high", reference: position.id, detail: "Placement has no approved activation for its matrix." });
     }
   }
   for (const review of db.identityReviews || []) {

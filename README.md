@@ -66,7 +66,7 @@ Live site: https://matrix-consumer-services.pages.dev
 
 The static production build uses Supabase Auth, PostgreSQL transactions, Row Level Security, member/admin sessions, Owner-only finances, administrator invitations, Products Plus claims, non-expiring vouchers, and partial voucher redemptions. Payment verification, placement, approvals, GCash payouts, and voucher fulfillment remain intentionally manual for the local-business phase.
 
-The production database is linked to Supabase project `rvylugnfclguwhdvxprn`. All migrations through `202607220004` are applied. James is the original Owner; invited administrators can process requests but cannot access Owner finances or review their own requests.
+The local checkout is currently linked to staging project `sssfvmyukpmzbktdlybg`. Live project `rvylugnfclguwhdvxprn` has migrations through `202609090002`; the 14 October migrations are staged but not live. James is the original Owner; invited administrators can process requests but cannot access Owner finances or review their own requests.
 
 Read [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the Cloudflare Pages settings and launch checks.
 

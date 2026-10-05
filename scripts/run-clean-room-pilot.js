@@ -68,7 +68,9 @@ async function registerMember({ fullName, username, email, phone, walletAddress,
 async function runPilot() {
   fs.copyFileSync(path.join(root, "server.js"), path.join(tempRoot, "server.js"));
   fs.mkdirSync(path.join(tempRoot, "data"));
-  fs.copyFileSync(path.join(root, "data", "matrix-rules.json"), path.join(tempRoot, "data", "matrix-rules.json"));
+  if (fs.existsSync(path.join(root, "data", "matrix-rules.json"))) {
+    fs.copyFileSync(path.join(root, "data", "matrix-rules.json"), path.join(tempRoot, "data", "matrix-rules.json"));
+  }
   fs.writeFileSync(path.join(tempRoot, "data", "matrix-db.json"), "{}", "utf8");
   server = spawn(process.execPath, ["server.js"], {
     cwd: tempRoot,
@@ -126,10 +128,6 @@ async function runPilot() {
     requestId: childTimeline.body.data.id, decisionNote: "Verified clean-room child Timeline payment."
   }, adminToken);
   assert(childTimelineApproved.body.ok && childTimelineApproved.body.data.parentMemberId === rootId, "Timeline did not place the second member under the first member.");
-  const rootMainSummary = await request("getMemberMatrixSummary", { memberId: rootId, planId: "power3-passive" }, rootToken);
-  const mainExitOne = rootMainSummary.body.data.exits.find(exit => Number(exit.exit) === 1);
-  assert(mainExitOne.qualifiedDownlines === 1, "Timeline positions leaked into the Main Matrix downline count.");
-
   const duplicateMember = await registerMember({
     fullName: "Pilot Duplicate", username: "pilotduplicate", email: "pilot.duplicate@example.test",
     phone: "09171230003", walletAddress: "PilotWalletDuplicate"
@@ -138,6 +136,19 @@ async function runPilot() {
     memberId: duplicateMember.account.id, paymentMethod: "gcash", gcashName: "Pilot Duplicate", gcashNumber: "09171230003", referenceNumber: "PILOT-TIMELINE-CHILD"
   }, duplicateMember.token);
   assert(!duplicateTimeline.body.ok && /already associated/.test(duplicateTimeline.body.error), "Duplicate payment reference was not blocked.");
+  const timelineOnly = await request("requestTimelineActivation", {
+    memberId: duplicateMember.account.id, paymentMethod: "gcash", gcashName: "Pilot Duplicate",
+    gcashNumber: "09171230003", referenceNumber: "PILOT-TIMELINE-ONLY"
+  }, duplicateMember.token);
+  assert(timelineOnly.body.ok, "Timeline-only activation request failed.");
+  const timelineOnlyApproved = await request("approveTimelineActivation", {
+    requestId: timelineOnly.body.data.id, decisionNote: "Verified clean-room Timeline-only payment."
+  }, adminToken);
+  assert(timelineOnlyApproved.body.ok, "Timeline-only activation approval failed.");
+  const rootMainSummary = await request("getMemberMatrixSummary", { memberId: rootId, planId: "power3-passive" }, rootToken);
+  const rootTimelineSummary = await request("getMemberMatrixSummary", { memberId: rootId, planId: "timeline-power3" }, rootToken);
+  assert(rootMainSummary.body.data.descendantCount === 1 && rootTimelineSummary.body.data.descendantCount === 2,
+    "Timeline positions leaked into the Main Matrix downline count.");
 
   const anonymousDirectory = await request("getMembers");
   assert(!anonymousDirectory.body.ok, "Anonymous directory access was allowed.");
@@ -148,6 +159,8 @@ async function runPilot() {
   assert(decisions.body.ok && decisions.body.data.length >= 4, "Approval decision history was not recorded.");
   const report = await request("getOperationsReport", {}, adminToken);
   assert(report.body.ok && report.body.data.audit.valid, "Operations report or audit integrity check failed.");
+  assert(!report.body.data.exceptions.some(exception => exception.severity === "high"),
+    "Operations report found a high-severity reconciliation exception.");
 
   const signedOut = await request("signOut", {}, childToken);
   assert(signedOut.body.ok, "Member sign-out failed.");
@@ -164,7 +177,9 @@ async function runPilot() {
     decisionHistory: true,
     auditIntegrity: true,
     serverSignOut: true,
-    reconciliationExceptions: report.body.data.exceptions.length
+    reconciliationExceptions: report.body.data.exceptions.map(exception => ({
+      category: exception.category, severity: exception.severity, detail: exception.detail
+    }))
   };
 }
 
