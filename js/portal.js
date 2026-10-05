@@ -702,6 +702,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     headerAvatarLetter.textContent = member.fullName.charAt(0).toUpperCase();
     headerUserStatus.style.display = "flex";
 
+    const summary = MatrixDB.getMemberMatrixSummary(member.id);
+    const adminMenuButton = accountMenu.querySelector('[data-account-action="admin"]');
+    if (adminMenuButton) adminMenuButton.hidden = !(FEATURES.adminPortal && summary && summary.isAdmin);
+
     if (member.status !== "active") {
       renderFreeAccountDashboard(member);
       return;
@@ -739,11 +743,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     activeTreeCard.style.display = "block";
 
     // Find position detail
-    const summary = MatrixDB.getMemberMatrixSummary(member.id);
     const pos = summary && summary.position ? summary.position : MatrixDB.getPositionByMemberId(member.id);
     const positions = pos ? [pos] : [];
-    const adminMenuButton = accountMenu.querySelector('[data-account-action="admin"]');
-    if (adminMenuButton) adminMenuButton.hidden = !(FEATURES.adminPortal && summary && summary.isAdmin);
     renderMatrixOverview(member, positions, summary);
     renderBalancePanel(member, summary);
     renderProductsPlusPanel(member, summary);
