@@ -48,7 +48,9 @@
           <button type="button" data-account-action="packages">Packages &amp; Orders</button>
           <button type="button" data-account-action="patronizing">Patronizing Income</button>
           <button type="button" data-account-action="timeline">Timeline Matrix</button>
-          <button type="button" data-account-action="withdraw">Balance Withdrawal</button>
+          <button type="button" data-account-action="budget">Budget Plan</button>
+          <button type="button" data-account-action="funds">Main Funds</button>
+          <button type="button" data-account-action="withdraw">Withdraw</button>
           <button type="button" data-account-action="history">Withdrawal History</button>
           <button type="button" data-account-action="income">Passive Income History</button>
           <button type="button" data-account-action="entry">Entry Activation</button>
@@ -390,19 +392,19 @@
         <div id="balance-card" class="portal-card matrix-overview-card" style="display: none;" tabindex="-1">
           <div class="matrix-card-header">
             <div>
-              <h3>Balance &amp; Claims</h3>
-              <p>Review passive income that has become due, request withdrawal, and track where each balance came from.</p>
+              <h3>Matrix Income &amp; Claims</h3>
+              <p>Review due matrix income and transfer it to Main Funds before requesting a withdrawal.</p>
             </div>
             <span id="balance-total-badge" class="badge">PHP 0</span>
           </div>
 
           <div class="balance-actions-grid balance-actions-compact">
             <section class="matrix-status-panel">
-              <span class="matrix-qualification qualified">Available Balance</span>
+              <span class="matrix-qualification qualified">Due Matrix Income</span>
               <h4 id="balance-total">PHP 0</h4>
-              <p id="balance-summary">Passive income is added here when due. Withdrawal requests are checked and paid manually by admin.</p>
+              <p id="balance-summary">Due income stays with its matrix until you transfer it to Main Funds.</p>
               <div class="balance-card-buttons">
-                <button id="request-withdrawal-btn" class="button button-primary button-small">Request Withdrawal</button>
+                <button id="request-withdrawal-btn" class="button button-primary button-small">Open Main Funds</button>
                 <a id="passive-income-history-link" class="button button-outline button-small" href="passive-income-history.html">Passive Income History</a>
               </div>
             </section>

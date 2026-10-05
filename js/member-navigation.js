@@ -5,7 +5,9 @@
     { id: "packages-orders", label: "Packages & Orders", href: "packages-orders.html" },
     { id: "patronizing-income", label: "Patronizing Income", href: "patronizing-income.html" },
     { id: "timeline-matrix", label: "Timeline Matrix", href: "timeline-matrix.html" },
-    { id: "withdrawal-request", label: "Balance Withdrawal", href: "withdrawal-request.html" },
+    { id: "budget-plan", label: "Budget Plan", href: "budget-plan.html" },
+    { id: "main-funds", label: "Main Funds", href: "main-funds.html" },
+    { id: "withdrawal-request", label: "Withdraw", href: "withdrawal-request.html" },
     { id: "withdrawal-history", label: "Withdrawal History", href: "withdrawal-history.html" },
     { id: "passive-income-history", label: "Passive Income History", href: "passive-income-history.html" },
     { id: "upgrade-entry-production", label: "Entry Activation", href: "upgrade-entry-production.html" }

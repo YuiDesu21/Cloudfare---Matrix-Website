@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Main Funds | Matrix Portal</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body class="portal-body">
+  <header class="portal-header site-header">
+    <div class="container header-wrapper withdrawal-header-wrapper">
+      <a class="brand" href="portal.html"><span class="brand-mark">M</span><span><strong>Matrix</strong><small>Member Funds</small></span></a>
+      <div class="user-status-strip" data-member-menu data-current-page="main-funds">
+        <button class="account-menu-toggle" type="button" aria-label="Open member menu" aria-expanded="false" data-member-menu-toggle>
+          <span class="header-avatar" data-member-menu-avatar>M</span>
+          <span class="account-menu-copy"><small>Member menu</small><strong data-member-menu-name>Member</strong></span>
+          <span class="account-chevron" aria-hidden="true">&#9662;</span>
+        </button>
+        <nav class="account-menu" aria-label="Member pages" data-member-menu-list hidden></nav>
+      </div>
+    </div>
+  </header>
+  <main class="portal-container withdrawal-page">
+    <section class="withdrawal-hero"><div><span class="withdrawal-eyebrow">Member Finance</span><h1>Main Funds</h1>
+      <p>Transfer matrix earnings, verify top-ups, and manage unlocked Investment Funds.</p></div>
+      <a class="button button-outline button-small" href="withdrawal-request.html">Withdraw</a></section>
+    <div id="funds-alert" class="alert" hidden></div>
+    <div id="funds-content" hidden>
+      <section class="funds-summary" aria-label="Fund balances">
+        <div><span>Main Funds</span><strong id="funds-main">PHP 0.00</strong><small id="funds-main-reserved"></small></div>
+        <div><span>Investment Funds available</span><strong id="funds-investment-available">PHP 0.00</strong><small id="funds-investment-total"></small></div>
+        <div><span>Investment principal locked</span><strong id="funds-locked">PHP 0.00</strong><small>Unlocks at contract end</small></div>
+      </section>
+
+      <section class="funds-operations">
+        <div class="funds-operation">
+          <h2>Matrix Income</h2>
+          <form id="funds-matrix-form">
+            <div class="form-group"><label for="funds-matrix-plan">Source matrix</label><select id="funds-matrix-plan" class="form-control" required></select></div>
+            <div class="form-group"><label for="funds-matrix-amount">Transfer amount (PHP)</label><input id="funds-matrix-amount" class="form-control" type="number" min="0.01" step="0.01" required></div>
+            <p id="funds-matrix-note" class="funds-note"></p>
+            <button class="button button-primary button-small" type="submit">Transfer to Main Funds</button>
+          </form>
+        </div>
+        <div class="funds-operation">
+          <h2>Top Up Main Funds</h2>
+          <form id="funds-topup-form">
+            <div class="form-group"><label for="funds-topup-amount">Amount (PHP)</label><input id="funds-topup-amount" class="form-control" type="number" min="1" step="0.01" required></div>
+            <div class="form-group"><label for="funds-topup-method">Payment method</label><select id="funds-topup-method" class="form-control" required></select></div>
+            <div id="funds-payment-details" class="funds-payment-details" hidden></div>
+            <div class="form-group"><label for="funds-topup-reference">Payment reference</label><input id="funds-topup-reference" class="form-control" type="text" minlength="6" maxlength="80" pattern="[A-Za-z0-9-]+" required></div>
+            <button class="button button-primary button-small" type="submit">Submit Top-Up</button>
+          </form>
+        </div>
+        <div class="funds-operation">
+          <h2>Investment Funds</h2>
+          <form id="funds-to-investment-form">
+            <div class="form-group"><label for="funds-to-investment-amount">From Main Funds (PHP)</label><input id="funds-to-investment-amount" class="form-control" type="number" min="0.01" step="0.01" required></div>
+            <button class="button button-primary button-small" type="submit">Transfer to Investment</button>
+          </form>
+          <form id="funds-to-main-form">
+            <div class="form-group"><label for="funds-to-main-amount">Unlocked funds to Main (PHP)</label><input id="funds-to-main-amount" class="form-control" type="number" min="0.01" step="0.01" required></div>
+            <button class="button button-outline button-small" type="submit">Transfer to Main</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="funds-history">
+        <h2>Investment Contracts</h2><div id="funds-contracts" class="funds-rows"></div>
+        <h2>Top-Up Requests</h2><div id="funds-topups" class="funds-rows"></div>
+        <h2>Funds Activity</h2><div id="funds-activity" class="funds-rows"></div>
+      </section>
+    </div>
+  </main>
+  <script src="js/runtime-config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/member-navigation.js"></script>
+  <script src="js/main-funds.js"></script>
+</body>
+</html>

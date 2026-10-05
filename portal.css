@@ -2872,3 +2872,54 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   from { box-shadow: 0 0 10px rgba(255, 201, 28, 0.3); }
   to { box-shadow: 0 0 25px rgba(255, 201, 28, 0.9); }
 }
+.budget-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+}
+.budget-progress-grid > div { min-width: 0; }
+.budget-progress-grid span, .budget-progress-grid strong { display: block; }
+.budget-progress-grid strong { color: var(--gold); margin: .3rem 0 .65rem; }
+.budget-category-legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; color: var(--muted); font-size: .8rem; }
+.budget-table-wrap { overflow-x: auto; }
+.budget-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 580px; }
+.budget-table th, .budget-table td { padding: .75rem .55rem; border-bottom: 1px solid rgba(255, 201, 28, .16); }
+.budget-table thead th { color: var(--gold); font-size: .78rem; text-transform: uppercase; }
+.budget-table tbody th { color: var(--cream); }
+@media (max-width: 640px) { .budget-progress-grid { grid-template-columns: 1fr; } }
+.funds-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+.funds-summary > div { min-width: 0; padding: 1rem 1.15rem; border-top: 2px solid var(--gold); background: rgba(255, 201, 28, .06); }
+.funds-summary span, .funds-summary strong, .funds-summary small { display: block; }
+.funds-summary span { color: var(--muted); font-size: .78rem; font-weight: 700; text-transform: uppercase; }
+.funds-summary strong { margin: .5rem 0; color: var(--gold); font-size: 1.45rem; }
+.funds-summary small { color: var(--muted); }
+.funds-operations { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; }
+.funds-operation { min-width: 0; border-top: 1px solid rgba(255, 201, 28, .4); padding: 1.2rem 0 1.5rem; }
+.funds-operation h2, .funds-history h2 { margin: 0 0 1rem; color: var(--gold); font-size: 1.05rem; text-transform: uppercase; }
+.funds-operation form + form { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(255, 201, 28, .18); }
+.funds-operation .button { width: 100%; }
+.funds-note { min-height: 2rem; color: var(--muted); font-size: .78rem; }
+.funds-payment-details { display: grid; gap: .35rem; padding: .75rem; border: 1px solid rgba(255, 201, 28, .25); margin-bottom: 1rem; overflow-wrap: anywhere; }
+.funds-payment-details[hidden] { display: none; }
+.funds-payment-details img { max-width: 180px; max-height: 180px; object-fit: contain; }
+.funds-history { margin: 1.5rem 0 3rem; }
+.funds-history h2 { padding-top: 1.75rem; border-top: 1px solid rgba(255, 201, 28, .28); }
+.funds-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .75rem 0; border-bottom: 1px solid rgba(255, 201, 28, .14); }
+.funds-row strong, .funds-row small { display: block; }
+.funds-row strong { font-size: .87rem; }
+.funds-row small, .funds-row > span, .funds-empty { color: var(--muted); font-size: .78rem; }
+.funds-row > span { flex: 0 0 auto; text-align: right; }
+.funds-row .funds-credit { color: #79d697; }
+.funds-row .funds-debit { color: #ff9a9a; }
+.budget-action { min-width: 135px; }
+.budget-token-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; margin-top: 1rem; }
+.budget-token-layout > * { min-width: 0; }
+.budget-token-layout h4 { color: var(--gold); font-size: .95rem; margin: 0 0 1rem; text-transform: uppercase; }
+.budget-token-layout .button { width: 100%; }
+.funds-admin-settings { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
+.funds-admin-settings label { font-weight: 700; color: var(--gold); }
+.funds-admin-settings > div { display: flex; gap: .65rem; align-items: center; flex-wrap: wrap; }
+.funds-admin-settings input { width: 150px; }
+@media (max-width: 900px) { .funds-operations { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) { .funds-summary, .funds-operations, .budget-token-layout { grid-template-columns: 1fr; } .funds-row { align-items: flex-start; } }

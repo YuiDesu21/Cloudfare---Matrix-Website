@@ -244,6 +244,16 @@ const MatrixDB = {
     await this.refreshCommerceOrders();
     return data;
   },
+  async requestBudgetPlanProductOrder(details = {}) {
+    const { data, error } = await window.matrixSupabase.rpc("request_budget_plan_product_order", {
+      p_shipping_address_id: details.shippingAddressId,
+      p_items: details.items || [],
+      p_member_notes: details.memberNotes || ""
+    });
+    if (error) throw error;
+    await this.refreshCommerceOrders();
+    return data;
+  },
   async requestPatronizingTokenEntry(details = {}) {
     const { data, error } = await window.matrixSupabase.rpc("request_patronizing_token_entry", {
       p_payment_method_id: details.paymentMethodId,

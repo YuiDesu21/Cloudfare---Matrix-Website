@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budget Plan | Matrix Portal</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="portal.css">
+</head>
+<body class="portal-body">
+  <header class="portal-header site-header">
+    <div class="container header-wrapper withdrawal-header-wrapper">
+      <a class="brand" href="portal.html"><span class="brand-mark">M</span><span><strong>Matrix</strong><small>Budget Plan</small></span></a>
+      <div class="user-status-strip" data-member-menu data-current-page="budget-plan">
+        <button class="account-menu-toggle" type="button" aria-label="Open member menu" aria-expanded="false" data-member-menu-toggle>
+          <span class="header-avatar" data-member-menu-avatar>M</span>
+          <span class="account-menu-copy"><small>Member menu</small><strong data-member-menu-name>Member</strong></span>
+          <span class="account-chevron" aria-hidden="true">&#9662;</span>
+        </button>
+        <nav class="account-menu" aria-label="Member pages" data-member-menu-list hidden></nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="portal-container withdrawal-page">
+    <section class="withdrawal-hero">
+      <div><span class="withdrawal-eyebrow">Timeline Matrix</span><h1>Budget Plan</h1>
+        <p>Track approved purchases, matrix rank, monthly income, and investment eligibility.</p></div>
+      <span id="budget-status" class="badge">Checking</span>
+    </section>
+    <div id="budget-alert" class="alert" hidden></div>
+
+    <div id="budget-content" hidden>
+      <section class="portal-card matrix-overview-card">
+        <div class="matrix-card-header">
+          <div><h3>Purchase Progress</h3><p>Qualifying value from approved product payments fills entry first, then investment eligibility.</p></div>
+          <a class="button button-primary button-small" href="packages-orders.html?purpose=budget_qualification">Shop Products</a>
+        </div>
+        <div class="budget-progress-grid">
+          <div><span>Matrix entry</span><strong id="budget-entry-value">PHP 0 / PHP 150</strong><div class="entry-progress-meter"><span id="budget-entry-bar"></span></div></div>
+          <div><span>Investment qualification</span><strong id="budget-investment-value">PHP 0 / PHP 300</strong><div class="entry-progress-meter"><span id="budget-investment-bar"></span></div></div>
+        </div>
+        <p id="budget-eligibility-note" class="withdrawal-history-note"></p>
+        <div class="budget-category-legend"><span>PC 25%</span><span>Groceries 10%</span><span>Lifestyle 25%</span><span>F3 Token 80%</span></div>
+      </section>
+
+      <section class="portal-card matrix-overview-card">
+        <div class="matrix-card-header"><div><h3>F3 Token Purchase</h3><p>New F3 purchases use your saved wallet and count at 80% after admin verifies payment.</p></div><span id="budget-token-price" class="badge">PHP 60 / F3</span></div>
+        <div class="budget-token-layout">
+          <form id="budget-token-form">
+            <div class="form-group"><label for="budget-token-quantity">F3 tokens</label><input id="budget-token-quantity" class="form-control" type="number" min="1" max="10000" step="1" value="1" required></div>
+            <p id="budget-token-estimate" class="funds-note"></p>
+            <div class="form-group"><label for="budget-token-method">Payment method</label><select id="budget-token-method" class="form-control" required></select></div>
+            <div id="budget-token-payment-details" class="funds-payment-details" hidden></div>
+            <div class="form-group"><label for="budget-token-reference">Payment reference</label><input id="budget-token-reference" class="form-control" type="text" minlength="6" maxlength="80" pattern="[A-Za-z0-9-]+" required></div>
+            <p id="budget-token-wallet" class="funds-note"></p>
+            <button id="budget-token-submit" class="button button-primary button-small" type="submit">Request F3 Tokens</button>
+          </form>
+          <div><h4>Token Requests</h4><div id="budget-token-history" class="funds-rows"></div></div>
+        </div>
+      </section>
+
+      <section class="portal-card matrix-overview-card">
+        <div class="matrix-card-header">
+          <div><h3>Matrix Rank &amp; Passive Income</h3><p>Each rank requires three direct downlines who have reached the previous rank.</p></div>
+          <span id="budget-rank" class="badge">Challenger</span>
+        </div>
+        <div class="budget-table-wrap"><table class="budget-table"><thead><tr><th>Rank</th><th>Monthly income</th><th>Months</th><th>Status</th></tr></thead><tbody id="budget-passive-rows"></tbody></table></div>
+      </section>
+
+      <section class="portal-card matrix-overview-card">
+        <div class="matrix-card-header">
+          <div><h3>30% Monthly Investment</h3><p>Investing requires Overcomer rank and PHP 300 in qualifying purchase value after entry.</p></div>
+          <span id="budget-investment-status" class="badge">Locked</span>
+        </div>
+        <p><a href="main-funds.html">Manage Investment Funds</a></p>
+        <div class="budget-table-wrap"><table class="budget-table"><thead><tr><th>Rank</th><th>Investment</th><th>Monthly income</th><th>Eligible months</th><th>Contract</th><th>Action</th></tr></thead><tbody id="budget-investment-rows"></tbody></table></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="js/runtime-config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/member-navigation.js"></script>
+  <script src="js/budget-plan.js"></script>
+</body>
+</html>

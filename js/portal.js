@@ -286,6 +286,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.location.href = "patronizing-income.html";
       } else if (button.dataset.accountAction === "timeline") {
         window.location.href = "timeline-matrix.html";
+      } else if (button.dataset.accountAction === "budget") {
+        window.location.href = "budget-plan.html";
+      } else if (button.dataset.accountAction === "funds") {
+        window.location.href = "main-funds.html";
       } else if (button.dataset.accountAction === "withdraw") {
         window.location.href = "withdrawal-request.html";
       } else if (button.dataset.accountAction === "history") {
@@ -325,7 +329,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   shippingCancelBtn.addEventListener("click", () => resetShippingAddressForm());
   shippingAddressForm.addEventListener("submit", handleShippingAddressSubmit);
   requestWithdrawalBtn.addEventListener("click", () => {
-    window.location.href = "withdrawal-request.html";
+    window.location.href = "main-funds.html";
   });
   document.getElementById("products-plus-claim-close").addEventListener("click", closeProductClaimModal);
   productsPlusClaimModal.addEventListener("click", event => { if (event.target === productsPlusClaimModal) closeProductClaimModal(); });
@@ -1139,9 +1143,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     balanceTotalBadge.textContent = `PHP ${formatNumber(available)}`;
     balanceTotal.textContent = `PHP ${formatNumber(available)}`;
     requestWithdrawalBtn.disabled = false;
-    requestWithdrawalBtn.title = available > 0
-      ? `Withdraw up to PHP ${formatNumber(available)}`
-      : "View your withdrawal availability and next passive-income due date";
+    requestWithdrawalBtn.title = "Transfer eligible matrix income to Main Funds";
   }
 
   function renderProductsPlusPanel(member, summary) {

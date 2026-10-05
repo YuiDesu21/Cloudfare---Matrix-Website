@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const PATRONIZING_PURPOSES = ["patronizing_entry_product", "patronizing_monthly_requirement", "patronizing_exit_discount"];
   const queryParams = new URLSearchParams(window.location.search);
   const patronizingPurpose = PATRONIZING_PURPOSES.includes(queryParams.get("purpose")) ? queryParams.get("purpose") : "";
+  const budgetPurpose = queryParams.get("purpose") === "budget_qualification";
   const patronizingExitNumber = Number(queryParams.get("exit") || 0);
   const requestedPackageType = COMMERCE_PACKAGE_TYPES.some(type => type.id === queryParams.get("type")) ? queryParams.get("type") : "";
 
@@ -52,11 +53,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   let pendingCommercePackage = null;
   let pendingProductCartType = null;
   let pendingPatronizingPurpose = "";
+  let pendingBudgetPurpose = false;
   let pendingPatronizingExit = null;
   let pendingPaymentOrder = null;
   const productCarts = { product_plus_requirement: [], product_plus_voucher: [] };
   if (requestedPackageType) selectedCommercePackageType = requestedPackageType;
-  if (patronizingPurpose) selectedCommercePackageType = "product_plus_requirement";
+  if (patronizingPurpose || budgetPurpose) selectedCommercePackageType = "product_plus_requirement";
 
   if (!window.MatrixDB) {
     showAccessError("Please sign in through your member dashboard before opening packages.");
@@ -100,9 +102,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const orders = MatrixDB.getCommerceOrders();
     const patronizing = typeof MatrixDB.getPatronizingDashboard === "function" ? MatrixDB.getPatronizingDashboard() : null;
     const visiblePackages = packages.filter(item => item.packageType === selectedCommercePackageType);
-    const visibleProducts = products.filter(item => item.productType === selectedCommercePackageType);
+    const visibleProducts = products.filter(item => item.productType === selectedCommercePackageType && (!budgetPurpose || item.budgetCategory));
     commercePackageCount.textContent = `${packages.length + products.length} Item${packages.length + products.length === 1 ? "" : "s"}`;
-    if (patronizingPurpose) {
+    if (patronizingPurpose || budgetPurpose) {
       commercePackageTabs.hidden = true;
       commercePackageCount.textContent = `${visibleProducts.length} Product${visibleProducts.length === 1 ? "" : "s"}`;
     } else {
@@ -123,7 +125,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     commercePackageList.classList.toggle("commerce-product-browser", PRODUCT_PLUS_TYPES.includes(selectedCommercePackageType));
 
-    if (patronizingPurpose) {
+    if (patronizingPurpose || budgetPurpose) {
       renderProductPlusShop(visibleProducts, summary, orders, patronizing);
     } else if (PRODUCT_PLUS_TYPES.includes(selectedCommercePackageType)) {
       renderProductPlusShop(visibleProducts, summary, orders, null);
@@ -233,6 +235,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function getPatronizingCheckoutContext(patronizing, cartTotal) {
+    if (budgetPurpose) {
+      const products = MatrixDB.getCommerceProducts();
+      const rates = { pc: 25, groceries: 10, lifestyle: 25, f3_token: 80 };
+      const credit = (productCarts.product_plus_requirement || []).reduce((total, item) => {
+        const product = products.find(candidate => candidate.id === item.productId);
+        return total + Number(product ? product.price : 0) * Number(item.quantity || 0) * Number(rates[product && product.budgetCategory] || 0) / 100;
+      }, 0);
+      return {
+        eyebrow: "Budget Plan Products",
+        totalLabel: "Product Total",
+        totalValue: `PHP ${formatNumber(cartTotal)}`,
+        hint: `Qualifying value after payment approval: PHP ${formatNumber(credit)}. Shipping fee is added after admin review.`,
+        buttonLabel: "Request Budget Checkout",
+        canCheckout: cartTotal > 0 && credit > 0
+      };
+    }
     if (!patronizingPurpose) return null;
     if (patronizingPurpose === "patronizing_entry_product") {
       const progress = getEntryProgressFromOrders(MatrixDB.getCommerceOrders(), "patronizing_entry_product", 5818);
@@ -287,7 +305,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       <article class="commerce-product-card" data-product-id="${escapeHtml(product.id)}">
         ${product.photoData ? `<img src="${escapeHtml(product.photoData)}" alt="${escapeHtml(product.productName)}" loading="lazy">` : `<span class="commerce-product-empty">No Photo</span>`}
         <div class="commerce-product-body">
-          <span>${escapeHtml(product.productTypeLabel)}</span>
+          <span>${budgetPurpose ? "Budget Plan Product" : escapeHtml(product.productTypeLabel)}</span>
+          ${budgetPurpose ? `<small>${escapeHtml(product.budgetCategory.replace(/_/g, " "))} | ${({ pc: 25, groceries: 10, lifestyle: 25, f3_token: 80 })[product.budgetCategory]}% qualifies</small>` : ""}
           <h4>${escapeHtml(product.productName)}</h4>
           ${product.description ? `<p>${escapeHtml(product.description)}</p>` : ""}
           <strong>${isVoucherMode ? `${formatNumber(product.price)} vouchers` : `PHP ${formatNumber(product.price)}`}</strong>
@@ -457,7 +476,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="product-plus-month-index">${escapeHtml((order.orderCode || "ORD").replace("ORD-", ""))}</div>
         <div>
           <h5>${escapeHtml(packageSnapshot.packageName || "Package order")}: ${commerceOrderTotalLabel(order)}</h5>
-          <p>${escapeHtml(order.packageTypeLabel)} &middot; ${commerceOrderStatusLabel(order.status)} &middot; ${formatDate(order.createdAt)}${order.shippingFee != null ? ` &middot; Shipping fee: PHP ${formatNumber(order.shippingFee)}` : ""}</p>
+          <p>${escapeHtml(order.orderPurpose === "budget_qualification" ? "Budget Plan Products" : order.packageTypeLabel)} &middot; ${commerceOrderStatusLabel(order.status)} &middot; ${formatDate(order.createdAt)}${order.shippingFee != null ? ` &middot; Shipping fee: PHP ${formatNumber(order.shippingFee)}` : ""}</p>
           ${adminNote}${paymentNote}${shippingNote}${receivedNote}
         </div>
         ${action}
@@ -493,7 +512,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!cart.length) return;
     pendingCommercePackage = null;
     pendingProductCartType = productType;
-    pendingPatronizingPurpose = patronizingContext ? patronizingContext.purpose : "";
+    pendingBudgetPurpose = budgetPurpose;
+    pendingPatronizingPurpose = patronizingPurpose && patronizingContext ? patronizingContext.purpose : "";
     pendingPatronizingExit = patronizingContext && patronizingContext.exitNumber ? patronizingContext.exitNumber : null;
     const addresses = MatrixDB.getShippingAddresses();
     commerceOrderForm.reset();
@@ -524,6 +544,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     pendingCommercePackage = null;
     pendingProductCartType = null;
     pendingPatronizingPurpose = "";
+    pendingBudgetPurpose = false;
     pendingPatronizingExit = null;
   }
 
@@ -579,7 +600,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     commerceOrderSubmit.disabled = true;
     try {
       if (pendingProductCartType) {
-        if (pendingPatronizingPurpose) {
+        if (pendingBudgetPurpose) {
+          await MatrixDB.requestBudgetPlanProductOrder({
+            shippingAddressId: commerceOrderAddress.value,
+            items: productCarts[pendingProductCartType].map(item => ({ productId: item.productId, quantity: item.quantity })),
+            memberNotes: commerceOrderNotes.value.trim()
+          });
+        } else if (pendingPatronizingPurpose) {
           await MatrixDB.requestPatronizingProductOrder({
             orderPurpose: pendingPatronizingPurpose,
             exitNumber: pendingPatronizingExit,

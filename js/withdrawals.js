@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const SESSION_KEY = "matrix_logged_in_member_id";
-  const MIN_WITHDRAWAL_AMOUNT = 1000;
+  const MIN_WITHDRAWAL_AMOUNT = 500;
   const isRequestPage = Boolean(document.getElementById("withdrawal-request-form"));
   const pageAlert = document.getElementById(isRequestPage ? "withdrawal-page-alert" : "withdrawal-history-alert");
 
@@ -23,12 +23,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (isRequestPage) await initializeRequestPage(member);
   else await initializeHistoryPage(member);
 
-  function initializeRequestPage(memberData) {
+  async function initializeRequestPage(memberData) {
     const summary = MatrixDB.getMemberMatrixSummary(memberData.id);
-    const earned = Number(summary ? summary.earnedBalance : 0);
-    const pending = Number(summary ? summary.pendingWithdrawal : 0);
-    const pendingExitBalance = Number(summary ? summary.pendingExitBalance : 0);
-    const available = Math.max(earned - pending - pendingExitBalance, 0);
+    const fundsResponse = window.MATRIX_USES_SUPABASE
+      ? await window.matrixSupabase.rpc("get_my_member_funds_dashboard") : null;
+    if (fundsResponse && fundsResponse.error) {
+      showAlert(fundsResponse.error.message, "danger");
+      return;
+    }
+    const earned = window.MATRIX_USES_SUPABASE
+      ? Number(fundsResponse.data.mainBalance || 0)
+      : Number(summary ? summary.earnedBalance : 0);
+    const available = window.MATRIX_USES_SUPABASE
+      ? Number(fundsResponse.data.mainAvailable || 0)
+      : Math.max(earned - Number(summary ? summary.pendingWithdrawal : 0)
+        - Number(summary ? summary.pendingExitBalance : 0), 0);
+    const pending = Math.max(earned - available, 0);
     const form = document.getElementById("withdrawal-request-form");
     const amount = document.getElementById("withdrawal-amount");
     const accountName = document.getElementById("withdrawal-name");
@@ -46,18 +56,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("withdrawal-balance").value = formatMoney(available);
     amount.max = String(available);
     amount.min = String(MIN_WITHDRAWAL_AMOUNT);
-    amount.placeholder = available >= MIN_WITHDRAWAL_AMOUNT ? `PHP ${MIN_WITHDRAWAL_AMOUNT.toLocaleString()} to ${available.toLocaleString()}` : "Minimum PHP 1,000";
+    amount.placeholder = available >= MIN_WITHDRAWAL_AMOUNT ? `PHP ${MIN_WITHDRAWAL_AMOUNT.toLocaleString()} to ${available.toLocaleString()}` : "Minimum PHP 500";
     amount.disabled = available < MIN_WITHDRAWAL_AMOUNT;
     submit.disabled = available < MIN_WITHDRAWAL_AMOUNT;
     accountName.value = memberData.fullName || "";
     gcashNumber.value = validGcashNumber(memberData.phone);
     if (available < MIN_WITHDRAWAL_AMOUNT) {
-      const nextReward = (summary && Array.isArray(summary.rewardLedger) ? summary.rewardLedger : [])
-        .filter(entry => entry.status === "due" && new Date(entry.dueAt) > new Date())
-        .sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt))[0];
-      showAlert(nextReward
-        ? `Withdrawals require at least PHP ${MIN_WITHDRAWAL_AMOUNT.toLocaleString()} available. Your next ${nextReward.sourceLabel || "passive income"} of ${formatMoney(nextReward.amount)} becomes withdrawable on ${formatDateTime(nextReward.dueAt)}.`
-        : `Withdrawals require at least PHP ${MIN_WITHDRAWAL_AMOUNT.toLocaleString()} available. Passive income becomes withdrawable only after its due date.`, "info");
+      showAlert(`Withdrawals require at least PHP ${MIN_WITHDRAWAL_AMOUNT.toLocaleString()} in Main Funds. Transfer due matrix income or make an admin-verified top-up in Main Funds first.`, "info");
     }
     form.addEventListener("submit", async event => {
       event.preventDefault();

@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const productsList = document.getElementById("admin-products-list");
   const commerceOrderList = document.getElementById("admin-commerce-order-list");
   const patronizingList = document.getElementById("admin-patronizing-list");
+  const fundsList = document.getElementById("admin-funds-list");
   const memberTableBody = document.getElementById("admin-member-table-body");
   const memberSummary = document.getElementById("admin-member-summary");
   const memberPagination = document.getElementById("admin-member-pagination");
@@ -44,6 +45,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const commerceProductForm = document.getElementById("admin-commerce-product-form");
   const commerceProductId = document.getElementById("admin-commerce-product-id");
   const commerceProductType = document.getElementById("admin-commerce-product-type");
+  const commerceProductBudgetCategory = document.getElementById("admin-commerce-product-budget-category");
+  commerceProductType.addEventListener("change", syncBudgetProductCategory);
   const commerceProductName = document.getElementById("admin-commerce-product-name");
   const commerceProductDescription = document.getElementById("admin-commerce-product-description");
   const commerceProductPrice = document.getElementById("admin-commerce-product-price");
@@ -224,7 +227,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     memberRoles = new Map((roles || []).map(item => [item.memberId, item]));
     loginSection.style.display = "none"; content.style.display = "block"; adminUserStatus.style.display = "flex"; await loadAll();
   }
-  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts(), loadCommerceOrders(), loadPatronizing(), loadPaymentMethods(), loadCommercePackages()]); }
+  async function loadAll() { await Promise.all([loadMembers(), loadEntry(), loadTimeline(), loadExits(), loadWithdrawals(), loadProducts(), loadCommerceOrders(), loadPatronizing(), loadFundRequests(), loadPaymentMethods(), loadCommercePackages()]); }
   async function loadMembers() {
     memberTableBody.innerHTML = `<tr><td colspan="8" class="empty-state">Loading member directory...</td></tr>`;
     const { data, error } = await window.matrixSupabase.rpc("admin_get_members", {
@@ -603,7 +606,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       <article class="portal-card commerce-package-card" data-commerce-product-id="${escapeHtml(product.id)}">
         <div class="withdrawal-history-topline">
           <div>
-            <span class="withdrawal-reference-label">${escapeHtml(product.productTypeLabel)} | Sort ${Number(product.sortOrder || 100)}</span>
+            <span class="withdrawal-reference-label">${escapeHtml(product.productTypeLabel)} | ${escapeHtml(product.budgetCategory ? `Budget: ${product.budgetCategory.replace(/_/g, " ")}` : "No Budget category")} | Sort ${Number(product.sortOrder || 100)}</span>
             <h2>${escapeHtml(product.productName)}</h2>
           </div>
           <span class="withdrawal-status ${product.isActive ? "status-approved" : "status-rejected"}">${product.isActive ? "Active" : "Inactive"}</span>
@@ -657,7 +660,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       p_price: Number(commerceProductPrice.value || 0),
       p_photo_data: commerceProductPhotoData,
       p_is_active: commerceProductActive.checked,
-      p_sort_order: Number(commerceProductSort.value || 100)
+      p_sort_order: Number(commerceProductSort.value || 100),
+      p_budget_category: commerceProductBudgetCategory.value || null
     });
     commerceProductSave.disabled = false;
     if (error) return show(alertBox, error.message, "danger");
@@ -669,6 +673,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!product) return;
     commerceProductId.value = product.id;
     commerceProductType.value = product.productType;
+    commerceProductBudgetCategory.value = product.budgetCategory || "";
+    syncBudgetProductCategory();
     commerceProductName.value = product.productName || "";
     commerceProductDescription.value = product.description || "";
     commerceProductPrice.value = Number(product.price || 0);
@@ -684,6 +690,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     commerceProductForm.reset();
     commerceProductId.value = "";
     commerceProductType.value = "product_plus_requirement";
+    commerceProductBudgetCategory.value = "";
+    syncBudgetProductCategory();
     commerceProductPrice.value = "";
     commerceProductSort.value = 100;
     commerceProductActive.checked = true;
@@ -691,6 +699,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     setCommerceProductPhotoPreview("");
     commerceProductCancel.hidden = true;
     commerceProductSave.textContent = "Save Product";
+  }
+  function syncBudgetProductCategory() {
+    const isRequirementProduct = commerceProductType.value === "product_plus_requirement";
+    commerceProductBudgetCategory.disabled = !isRequirementProduct;
+    if (!isRequirementProduct) commerceProductBudgetCategory.value = "";
   }
   function setCommerceProductPhotoPreview(photoData) {
     const preview = document.getElementById("admin-commerce-product-photo-preview");
@@ -911,6 +924,79 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     });
   }
+  async function loadFundRequests() {
+    const [topupResponse, investmentResponse, tokenResponse, priceResponse] = await Promise.all([
+      window.matrixSupabase.rpc("admin_get_member_fund_topups"),
+      window.matrixSupabase.rpc("admin_get_budget_investment_requests"),
+      window.matrixSupabase.rpc("admin_get_budget_token_requests"),
+      window.matrixSupabase.from("budget_plan_token_settings").select("unit_price").eq("id", 1).single()
+    ]);
+    const error = topupResponse.error || investmentResponse.error || tokenResponse.error || priceResponse.error;
+    if (error) return show(alertBox, error.message, "danger");
+    const topups = (topupResponse.data || []).filter(item => item.status === "pending");
+    const investments = (investmentResponse.data || []).filter(item => item.status === "pending");
+    const tokens = (tokenResponse.data || []).filter(item => item.status === "pending" || item.status === "approved");
+    updateCount("funds", topups.length + investments.length + tokens.length);
+    const settings = `<form id="admin-budget-token-price-form" class="portal-card funds-admin-settings">
+      <label for="admin-budget-token-price">Budget F3 price per token (PHP)</label>
+      <div><input id="admin-budget-token-price" class="form-control" type="number" min="0.01" max="10000" step="0.01" value="${Number(priceResponse.data.unit_price)}" required><button class="button button-outline button-small" type="submit">Update Price</button></div>
+    </form>`;
+    if (!topups.length && !investments.length && !tokens.length) {
+      fundsList.innerHTML = settings + `<div class="portal-card withdrawal-empty"><strong>No pending fund requests</strong><p>Top-ups, F3 tokens, and Budget investments will appear here.</p></div>`;
+      bindBudgetTokenPrice();
+      return;
+    }
+    fundsList.innerHTML = settings + topups.map(item => `<article class="portal-card withdrawal-history-item" data-fund-topup="${escapeHtml(item.id)}">
+      <div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">Main Funds Top-Up</span><h2>${escapeHtml(item.memberName)}</h2></div><span class="withdrawal-status status-pending">Pending</span></div>
+      <div class="withdrawal-history-details"><div><span>Amount</span><strong>${money(item.amount)}</strong></div><div><span>Method</span><strong>${escapeHtml(item.paymentMethod)} | ${escapeHtml(item.paymentAccount)}</strong></div><div><span>Reference</span>${copyField(item.referenceNumber)}</div><div><span>Requested</span><strong>${new Date(item.createdAt).toLocaleString()}</strong></div></div>
+      <div class="form-group"><label>Admin note</label><textarea class="form-control fund-admin-note" rows="2" maxlength="320"></textarea></div>
+      <div class="balance-card-buttons"><button class="button button-primary button-small fund-approve" type="button">Verify &amp; Credit</button><button class="button button-outline button-small fund-reject" type="button">Reject</button></div>
+    </article>`).join("") + investments.map(item => `<article class="portal-card withdrawal-history-item" data-budget-investment="${escapeHtml(item.id)}">
+      <div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">Budget Plan Investment</span><h2>${escapeHtml(item.memberName)}</h2></div><span class="withdrawal-status status-pending">Pending</span></div>
+      <div class="withdrawal-history-details"><div><span>Rank</span><strong>${escapeHtml(item.rankName)}</strong></div><div><span>Principal</span><strong>${money(item.amount)}</strong></div><div><span>Contract</span><strong>${Number(item.months)} months | ${money(Number(item.amount) * .3)} monthly</strong></div><div><span>Requested</span><strong>${new Date(item.createdAt).toLocaleString()}</strong></div></div>
+      <div class="form-group"><label>Admin note</label><textarea class="form-control fund-admin-note" rows="2" maxlength="320"></textarea></div>
+      <div class="balance-card-buttons"><button class="button button-primary button-small fund-approve" type="button">Approve Investment</button><button class="button button-outline button-small fund-reject" type="button">Reject</button></div>
+    </article>`).join("") + tokens.map(item => `<article class="portal-card withdrawal-history-item" data-budget-token="${escapeHtml(item.id)}">
+      <div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">Budget F3 Token Purchase</span><h2>${escapeHtml(item.memberName)}</h2></div><span class="withdrawal-status status-pending">${item.status === "approved" ? "To Send" : "Pending"}</span></div>
+      <div class="withdrawal-history-details"><div><span>Tokens</span><strong>${Number(item.quantity)} F3</strong></div><div><span>Payment</span><strong>${money(item.amount)} | ${escapeHtml(item.methodName)} | ${escapeHtml(item.methodAccount)}</strong></div><div><span>Reference</span>${copyField(item.referenceNumber)}</div><div><span>F3 wallet</span>${copyField(item.walletAddress)}</div><div><span>Budget value</span><strong>${money(Number(item.amount) * .8)}</strong></div></div>
+      ${item.status === "pending" ? `<div class="form-group"><label>Admin note</label><textarea class="form-control fund-admin-note" rows="2" maxlength="320"></textarea></div><div class="balance-card-buttons"><button class="button button-primary button-small fund-approve" type="button">Verify Payment</button><button class="button button-outline button-small fund-reject" type="button">Reject</button></div>`
+        : `<div class="form-group"><label>F3 transfer reference</label><input class="form-control fund-delivery-reference" type="text" minlength="6" maxlength="120" required></div><button class="button button-primary button-small fund-deliver" type="button">Mark Tokens Sent</button>`}
+    </article>`).join("");
+    bindBudgetTokenPrice();
+    bindCopyButtons(fundsList);
+    fundsList.querySelectorAll("[data-fund-topup]").forEach(card => bindFundDecision(card, "admin_review_member_fund_topup", "p_topup_id", card.dataset.fundTopup));
+    fundsList.querySelectorAll("[data-budget-investment]").forEach(card => bindFundDecision(card, "admin_review_budget_investment", "p_request_id", card.dataset.budgetInvestment));
+    fundsList.querySelectorAll("[data-budget-token]").forEach(card => {
+      if (card.querySelector(".fund-approve")) {
+        bindFundDecision(card, "admin_review_budget_token_purchase", "p_request_id", card.dataset.budgetToken);
+      } else {
+        card.querySelector(".fund-deliver").addEventListener("click", async () => {
+          const reference = card.querySelector(".fund-delivery-reference").value.trim();
+          if (reference.length < 6) return show(alertBox, "Enter the F3 transfer reference.", "danger");
+          if (!window.confirm("Confirm these F3 tokens were sent to the displayed wallet?")) return;
+          await act("admin_mark_budget_tokens_delivered", { p_request_id: card.dataset.budgetToken, p_delivery_reference: reference });
+        });
+      }
+    });
+  }
+  function bindBudgetTokenPrice() {
+    fundsList.querySelector("#admin-budget-token-price-form").addEventListener("submit", async event => {
+      event.preventDefault();
+      await act("admin_set_budget_token_price", {
+        p_unit_price: Number(fundsList.querySelector("#admin-budget-token-price").value)
+      });
+    });
+  }
+  function bindFundDecision(card, rpc, idKey, id) {
+    card.querySelector(".fund-approve").addEventListener("click", async () => {
+      if (!window.confirm("Approve this fund request after checking its details?")) return;
+      await act(rpc, { [idKey]: id, p_approve: true, p_admin_note: card.querySelector(".fund-admin-note").value.trim() });
+    });
+    card.querySelector(".fund-reject").addEventListener("click", async () => {
+      if (!window.confirm("Reject this fund request?")) return;
+      await act(rpc, { [idKey]: id, p_approve: false, p_admin_note: card.querySelector(".fund-admin-note").value.trim() });
+    });
+  }
   async function loadCommerceOrders() {
     const { data: orders, error } = await window.matrixSupabase.rpc("admin_get_commerce_orders");
     if (error) return show(alertBox, error.message, "danger");
@@ -932,7 +1018,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? `<p class="withdrawal-history-note"><strong>1200 Matrix upline:</strong> ${escapeHtml(upline.fullName || "Selected member")} ${upline.username ? `(@${escapeHtml(upline.username)})` : ""} &middot; ${escapeHtml(order.matrixUplineCode || "-")}</p>`
         : "";
       const purposeDetails = order.orderPurpose && order.orderPurpose !== "standard"
-        ? `<p class="withdrawal-history-note"><strong>Patronizing purpose:</strong> ${escapeHtml(patronizingPurposeLabel(order))}</p>`
+        ? `<p class="withdrawal-history-note"><strong>Order purpose:</strong> ${escapeHtml(order.orderPurpose === "budget_qualification" ? "Budget Plan qualification" : patronizingPurposeLabel(order))}</p>`
         : "";
       const discountDetails = Number(order.discountAmount || 0) > 0
         ? `<div><span>Discount</span><strong>${money(order.discountAmount)} (${Number(order.discountPercent || 0).toLocaleString()}%)</strong></div>`
