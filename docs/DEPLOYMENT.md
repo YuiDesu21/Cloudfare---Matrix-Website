@@ -1,11 +1,11 @@
 # Supabase and Cloudflare deployment handoff
 
-## Current status (October 7, 2026)
+## Current status (October 8, 2026)
 
 - See `docs/RELEASE-READINESS-2026-10-07.md` for the current pass/fail gates and cutover hold. No live migration or deployment has been performed.
-- Staging has migrations through `202610070003`; live still stops at `202609090002`. The October 6 live backup was restored offline and the first 22 pending migrations plus four rollback-only smoke tests passed against that copy. Migration `202610070003` was added afterward and has passed staging lint and its focused rollback-only discount/monthly-credit test. The source remains linked to staging.
+- Staging has migrations through `202610070003`; live still stops at `202609090002`. A fresh October 8 live archive was verified and restored into an isolated no-network database. All 23 pending migrations and five rollback-only smoke tests passed against that copy. The source remains linked to staging; no live migration or deployment has been performed.
 - The Patronizing package checkout, shipping review, fictional payment submission, and Owner rejection were rehearsed in staging. All exact-match QA records were removed with no payment credited.
-- Signed-in staging pilots covered Budget, Patronizing, Standard, and Premium placements; an approved monthly product purchase and income unlock; Exit 1 discounted checkout and its post-discount monthly credit; Main Funds transfers; a matured Budget investment contract and capital return; withdrawal rejection and approval; and Owner review of fictional payments and top-ups. All disposable fixtures were removed. Pilot acceptance and release-commit review remain before cutover. No real payment or payout was made. The owner accepted the Supabase Free-plan leaked-password warning. F3 network-specific handling and independent legal review remain deferred; do not interpret technical readiness as authorization for public financial enrollment.
+- Signed-in staging pilots covered Budget, Patronizing, Standard, and Premium placements; an approved monthly product purchase and income unlock; Exit 1 discounted checkout and its post-discount monthly credit; Main Funds transfers; a matured Budget investment contract and capital return; withdrawal rejection and approval; and Owner review of fictional payments and top-ups. All disposable fixtures were removed. Pilot acceptance and final cutover review remain. No real payment or payout was made. The owner accepted the Supabase Free-plan leaked-password warning. F3 network-specific handling and independent legal review remain deferred; do not interpret technical readiness as authorization for public financial enrollment.
 
 ## Earlier status (October 6, 2026)
 
