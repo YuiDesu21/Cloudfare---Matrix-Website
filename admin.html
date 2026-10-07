@@ -172,8 +172,8 @@
 
         <nav class="approval-queue-tabs" aria-label="Approval request types" role="tablist">
           <button class="active" type="button" role="tab" data-approval-tab="registrations" aria-selected="true">Registrations <span id="approval-count-registrations">0</span></button>
-          <button type="button" role="tab" data-approval-tab="entry" aria-selected="false">Entry <span id="approval-count-entry">0</span></button>
-          <button type="button" role="tab" data-approval-tab="timeline" aria-selected="false">Timeline Matrix <span id="approval-count-timeline">0</span></button>
+          <button type="button" role="tab" data-approval-tab="entry" aria-selected="false">Premium Plan <span id="approval-count-entry">0</span></button>
+          <button type="button" role="tab" data-approval-tab="timeline" aria-selected="false">Standard Plan <span id="approval-count-timeline">0</span></button>
           <button type="button" role="tab" data-approval-tab="exit" aria-selected="false">Exit <span id="approval-count-exit">0</span></button>
           <button type="button" role="tab" data-approval-tab="withdrawals" aria-selected="false">Withdrawals <span id="approval-count-withdrawals">0</span></button>
           <button type="button" role="tab" data-approval-tab="products" aria-selected="false">Products Plus <span id="approval-count-products">0</span></button>
@@ -204,12 +204,12 @@
         </section>
 
         <section class="approval-queue-panel" data-approval-panel="entry" role="tabpanel" hidden>
-        <div class="portal-card" style="padding: 1.5rem; margin: 1.5rem 0;"><h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Pending Entry Activations</h3><p style="font-size:.82rem;color:var(--muted);margin:0">Verify the PHP 1,200 GCash payment, select placement, then activate Entry.</p></div>
+        <div class="portal-card" style="padding: 1.5rem; margin: 1.5rem 0;"><h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Pending Premium Plan Activations</h3><p style="font-size:.82rem;color:var(--muted);margin:0">Verify the PHP 1,200 GCash payment, select placement, then activate the Premium Plan.</p></div>
         <div class="table-container"><table class="admin-table"><thead><tr><th>Member</th><th>Amount</th><th>F3 Wallet</th><th>GCash Reference</th><th>Requested</th><th>Placement Parent</th><th>Actions</th></tr></thead><tbody id="upgrade-requests-table-body"></tbody></table></div>
         </section>
 
         <section class="approval-queue-panel" data-approval-panel="timeline" role="tabpanel" hidden>
-        <div class="portal-card" style="padding: 1.5rem; margin: 1.5rem 0;"><h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Pending Timeline Matrix Activations</h3><p style="font-size:.82rem;color:var(--muted);margin:0">Verify the PHP 693 request. Approval places the member automatically in the global left-to-right timeline queue.</p></div>
+        <div class="portal-card" style="padding: 1.5rem; margin: 1.5rem 0;"><h3 style="color:var(--gold);margin:0 0 .5rem;text-transform:uppercase;font-size:1.1rem">Pending Standard Plan Activations</h3><p style="font-size:.82rem;color:var(--muted);margin:0">Verify the PHP 693 request. Approval places the member automatically in the global left-to-right timeline queue.</p></div>
         <div class="table-container"><table class="admin-table"><thead><tr><th>Member</th><th>Amount</th><th>Payment Method</th><th>Payment Details</th><th>Requested</th><th>Auto Placement</th><th>Actions</th></tr></thead><tbody id="timeline-requests-table-body"></tbody></table></div>
         </section>
 
@@ -355,8 +355,8 @@
             <div class="form-group">
               <label for="viewer-plan-select">Matrix</label>
               <select id="viewer-plan-select" class="form-control">
-                <option value="power3-passive">Power of Three Passive Income</option>
-                <option value="timeline-power3">Power of Three Timeline Matrix</option>
+                <option value="power3-passive">Premium Plan</option>
+                <option value="timeline-power3">Standard Plan</option>
               </select>
             </div>
             <div class="form-group matrix-explorer-search">

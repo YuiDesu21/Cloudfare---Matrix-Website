@@ -1,12 +1,12 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const COMMERCE_PACKAGE_TYPES = [
-    { id: "timeline_entry", label: "Timeline Entry" },
-    { id: "matrix_1200_entry", label: "1200 Entry" },
+    { id: "timeline_entry", label: "Standard Plan" },
+    { id: "matrix_1200_entry", label: "Premium Plan" },
     { id: "product_plus_requirement", label: "Product Plus Buy" },
     { id: "product_plus_voucher", label: "Voucher Products" }
   ];
   const PRODUCT_PLUS_TYPES = ["product_plus_requirement", "product_plus_voucher"];
-  const PATRONIZING_PURPOSES = ["patronizing_entry_product", "patronizing_monthly_requirement", "patronizing_exit_discount"];
+  const PATRONIZING_PURPOSES = ["patronizing_entry_product", "patronizing_entry_package", "patronizing_monthly_requirement", "patronizing_exit_discount"];
   const queryParams = new URLSearchParams(window.location.search);
   const patronizingPurpose = PATRONIZING_PURPOSES.includes(queryParams.get("purpose")) ? queryParams.get("purpose") : "";
   const budgetPurpose = queryParams.get("purpose") === "budget_qualification";
@@ -59,7 +59,41 @@ document.addEventListener("DOMContentLoaded", async () => {
   const productCarts = { product_plus_requirement: [], product_plus_voucher: [] };
   const checkoutDraftKey = "matrix-checkout-address-draft";
   if (requestedPackageType) selectedCommercePackageType = requestedPackageType;
-  if (patronizingPurpose || budgetPurpose) selectedCommercePackageType = "product_plus_requirement";
+  if (patronizingPurpose || budgetPurpose) selectedCommercePackageType = patronizingPurpose === "patronizing_entry_package" ? "timeline_entry" : "product_plus_requirement";
+
+  const context = patronizingPurpose === "patronizing_entry_package" ? {
+    title: "Patronizing Package Entry",
+    description: "Choose Standard Plan packages toward the PHP 2,800 Patronizing entry. Approved purchases count here only, not toward Standard Plan entry.",
+    sectionTitle: "Standard Plan Packages",
+    sectionDescription: "A package may cost more than PHP 2,800. Its full product total counts after payment approval. Shipping is reviewed separately."
+  } : patronizingPurpose === "patronizing_entry_product" ? {
+    title: "Patronizing Product Entry",
+    description: "Choose individual products toward the PHP 5,818 Patronizing entry. Only approved purchases count toward activation.",
+    sectionTitle: "Entry Products",
+    sectionDescription: "Build your cart gradually. Admin reviews shipping and payment before purchases count."
+  } : patronizingPurpose === "patronizing_monthly_requirement" ? {
+    title: "Monthly Product Requirement",
+    description: "Approved purchases here reduce your stacked Patronizing Income requirement.",
+    sectionTitle: "Requirement Products",
+    sectionDescription: "Choose individual products for the monthly requirement. Shipping is reviewed separately."
+  } : patronizingPurpose === "patronizing_exit_discount" ? {
+    title: `Exit ${patronizingExitNumber} Discount`,
+    description: "Choose individual products within this unlocked Patronizing exit's remaining purchase limit.",
+    sectionTitle: "Discount Products",
+    sectionDescription: "Your exit discount and remaining purchase limit are shown in the cart."
+  } : null;
+  if (context) {
+    document.body.classList.add("commerce-contextual");
+    document.title = `${context.title} | Matrix Portal`;
+    document.getElementById("commerce-page-eyebrow").textContent = "Patronizing Income";
+    document.getElementById("commerce-page-title").textContent = context.title;
+    document.getElementById("commerce-page-description").textContent = context.description;
+    document.getElementById("commerce-section-title").textContent = context.sectionTitle;
+    document.getElementById("commerce-section-description").textContent = context.sectionDescription;
+    const back = document.getElementById("commerce-page-back");
+    back.href = "patronizing-income.html";
+    back.textContent = "Back";
+  }
 
   if (!window.MatrixDB) {
     showAccessError("Please sign in through your member dashboard before opening packages.");
@@ -136,7 +170,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     commercePackageCount.textContent = `${packages.length + products.length} Item${packages.length + products.length === 1 ? "" : "s"}`;
     if (patronizingPurpose || budgetPurpose) {
       commercePackageTabs.hidden = true;
-      commercePackageCount.textContent = `${visibleProducts.length} Product${visibleProducts.length === 1 ? "" : "s"}`;
+      commercePackageCount.textContent = patronizingPurpose === "patronizing_entry_package"
+        ? `${visiblePackages.length} Package${visiblePackages.length === 1 ? "" : "s"}`
+        : `${visibleProducts.length} Product${visibleProducts.length === 1 ? "" : "s"}`;
     } else {
       commercePackageTabs.hidden = false;
       commercePackageTabs.innerHTML = COMMERCE_PACKAGE_TYPES.map(type => {
@@ -155,7 +191,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     commercePackageList.classList.toggle("commerce-product-browser", PRODUCT_PLUS_TYPES.includes(selectedCommercePackageType));
 
-    if (patronizingPurpose || budgetPurpose) {
+    if (patronizingPurpose === "patronizing_entry_package") {
+      commercePackageList.innerHTML = visiblePackages.length
+        ? visiblePackages.map(commercePackage => renderCommercePackageCard(commercePackage, summary, orders)).join("")
+        : `<div class="empty-state"><p>No active Standard Plan packages are available yet.</p></div>`;
+      commercePackageList.querySelectorAll("[data-request-package-id]").forEach(button => {
+        const commercePackage = visiblePackages.find(item => item.id === button.dataset.requestPackageId);
+        button.addEventListener("click", () => openCommerceOrderModal(commercePackage));
+      });
+    } else if (patronizingPurpose || budgetPurpose) {
       renderProductPlusShop(visibleProducts, summary, orders, patronizing);
     } else if (PRODUCT_PLUS_TYPES.includes(selectedCommercePackageType)) {
       renderProductPlusShop(visibleProducts, summary, orders, null);
@@ -185,7 +229,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       <article class="commerce-browser-package">
         <div class="commerce-browser-heading">
           <div>
-            <span>${escapeHtml(commercePackage.packageTypeLabel)}</span>
+            <span>${escapeHtml(planPackageLabel(commercePackage.packageTypeLabel))}</span>
             <h4>${escapeHtml(commercePackage.packageName)}</h4>
           </div>
           <strong>${isVoucherPackage ? `${formatNumber(total)} Vouchers` : `PHP ${formatNumber(total)}`}</strong>
@@ -409,9 +453,28 @@ document.addEventListener("DOMContentLoaded", async () => {
     const hasPendingTimelineRequest = Boolean(summary && summary.timelineDashboard && summary.timelineDashboard.pendingRequest);
     const total = Number(commercePackage.totalPrice || 0);
 
-    if (commercePackage.packageType === "matrix_1200_entry" && isMainActive) return { canRequest: false, buttonLabel: "Already Active", hint: "Your PHP 1,200 Matrix is already active." };
-    if (commercePackage.packageType === "timeline_entry" && isTimelineActive) return { canRequest: false, buttonLabel: "Already Active", hint: "Your Timeline Matrix is already active." };
-    if (commercePackage.packageType === "timeline_entry" && hasPendingTimelineRequest) return { canRequest: false, buttonLabel: "Request Active", hint: "You already have a pending Timeline Matrix request." };
+    if (patronizingPurpose === "patronizing_entry_package") {
+      const patronizing = MatrixDB.getPatronizingDashboard() || {};
+      if (patronizing.entry) return { canRequest: false, buttonLabel: "Already Active", hint: "Your Patronizing Income entry is already active." };
+      if (patronizing.pendingTokenRequest) return { canRequest: false, buttonLabel: "Request Active", hint: "Your F3 Token entry is pending review." };
+      if (orders.some(order => order.orderPurpose === "patronizing_entry_product" && !["rejected", "cancelled"].includes(order.status))) {
+        return { canRequest: false, buttonLabel: "Product Entry Active", hint: "Finish your individual-product entry first." };
+      }
+      if (orders.some(order => order.packageId === commercePackage.id && order.orderPurpose === "patronizing_entry_package" && activeStatuses.includes(order.status))) {
+        return { canRequest: false, buttonLabel: "Order Active", hint: "You already have an active Patronizing order for this package." };
+      }
+      const progress = getEntryProgressFromOrders(orders, "patronizing_entry_package", 2800);
+      const remainingAfterThis = Math.max(2800 - Number(progress.approved || 0) - total, 0);
+      return {
+        canRequest: true,
+        buttonLabel: remainingAfterThis > 0 ? "Buy Toward Entry" : "Complete Entry",
+        hint: remainingAfterThis > 0 ? `Approved: PHP ${formatNumber(progress.approved)}. This order leaves PHP ${formatNumber(remainingAfterThis)} after approval.` : "This package can complete Patronizing Income entry once its payment is approved."
+      };
+    }
+
+    if (commercePackage.packageType === "matrix_1200_entry" && isMainActive) return { canRequest: false, buttonLabel: "Already Active", hint: "Your Premium Plan is already active." };
+    if (commercePackage.packageType === "timeline_entry" && isTimelineActive) return { canRequest: false, buttonLabel: "Already Active", hint: "Your Standard Plan is already active." };
+    if (commercePackage.packageType === "timeline_entry" && hasPendingTimelineRequest) return { canRequest: false, buttonLabel: "Request Active", hint: "You already have a pending Standard Plan request." };
     if (hasActiveSamePackage) return { canRequest: false, buttonLabel: "Order Active", hint: "You already have an active order for this package." };
     if (commercePackage.packageType === "product_plus_voucher" && availableVoucherValue < total) return { canRequest: false, buttonLabel: "Need More Vouchers", hint: "Save more vouchers before requesting this package." };
     if (commercePackage.packageType === "matrix_1200_entry") {
@@ -420,7 +483,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return {
         canRequest: true,
         buttonLabel: remainingAfterThis > 0 ? "Buy Toward Entry" : "Complete Entry",
-        hint: remainingAfterThis > 0 ? `Approved: PHP ${formatNumber(progress.approved)}. This order leaves PHP ${formatNumber(remainingAfterThis)} remaining after approval.` : "This order can complete the PHP 1,200 Matrix entry once approved."
+        hint: remainingAfterThis > 0 ? `Approved: PHP ${formatNumber(progress.approved)}. This order leaves PHP ${formatNumber(remainingAfterThis)} remaining after approval.` : "This order can complete the Premium Plan entry once approved."
       };
     }
     if (commercePackage.packageType === "timeline_entry") {
@@ -429,7 +492,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return {
         canRequest: true,
         buttonLabel: remainingAfterThis > 0 ? "Buy Toward Entry" : "Complete Entry",
-        hint: remainingAfterThis > 0 ? `Approved: PHP ${formatNumber(progress.approved)}. This order leaves PHP ${formatNumber(remainingAfterThis)} remaining after approval.` : "This order can complete the Timeline Matrix entry once approved."
+        hint: remainingAfterThis > 0 ? `Approved: PHP ${formatNumber(progress.approved)}. This order leaves PHP ${formatNumber(remainingAfterThis)} remaining after approval.` : "This order can complete the Standard Plan entry once approved."
       };
     }
     return { canRequest: true, buttonLabel: "Request Order", hint: "Shipping fee added after admin checks J&T." };
@@ -439,7 +502,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const approvedStatuses = ["payment_approved", "shipped", "received"];
     const pendingStatuses = ["pending_shipping_fee", "approved_for_payment", "payment_submitted"];
     const filtered = orders.filter(order => {
-      if (entryType === "patronizing_entry_product") return order.orderPurpose === "patronizing_entry_product";
+      if (["patronizing_entry_product", "patronizing_entry_package"].includes(entryType)) return order.orderPurpose === entryType;
       return order.packageType === entryType && (order.orderPurpose || "standard") === "standard";
     });
     const approved = filtered.filter(order => approvedStatuses.includes(order.status)).reduce((sum, order) => sum + Number(order.packageTotal || 0), 0);
@@ -454,17 +517,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function renderCommerceOrderHistory(orders = []) {
-    const activeOrders = orders.filter(order => order.status !== "received");
-    const historyOrders = orders.filter(order => order.status === "received");
+    const finishedStatuses = new Set(["received", "rejected", "cancelled"]);
+    const activeOrders = orders.filter(order => !finishedStatuses.has(order.status));
+    const historyOrders = orders.filter(order => finishedStatuses.has(order.status));
     commerceOrderCount.textContent = `${activeOrders.length} request${activeOrders.length === 1 ? "" : "s"}`;
     commerceHistoryCount.textContent = `${historyOrders.length} order${historyOrders.length === 1 ? "" : "s"}`;
     if (!activeOrders.length) {
       commerceOrderList.innerHTML = `<div class="empty-state"><p>No order requests yet.</p></div>`;
     } else {
-      commerceOrderList.innerHTML = activeOrders.slice(0, 8).map(order => renderCommerceOrderCard(order, false)).join("");
+      commerceOrderList.innerHTML = activeOrders.map(order => renderCommerceOrderCard(order, false)).join("");
     }
     commerceHistoryList.innerHTML = historyOrders.length
-      ? historyOrders.slice(0, 12).map(order => renderCommerceOrderCard(order, true)).join("")
+      ? historyOrders.map(order => renderCommerceOrderCard(order, true)).join("")
       : `<div class="empty-state"><p>No completed orders yet.</p></div>`;
     commerceOrderList.querySelectorAll("[data-pay-order-id]").forEach(button => {
       const order = activeOrders.find(item => item.id === button.dataset.payOrderId);
@@ -507,7 +571,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="product-plus-month-index">${escapeHtml((order.orderCode || "ORD").replace("ORD-", ""))}</div>
         <div>
           <h5>${escapeHtml(packageSnapshot.packageName || "Package order")}: ${commerceOrderTotalLabel(order)}</h5>
-          <p>${escapeHtml(order.orderPurpose === "budget_qualification" ? "Budget Plan Products" : order.packageTypeLabel)} &middot; ${commerceOrderStatusLabel(order.status)} &middot; ${formatDate(order.createdAt)}${order.shippingFee != null ? ` &middot; Shipping fee: PHP ${formatNumber(order.shippingFee)}` : ""}</p>
+          <p>${escapeHtml(order.orderPurpose === "budget_qualification" ? "Budget Plan Products" : planPackageLabel(order.packageTypeLabel))} &middot; ${commerceOrderStatusLabel(order.status)} &middot; ${formatDate(order.createdAt)}${order.shippingFee != null ? ` &middot; Shipping fee: PHP ${formatNumber(order.shippingFee)}` : ""}</p>
           ${adminNote}${paymentNote}${shippingNote}${receivedNote}
         </div>
         ${action}
@@ -529,7 +593,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     commerceOrderSubmit.disabled = addresses.length === 0;
     commerceOrderAddress.disabled = addresses.length === 0;
     commerceOrderAddAddress.hidden = addresses.length > 0;
-    commerceOrderSummary.textContent = `${commercePackage.packageName} | ${commercePackage.packageType === "product_plus_voucher" ? `${formatNumber(commercePackage.totalPrice)} vouchers` : `PHP ${formatNumber(commercePackage.totalPrice)}`}`;
+    commerceOrderSummary.textContent = `${patronizingPurpose === "patronizing_entry_package" ? "Patronizing Entry | " : ""}${commercePackage.packageName} | ${commercePackage.packageType === "product_plus_voucher" ? `${formatNumber(commercePackage.totalPrice)} vouchers` : `PHP ${formatNumber(commercePackage.totalPrice)}`}`;
     commerceOrderAddress.innerHTML = addresses.length
       ? addresses.map(address => `<option value="${escapeHtml(address.id)}" ${address.isDefault ? "selected" : ""}>${escapeHtml(address.fullName)} - ${escapeHtml(address.city)}, ${escapeHtml(address.province)}</option>`).join("")
       : `<option value="">Add a shipping address first</option>`;
@@ -623,7 +687,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const matrixUplineCode = pendingCommercePackage && pendingCommercePackage.packageType === "matrix_1200_entry" ? commerceOrderUplineCode.value.trim().toUpperCase() : "";
     if (pendingCommercePackage && pendingCommercePackage.packageType === "matrix_1200_entry" && !matrixUplineCode) {
       commerceOrderAlert.className = "alert alert-danger";
-      commerceOrderAlert.textContent = "Enter a 1200 Matrix upline code before requesting this package.";
+      commerceOrderAlert.textContent = "Enter a Premium Plan upline code before requesting this package.";
       commerceOrderAlert.style.display = "block";
       commerceOrderUplineCode.focus();
       return;
@@ -655,12 +719,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         productCarts[pendingProductCartType] = [];
       } else {
-        await MatrixDB.requestCommerceOrder({
+        const details = {
           packageId: pendingCommercePackage.id,
           shippingAddressId: commerceOrderAddress.value,
           memberNotes: commerceOrderNotes.value.trim(),
           matrixUplineCode
-        });
+        };
+        if (patronizingPurpose === "patronizing_entry_package") await MatrixDB.requestPatronizingPackageOrder(details);
+        else await MatrixDB.requestCommerceOrder(details);
       }
       closeCommerceOrderModal();
       renderCommercePackagesPanel();
@@ -772,6 +838,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   function formatDate(value) { return value ? new Date(value).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"; }
   function capitalize(value) { const text = String(value || ""); return text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, " "); }
   function quantityBadge(item) { const quantity = Number(item && item.quantity || 1); return quantity > 1 ? `<span class="commerce-item-quantity">x${quantity.toLocaleString()}</span>` : ""; }
+  function planPackageLabel(label) {
+    if (label === "Timeline Matrix Package Entry") return "Standard Plan Package Entry";
+    if (label === "PHP 1,200 Matrix Package Entry") return "Premium Plan Package Entry";
+    return label;
+  }
+
   function escapeHtml(value) { return String(value == null ? "" : value).replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character])); }
   function showAlert(message, type) { pageAlert.className = `alert alert-${type}`; pageAlert.textContent = message; pageAlert.style.display = "block"; pageAlert.scrollIntoView({ behavior: "smooth", block: "center" }); }
   function showAccessError(message) { showAlert(message, "danger"); window.setTimeout(() => { window.location.href = "portal.html"; }, 1400); }

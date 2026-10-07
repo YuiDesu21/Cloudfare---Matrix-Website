@@ -1,4 +1,4 @@
-// Supabase-backed Timeline Matrix page. The local MatrixDB implementation
+// Supabase-backed Standard Plan page. The local MatrixDB implementation
 // remains responsible for sandbox mode; production talks only to secured RPCs.
 document.addEventListener("DOMContentLoaded", async () => {
   if (!window.MATRIX_USES_SUPABASE || !window.matrixSupabase) return;
@@ -100,10 +100,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.dashboard.style.display = isActive ? "grid" : "none";
     renderProductEntryProgress(isActive);
     elements.submit.disabled = Boolean(pending);
-    elements.submit.textContent = pending ? "Timeline Activation Pending" : "Submit Timeline Activation";
+    elements.submit.textContent = pending ? "Standard Plan Activation Pending" : "Submit Standard Plan Activation";
 
     if (!isActive) {
-      if (pending) showAlert("Your Timeline Matrix activation is waiting for admin approval.", "info");
+      if (pending) showAlert("Your Standard Plan activation is waiting for admin approval.", "info");
       return;
     }
 
@@ -142,7 +142,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     hideAlert();
     const paymentMethod = elements.paymentMethod.value;
     if (paymentMethod === "available_balance" && availableBalance < 693) {
-      showAlert("Available Balance is not enough for the PHP 693 Timeline activation.", "danger");
+      showAlert("Available Balance is not enough for the PHP 693 Standard Plan activation.", "danger");
       return;
     }
     const args = { p_payment_method: paymentMethod, p_gcash_name: "", p_gcash_number: "", p_reference_number: "" };
@@ -167,7 +167,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     elements.reference.value = "";
     await refresh();
-    showAlert("Timeline Matrix activation was submitted for admin approval.", "success");
+    showAlert("Standard Plan activation was submitted for admin approval.", "success");
   }
 
   function renderExitTabs() {
@@ -194,9 +194,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function renderTree() {
-    elements.tree.innerHTML = `<div class="empty-state"><p>Loading Timeline Matrix position...</p></div>`;
+    elements.tree.innerHTML = `<div class="empty-state"><p>Loading Standard Plan position...</p></div>`;
     const { data: tree, error } = await window.matrixSupabase.rpc("get_my_timeline_level", { p_root_member_id: member.id });
-    if (error) { elements.tree.innerHTML = `<div class="empty-state"><p>Unable to load the Timeline Matrix explorer.</p></div>`; return; }
+    if (error) { elements.tree.innerHTML = `<div class="empty-state"><p>Unable to load the Standard Plan explorer.</p></div>`; return; }
     const children = tree.children || [];
     const openSlots = Array.from({ length: Math.max(3 - children.length, 0) }, () => ({ isOpenSlot: true }));
     elements.tree.innerHTML = `<div class="tree-explorer"><div class="tree-explorer-status"><span>Viewing direct timeline downlines of</span><strong>${escapeHtml(tree.fullName)}</strong></div><div class="tree-wrapper">${nodeHtml(tree, true)}<div class="tree-children-container">${[...children, ...openSlots].map(child => nodeHtml(child, false)).join("")}</div></div></div>`;
@@ -223,7 +223,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (action === "withdraw") window.location.href = "withdrawal-request.html";
       if (action === "withdrawal-history") window.location.href = "withdrawal-history.html";
       if (action === "history") window.location.href = "passive-income-history.html";
-      if (action === "entry") window.location.href = "upgrade-entry-production.html";
+      if (action === "entry") window.location.href = "upgrade-entry.html";
       if (action === "logout") { await window.matrixSupabase.auth.signOut(); window.location.href = "portal.html"; }
     }));
     document.addEventListener("click", event => {

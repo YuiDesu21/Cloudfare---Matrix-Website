@@ -42,6 +42,15 @@ function request(action, body = {}, token = "") {
   });
 }
 
+function requestStatic(pathname) {
+  return new Promise((resolve, reject) => {
+    http.get(`http://127.0.0.1:${port}${pathname}`, response => {
+      response.resume();
+      response.on("end", () => resolve(response.statusCode));
+    }).on("error", reject);
+  });
+}
+
 async function waitForServer() {
   let lastError;
   for (let attempt = 0; attempt < 30; attempt += 1) {
@@ -72,6 +81,8 @@ async function runPilot() {
     fs.copyFileSync(path.join(root, "data", "matrix-rules.json"), path.join(tempRoot, "data", "matrix-rules.json"));
   }
   fs.writeFileSync(path.join(tempRoot, "data", "matrix-db.json"), "{}", "utf8");
+  fs.writeFileSync(path.join(tempRoot, "index.html"), "Pilot website", "utf8");
+  fs.writeFileSync(path.join(tempRoot, ".env.live.local"), "DUMMY_SECRET=not-real", "utf8");
   server = spawn(process.execPath, ["server.js"], {
     cwd: tempRoot,
     env: { ...process.env, PORT: String(port), MATRIX_MODE: "sandbox" },
@@ -79,6 +90,10 @@ async function runPilot() {
     windowsHide: true
   });
   await waitForServer();
+  assert(await requestStatic("/index.html") === 200, "Public website file was not served.");
+  for (const pathname of ["/server.js", "/.env.live.local", "/data/matrix-db.json", "/scripts/run-clean-room-pilot.js"]) {
+    assert(await requestStatic(pathname) === 404, `Private path was served: ${pathname}`);
+  }
 
   const adminLogin = await request("authenticateAdmin", { password: "admin123", operatorName: "Clean Room Pilot" });
   assert(adminLogin.body.ok, "Admin authentication failed.");

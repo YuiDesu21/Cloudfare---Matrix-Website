@@ -16,3 +16,9 @@
 
 /passive-income-history.html
   Cache-Control: no-store
+
+/patronizing-income.html
+  Cache-Control: no-store
+
+/packages-orders.html
+  Cache-Control: no-store

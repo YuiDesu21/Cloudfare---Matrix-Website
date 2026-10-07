@@ -47,13 +47,13 @@
           <button type="button" data-account-action="profile">Profile</button>
           <button type="button" data-account-action="packages">Packages &amp; Orders</button>
           <button type="button" data-account-action="patronizing">Patronizing Income</button>
-          <button type="button" data-account-action="timeline">Timeline Matrix</button>
+          <button type="button" data-account-action="timeline">Standard Plan</button>
           <button type="button" data-account-action="budget">Budget Plan</button>
           <button type="button" data-account-action="funds">Main Funds</button>
           <button type="button" data-account-action="withdraw">Withdraw</button>
           <button type="button" data-account-action="history">Withdrawal History</button>
           <button type="button" data-account-action="income">Passive Income History</button>
-          <button type="button" data-account-action="entry">Entry Activation</button>
+          <button type="button" data-account-action="entry">Premium Plan Entry</button>
           <button type="button" data-account-action="admin" hidden>Admin Portal</button>
           <button id="logout-btn-header" type="button" class="account-menu-signout">Sign Out</button>
         </nav>
@@ -127,11 +127,11 @@
         <form id="reset-password-form">
           <div class="form-group">
             <label for="reset-password-new">New Password</label>
-            <input type="password" id="reset-password-new" class="form-control" autocomplete="new-password" minlength="8" required>
+            <input type="password" id="reset-password-new" class="form-control" autocomplete="new-password" minlength="10" required>
           </div>
           <div class="form-group">
             <label for="reset-password-confirm">Confirm New Password</label>
-            <input type="password" id="reset-password-confirm" class="form-control" autocomplete="new-password" minlength="8" required>
+            <input type="password" id="reset-password-confirm" class="form-control" autocomplete="new-password" minlength="10" required>
           </div>
           <button id="reset-password-submit" type="submit" class="button button-primary btn-block">Update Password</button>
         </form>
@@ -205,7 +205,7 @@
         <p class="subtitle">Your account is ready</p>
         
         <div class="alert alert-success">
-          Your free account has been created under ID: <strong id="success-req-id"></strong>. You can now sign in and unlock Entry from your dashboard.
+          Your free account has been created under ID: <strong id="success-req-id"></strong>. You can now sign in and activate Premium Plan from your dashboard.
         </div>
 
         <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1.5rem;">
@@ -260,13 +260,13 @@
               <span id="db-joindate" class="val"></span>
             </li>
             <li>
-              <span class="label">1200 Matrix Upline</span>
+              <span class="label">Premium Plan Upline</span>
               <span id="db-sponsor" class="val">-</span>
             </li>
           </ul>
 
           <div id="referral-container" style="margin-top: 1.5rem; border-top: 1px solid rgba(255, 201, 28, 0.2); padding-top: 1.2rem; display: none;">
-            <label style="display: block; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 0.3rem;">Your 1200 Matrix Upline Code</label>
+            <label style="display: block; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; color: var(--gold-soft); margin-bottom: 0.3rem;">Your Premium Plan Upline Code</label>
             <div class="copy-panel">
               <input type="text" id="ref-link-input" readonly>
               <button id="copy-ref-btn" class="button button-primary btn-icon-only" title="Copy code">Copy</button>
@@ -336,7 +336,7 @@
         <!-- Metrics Cards (Active only) -->
         <div id="active-metrics-row" class="metrics-row" style="display: none;">
           <div class="metric-card">
-            <span class="title">Direct 1200 Downlines <span class="metric-help" tabindex="0" aria-label="Members directly placed under your 1200 Matrix code." data-tooltip="Members directly placed under your 1200 Matrix code.">?</span></span>
+            <span class="title">Premium Plan Downlines <span class="metric-help" tabindex="0" aria-label="Members directly placed under your Premium Plan code." data-tooltip="Members directly placed under your Premium Plan code.">?</span></span>
             <span id="metric-referrals" class="value">0</span>
           </div>
           <div class="metric-card">
@@ -349,7 +349,7 @@
         <div id="matrix-overview-card" class="portal-card matrix-overview-card" style="display: none;">
           <div class="matrix-card-header">
             <div>
-              <h3>Power of Three Exit Status</h3>
+              <h3>Premium Plan Exit Status</h3>
               <p>Select an exit to review your downline requirement, required Buy/Re-Stake action, passive income, and Products Plus benefit.</p>
             </div>
             <span id="matrix-selected-badge" class="badge">Entry</span>
@@ -360,7 +360,7 @@
           <div class="matrix-detail-layout">
             <section class="matrix-status-panel">
               <div class="matrix-status-heading">
-                <h4 id="matrix-title">Power of Three</h4>
+                <h4 id="matrix-title">Premium Plan</h4>
                 <span id="matrix-qualification" class="matrix-qualification">Not Qualified</span>
               </div>
               <p id="matrix-summary" class="matrix-action-copy"></p>

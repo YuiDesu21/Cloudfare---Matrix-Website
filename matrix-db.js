@@ -4,8 +4,8 @@
  */
 
 const MATRIX_PLANS = {
-  "power3-passive": { id: "power3-passive", name: "Power of Three Passive Income", maxChildren: 3, price: 20, pesoValue: 1200 },
-  "timeline-power3": { id: "timeline-power3", name: "Power of Three Timeline Matrix", maxChildren: 3, price: 693, pesoValue: 693 },
+  "power3-passive": { id: "power3-passive", name: "Premium Plan", maxChildren: 3, price: 20, pesoValue: 1200 },
+  "timeline-power3": { id: "timeline-power3", name: "Standard Plan", maxChildren: 3, price: 693, pesoValue: 693 },
   "patronizing-income": { id: "patronizing-income", name: "Patronizing Income", maxChildren: 3, price: 0, pesoValue: 0 }
 };
 
@@ -343,9 +343,9 @@ const SupabaseMatrixDB = {
   getSettings() { return {}; },
   getMatrixRules() {
     return (supabaseState.dashboard && supabaseState.dashboard.rules) || {
-      programName: "Matrix Power of Three Passive Income",
+      programName: "Premium Plan",
       matrixId: "power3-passive",
-      matrixName: "Power of Three Passive Income",
+      matrixName: "Premium Plan",
       maxDirectDownlines: 3,
       entry: { holdF3: 20, holdPesoValue: 1200, passiveAllocation: 900, matrixAllocation: 300, passiveIncome: 231, passiveMonths: 3 },
       exits: []
@@ -365,7 +365,8 @@ const SupabaseMatrixDB = {
   async requestCommerceProductOrder() { throw new Error("Product Plus cart checkout is available in the production adapter."); },
   getPatronizingDashboard() { return (supabaseState.dashboard && supabaseState.dashboard.patronizingDashboard) || null; },
   async requestPatronizingTokenEntry(details = {}) {
-    const { data, error } = await window.matrixSupabase.rpc("request_patronizing_token_entry", {
+    const { data, error } = await window.matrixSupabase.rpc("request_patronizing_token_entry_plan", {
+      p_plan_code: details.planCode || "f3_token",
       p_payment_method_id: details.paymentMethodId,
       p_reference_number: details.referenceNumber || "",
       p_notes: details.notes || ""
@@ -381,6 +382,16 @@ const SupabaseMatrixDB = {
       p_items: details.items || [],
       p_member_notes: details.memberNotes || "",
       p_exit_number: details.exitNumber || null
+    });
+    if (error) throw error;
+    await this.refreshSessionData();
+    return data;
+  },
+  async requestPatronizingPackageOrder(details = {}) {
+    const { data, error } = await window.matrixSupabase.rpc("request_patronizing_package_order", {
+      p_package_id: details.packageId,
+      p_shipping_address_id: details.shippingAddressId,
+      p_member_notes: details.memberNotes || ""
     });
     if (error) throw error;
     await this.refreshSessionData();

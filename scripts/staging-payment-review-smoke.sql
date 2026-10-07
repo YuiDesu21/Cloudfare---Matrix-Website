@@ -17,6 +17,8 @@ declare
   duplicate_order_id uuid;
   admin_token_request uuid;
   owner_budget_request uuid;
+  admin_investment_request uuid;
+  owner_investment_request uuid;
   duplicate_rejected boolean;
 begin
   insert into auth.users (id, email, raw_user_meta_data)
@@ -63,6 +65,29 @@ begin
   owner_budget_request := (public.request_budget_token_purchase(4, method_id,
     'REVIEW-OWNER-BUDGET') ->> 'id')::uuid;
   perform public.admin_review_budget_token_purchase(owner_budget_request, true, 'Test');
+
+  insert into public.member_fund_ledger(member_id, account, amount, source_type, source_id)
+  values
+    (admin_id, 'investment', 500, 'review_test', extensions.gen_random_uuid()),
+    (owner_id, 'investment', 500, 'review_test', extensions.gen_random_uuid());
+  insert into public.budget_investment_requests(member_id, rank_number, amount, months)
+  values (admin_id, 1, 500, 2) returning id into admin_investment_request;
+  perform set_config('request.jwt.claim.sub', admin_id::text, true);
+  duplicate_rejected := false;
+  begin
+    perform public.admin_review_budget_investment(admin_investment_request, true, 'Test');
+  exception when insufficient_privilege then
+    duplicate_rejected := true;
+  end;
+  if not duplicate_rejected then raise exception 'Regular admin approved own Budget investment'; end if;
+  insert into public.budget_investment_requests(member_id, rank_number, amount, months)
+  values (owner_id, 1, 500, 2) returning id into owner_investment_request;
+  perform set_config('request.jwt.claim.sub', owner_id::text, true);
+  perform public.admin_review_budget_investment(owner_investment_request, true, 'Test');
+  if not exists (select 1 from public.budget_investment_contracts contract
+    where contract.request_id = owner_investment_request and contract.member_id = owner_id) then
+    raise exception 'Owner self-reviewed Budget investment did not create a contract';
+  end if;
 
   insert into public.member_fund_topups
     (member_id, payment_method_id, payment_method_snapshot, amount, reference_number)

@@ -1,13 +1,22 @@
 # Supabase and Cloudflare deployment handoff
 
-## Current status (October 6, 2026)
+## Current status (October 7, 2026)
+
+- See `docs/RELEASE-READINESS-2026-10-07.md` for the current pass/fail gates and cutover hold. No live migration or deployment has been performed.
+- Staging has migrations through `202610070003`; live still stops at `202609090002`. The October 6 live backup was restored offline and the first 22 pending migrations plus four rollback-only smoke tests passed against that copy. Migration `202610070003` was added afterward and has passed staging lint and its focused rollback-only discount/monthly-credit test. The source remains linked to staging.
+- The Patronizing package checkout, shipping review, fictional payment submission, and Owner rejection were rehearsed in staging. All exact-match QA records were removed with no payment credited.
+- Signed-in staging pilots covered Budget, Patronizing, Standard, and Premium placements; an approved monthly product purchase and income unlock; Exit 1 discounted checkout and its post-discount monthly credit; Main Funds transfers; a matured Budget investment contract and capital return; withdrawal rejection and approval; and Owner review of fictional payments and top-ups. All disposable fixtures were removed. Pilot acceptance and release-commit review remain before cutover. No real payment or payout was made. The owner accepted the Supabase Free-plan leaked-password warning. F3 network-specific handling and independent legal review remain deferred; do not interpret technical readiness as authorization for public financial enrollment.
+
+## Earlier status (October 6, 2026)
 
 - This checkout is linked to staging project `sssfvmyukpmzbktdlybg`, not live.
-- Staging has migrations through `202610050015`; live project `rvylugnfclguwhdvxprn` stops at `202609090002`. Do not run a live migration from the staging link.
+- Staging has migrations through `202610060006`; live project `rvylugnfclguwhdvxprn` stops at `202609090002`. Do not run a live migration from the staging link.
 - The 693 Timeline investment schedule remains in `docs/TIMELINE-INVESTMENT-DRAFT.sql` and is not a deployable migration.
-- The live database was exported to a local, Git-ignored archive. Archive readability was checked, but an isolated restore has not been rehearsed. Supabase Storage files are not in the database archive.
-- Staging rollback-only funds and payment-review smoke tests pass. The clean-room pilot, JavaScript checks, static build, and error-level staging security advisors pass. Signed-in browser acceptance testing is still pending.
-- Before live rollout: confirm the investment terms and required legal authority, back up Storage files, rehearse a restore, complete signed-in member/admin acceptance testing, and take a fresh backup immediately before applying migrations.
+- The October 6 live database archive was restored successfully into an offline local Supabase PostgreSQL 17 database; see `docs/RESTORE-REHEARSAL-2026-10-06.md`. The snapshot had no Storage buckets or objects, but current live Storage must be checked again before deployment. Supabase Storage files are not included in database archives.
+- Staging rollback-only funds, payment-review, and four-tier Patronizing smoke tests pass. The clean-room pilot, JavaScript checks, static build, and error-level staging security advisor pass. The four Patronizing entry cards, 12-token dialog, and package empty state were checked at desktop, tablet, and phone widths. Staging has no active Timeline packages, so a populated package checkout and real signed-in payment approval remain unverified. Other placed matrices and nonzero balances still need acceptance testing.
+- Staging has additional Admin and Owner roles on the existing Junel account for UI testing only. The live project was not changed.
+- See `docs/AUDIT-2026-10-06.md` for the verified fixes and remaining launch concerns.
+- Before live rollout: confirm the investment terms and required legal authority, check current Storage and back up any files, complete signed-in member/admin acceptance testing, and take a fresh backup immediately before applying migrations.
 
 ## Historical status (July 22, 2026)
 

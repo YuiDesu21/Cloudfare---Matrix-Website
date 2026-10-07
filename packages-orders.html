@@ -29,11 +29,11 @@
   <main class="portal-container withdrawal-page">
     <section class="withdrawal-hero">
       <div>
-        <span class="withdrawal-eyebrow">Member Orders</span>
-        <h1>Products &amp; Orders</h1>
-        <p>Browse entry packages, add Product Plus products to cart, and submit an order request with your saved shipping address.</p>
+        <span id="commerce-page-eyebrow" class="withdrawal-eyebrow">Member Orders</span>
+        <h1 id="commerce-page-title">Products &amp; Orders</h1>
+        <p id="commerce-page-description">Browse entry packages, add Product Plus products to cart, and submit an order request with your saved shipping address.</p>
       </div>
-      <a class="button button-outline button-small" href="portal.html">Dashboard</a>
+      <a id="commerce-page-back" class="button button-outline button-small" href="portal.html">Dashboard</a>
     </section>
 
     <div id="packages-orders-alert" class="alert" style="display:none"></div>
@@ -42,8 +42,8 @@
       <div id="commerce-packages-card" class="portal-card matrix-overview-card">
         <div class="matrix-card-header">
           <div>
-            <h3>Products &amp; Entry Packages</h3>
-            <p>Select a type, review products or entry packages, then request checkout for admin shipping-fee review.</p>
+            <h3 id="commerce-section-title">Products &amp; Entry Packages</h3>
+            <p id="commerce-section-description">Select a type, review products or entry packages, then request checkout for admin shipping-fee review.</p>
           </div>
           <span id="commerce-package-count" class="badge">0 Items</span>
         </div>
@@ -75,9 +75,9 @@
         </div>
         <div id="commerce-order-address-preview" class="commerce-order-address-preview"></div>
         <div id="commerce-order-upline-group" class="form-group" hidden>
-          <label for="commerce-order-upline-code">1200 Matrix Upline Code</label>
+          <label for="commerce-order-upline-code">Premium Plan Upline Code</label>
           <input id="commerce-order-upline-code" class="form-control" type="text" maxlength="14" placeholder="M1200-XXXXXXXX" pattern="M1200-[A-Za-z0-9]{8}" autocomplete="off">
-          <small>Required only for 1200 Matrix entry packages.</small>
+          <small>Required only for Premium Plan entry packages.</small>
         </div>
         <div class="form-group">
           <label for="commerce-order-notes">Order notes</label>
@@ -119,8 +119,8 @@
   <script src="js/runtime-config.js"></script>
   <script src="vendor/supabase.js"></script>
   <script src="js/supabase-client.js"></script>
-  <script src="matrix-db.js"></script>
+  <script src="matrix-db.js?v=20261006-tiers"></script>
   <script src="js/member-navigation.js"></script>
-  <script src="js/packages-orders.js"></script>
+  <script src="js/packages-orders.js?v=20261006-tiers"></script>
 </body>
 </html>

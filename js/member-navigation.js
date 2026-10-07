@@ -4,13 +4,13 @@
     { id: "dashboard", label: "Dashboard", href: "portal.html" },
     { id: "packages-orders", label: "Packages & Orders", href: "packages-orders.html" },
     { id: "patronizing-income", label: "Patronizing Income", href: "patronizing-income.html" },
-    { id: "timeline-matrix", label: "Timeline Matrix", href: "timeline-matrix.html" },
+    { id: "timeline-matrix", label: "Standard Plan", href: "timeline-matrix.html" },
     { id: "budget-plan", label: "Budget Plan", href: "budget-plan.html" },
     { id: "main-funds", label: "Main Funds", href: "main-funds.html" },
     { id: "withdrawal-request", label: "Withdraw", href: "withdrawal-request.html" },
     { id: "withdrawal-history", label: "Withdrawal History", href: "withdrawal-history.html" },
     { id: "passive-income-history", label: "Passive Income History", href: "passive-income-history.html" },
-    { id: "upgrade-entry-production", label: "Entry Activation", href: "upgrade-entry-production.html" }
+    { id: "upgrade-entry", label: "Premium Plan Entry", href: "upgrade-entry.html" }
   ];
 
   if (document.readyState === "loading") {

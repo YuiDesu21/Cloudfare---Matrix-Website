@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("funds-investment-available").textContent = money(data.investmentAvailable);
     document.getElementById("funds-investment-total").textContent = `${money(data.investmentBalance)} total`;
     document.getElementById("funds-locked").textContent = money(data.investmentLocked);
-    const labels = { "power3-passive": "1200 Matrix", "timeline-power3": "Timeline Matrix", "patronizing-income": "Patronizing Income", "budget-plan": "Budget Plan" };
+    const labels = { "power3-passive": "Premium Plan", "timeline-power3": "Standard Plan", "patronizing-income": "Patronizing Income", "budget-plan": "Budget Plan" };
     const balances = data.matrixBalances || {};
     planSelect.innerHTML = Object.entries(labels).map(([key, label]) =>
       `<option value="${key}">${label} | ${money(balances[key])} available</option>`).join("");
@@ -59,7 +59,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function renderPlanNote() {
     document.getElementById("funds-matrix-note").textContent = planSelect.value === "power3-passive"
-      ? "1200 Matrix transfers require at least PHP 1,000."
+      ? "Premium Plan transfers require at least PHP 1,000."
       : "Only income whose due date has passed can be transferred.";
     document.getElementById("funds-matrix-amount").min = planSelect.value === "power3-passive" ? "1000" : "0.01";
   }
@@ -75,13 +75,18 @@ document.addEventListener("DOMContentLoaded", async () => {
       event.preventDefault();
       const button = form.querySelector("button[type=submit]");
       button.disabled = true;
-      const { error } = await window.matrixSupabase.rpc(rpc, args());
-      button.disabled = false;
-      if (error) return show(error.message, "danger");
-      form.reset();
-      if (id === "funds-topup-form") renderPaymentMethod();
-      show(success, "success");
-      await refresh();
+      try {
+        const { error } = await window.matrixSupabase.rpc(rpc, args());
+        if (error) throw error;
+        form.reset();
+        if (id === "funds-topup-form") renderPaymentMethod();
+        show(success, "success");
+        await refresh();
+      } catch (error) {
+        show(error.message || "The request failed. Please try again.", "danger");
+      } finally {
+        button.disabled = false;
+      }
     });
   }
   function show(message, type) {

@@ -18,6 +18,14 @@ const STAGING_RUNTIME_CONFIG = path.join(__dirname, "js", "runtime-config.stagin
 const PRODUCTION_DATA_ADAPTER = path.join(__dirname, "matrix-db-production.js");
 const PRODUCTION_ENTRY_PAGE = path.join(__dirname, "upgrade-entry-production.html");
 const PRODUCTION_ADMIN_PAGE = path.join(__dirname, "admin-production.html");
+const PUBLIC_ROOT_FILES = new Set([
+  "index.html", "portal.html", "exit-action.html", "withdrawal-request.html",
+  "main-funds.html", "withdrawal-history.html", "passive-income-history.html",
+  "patronizing-income.html", "budget-plan.html", "packages-orders.html",
+  "timeline-matrix.html", "upgrade-entry.html", "upgrade-entry-production.html",
+  "admin.html", "admin-production.html", "styles.css", "portal.css",
+  "robots.txt", "matrix-db.js"
+]);
 const AUTH_SESSIONS = new Map();
 const LOGIN_ATTEMPTS = new Map();
 const LEGACY_SANDBOX_PASSWORD = "member123";
@@ -127,16 +135,16 @@ function assertSessionCurrent(db, auth) {
 }
 
 const MATRIX_PLANS = {
-  "power3-passive": { id: "power3-passive", name: "Power of Three Passive Income", maxChildren: 3, price: 20, pesoValue: 1200 },
-  "timeline-power3": { id: "timeline-power3", name: "Power of Three Timeline Matrix", maxChildren: 3, price: 693, pesoValue: 693 }
+  "power3-passive": { id: "power3-passive", name: "Premium Plan", maxChildren: 3, price: 20, pesoValue: 1200 },
+  "timeline-power3": { id: "timeline-power3", name: "Standard Plan", maxChildren: 3, price: 693, pesoValue: 693 }
 };
 
 const TIMELINE_RULES = {
-  programName: "Power of Three Timeline Matrix",
+  programName: "Standard Plan",
   matrixId: "timeline-power3",
-  matrixName: "Power of Three Timeline Matrix",
+  matrixName: "Standard Plan",
   maxDirectDownlines: 3,
-  entry: { name: "Timeline Entry", price: 693, startsOn: "Admin activation approval" },
+  entry: { name: "Standard Plan Entry", price: 693, startsOn: "Admin activation approval" },
   exits: [
     { exit: 1, requiredDownlineExit: 0, productSpend: 856, productBonusAmount: 185, productMonths: 1, matrixIncome: 100, matrixMonths: 3 },
     { exit: 2, requiredDownlineExit: 1, productSpend: 1633, productBonusAmount: 404, productMonths: 1, matrixIncome: 195, matrixMonths: 3 },
@@ -596,9 +604,9 @@ function getMatrixRules() {
     return JSON.parse(fs.readFileSync(MATRIX_RULES_FILE, "utf8"));
   } catch (error) {
     return {
-      programName: "Matrix Power of Three Passive Income",
+      programName: "Premium Plan",
       matrixId: "power3-passive",
-      matrixName: "Power of Three Passive Income",
+      matrixName: "Premium Plan",
       maxDirectDownlines: 3,
       entry: { holdF3: 20, holdPesoValue: 1200, tokenHoldingAllocation: 900, matrixAllocation: 300, passiveIncome: 231, passiveMonths: 3 },
       exits: []
@@ -716,7 +724,7 @@ function getNextTimelineParentId(db) {
   const parent = positions.find(position =>
     (db.positions || []).filter(child => child.planId === "timeline-power3" && child.parentMemberId === position.memberId).length < MATRIX_PLANS["timeline-power3"].maxChildren
   );
-  if (!parent) throw new Error("No available Timeline Matrix placement slot was found.");
+  if (!parent) throw new Error("No available Standard Plan placement slot was found.");
   return parent.memberId;
 }
 
@@ -1699,7 +1707,7 @@ function handleAction(action, payload, auth = null, context = {}) {
     case "requestUpgrade": {
       const member = db.members.find(item => item.id === payload.memberId);
       if (!member) throw new Error("Member not found.");
-      if (member.status === "active") throw new Error("Entry is already active.");
+      if (member.status === "active") throw new Error("Premium Plan is already active.");
       const referenceNumber = normalizePaymentReference(payload.referenceNumber);
       assertPaymentReferenceAvailable(db, referenceNumber, member.id, "entry");
       if ((db.upgradeRequests || []).some(item => item.memberId === member.id && item.status === "pending")) throw new Error("You already have a pending Entry request.");
@@ -1711,8 +1719,8 @@ function handleAction(action, payload, auth = null, context = {}) {
     case "requestTimelineActivation": {
       const member = db.members.find(item => item.id === payload.memberId);
       if (!member) throw new Error("Member not found.");
-      if (getMemberPosition(db, member.id, "timeline-power3")) throw new Error("Timeline Matrix is already active for this account.");
-      if ((db.timelineRequests || []).some(item => item.memberId === member.id && item.status === "pending")) throw new Error("You already have a pending Timeline Matrix request.");
+      if (getMemberPosition(db, member.id, "timeline-power3")) throw new Error("Standard Plan is already active for this account.");
+      if ((db.timelineRequests || []).some(item => item.memberId === member.id && item.status === "pending")) throw new Error("You already have a pending Standard Plan request.");
       const paymentMethod = String(payload.paymentMethod || "gcash").trim();
       const amount = TIMELINE_RULES.entry.price;
       const request = {
@@ -1728,7 +1736,7 @@ function handleAction(action, payload, auth = null, context = {}) {
         createdAt: new Date().toISOString()
       };
       if (request.paymentMethod === "available_balance") {
-        if (getAvailableBalance(db, member.id) < amount) throw new Error("Not enough available balance for Timeline activation.");
+        if (getAvailableBalance(db, member.id) < amount) throw new Error("Not enough available balance for Standard Plan activation.");
       } else {
         request.gcashName = validatePersonName(payload.gcashName, "GCash name");
         request.gcashNumber = validateGcashNumber(payload.gcashNumber);
@@ -1736,17 +1744,17 @@ function handleAction(action, payload, auth = null, context = {}) {
         assertPaymentReferenceAvailable(db, request.referenceNumber, member.id, "timeline");
       }
       db.timelineRequests.push(request);
-      addActivityLog(db, "timeline-request", `${member.fullName} requested Timeline Matrix activation.`);
+      addActivityLog(db, "timeline-request", `${member.fullName} requested Standard Plan activation.`);
       shouldWrite = true;
       data = request;
       break;
     }
     case "approveTimelineActivation": {
       const request = (db.timelineRequests || []).find(item => item.id === payload.requestId);
-      if (!request || request.status !== "pending") throw new Error("Timeline request is no longer pending.");
+      if (!request || request.status !== "pending") throw new Error("Standard Plan request is no longer pending.");
       const member = db.members.find(item => item.id === request.memberId);
       if (!member) throw new Error("Member not found.");
-      if (getMemberPosition(db, member.id, "timeline-power3")) throw new Error("Timeline Matrix is already active for this account.");
+      if (getMemberPosition(db, member.id, "timeline-power3")) throw new Error("Standard Plan is already active for this account.");
       if (request.paymentMethod === "available_balance") {
         const availableIncludingReservation = getAvailableBalance(db, member.id) + Number(request.amount || 0);
         if (availableIncludingReservation < Number(request.amount || 0)) throw new Error("Not enough available balance.");
@@ -1760,18 +1768,18 @@ function handleAction(action, payload, auth = null, context = {}) {
       request.parentMemberId = parentMemberId;
       recordDecision(request, "approved", payload.decisionNote, auth);
       ensureTimelineProgression(db);
-      addActivityLog(db, "timeline-approval", `Approved Timeline Matrix activation for ${member.fullName}.`);
+      addActivityLog(db, "timeline-approval", `Approved Standard Plan activation for ${member.fullName}.`);
       shouldWrite = true;
       data = request;
       break;
     }
     case "rejectTimelineActivation": {
       const request = (db.timelineRequests || []).find(item => item.id === payload.requestId);
-      if (!request || request.status !== "pending") throw new Error("Timeline request is no longer pending.");
+      if (!request || request.status !== "pending") throw new Error("Standard Plan request is no longer pending.");
       request.status = "rejected";
       request.rejectedAt = new Date().toISOString();
       recordDecision(request, "rejected", payload.decisionNote, auth);
-      addActivityLog(db, "timeline-rejection", "Rejected Timeline Matrix activation request.");
+      addActivityLog(db, "timeline-rejection", "Rejected Standard Plan activation request.");
       shouldWrite = true;
       data = request;
       break;
@@ -2241,8 +2249,31 @@ function readJsonBody(request) {
 
 function serveStatic(request, response) {
   const requestUrl = new URL(request.url, `http://${request.headers.host}`);
-  let pathname = decodeURIComponent(requestUrl.pathname);
+  let pathname;
+  try {
+    pathname = decodeURIComponent(requestUrl.pathname);
+  } catch {
+    response.writeHead(400);
+    response.end("Bad request");
+    return;
+  }
   if (pathname === "/") pathname = "/index.html";
+
+  const segments = pathname.split("/").slice(1);
+  const validSegments = pathname.startsWith("/") && segments.every(segment =>
+    segment && segment !== "." && segment !== ".." && /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(segment)
+  );
+  const publicPath = validSegments && (
+    (segments.length === 1 && PUBLIC_ROOT_FILES.has(segments[0])) ||
+    (segments.length === 2 && segments[0] === "vendor" && segments[1] === "supabase.js") ||
+    (segments[0] === "js" && segments.length >= 2 && pathname.endsWith(".js")) ||
+    (segments[0] === "assets" && segments.length >= 2 && /\.(?:png|jpe?g|webp|svg|gif|ico)$/i.test(pathname))
+  );
+  if (!publicPath) {
+    response.writeHead(404);
+    response.end("Not found");
+    return;
+  }
 
   const filePath = pathname === "/vendor/supabase.js"
     ? SUPABASE_BROWSER_FILE
@@ -2258,7 +2289,7 @@ function serveStatic(request, response) {
           ? PRODUCTION_ADMIN_PAGE
       : path.normalize(path.join(PUBLIC_DIR, pathname));
   const isApprovedExternalFile = filePath === SUPABASE_BROWSER_FILE || filePath === SANDBOX_RUNTIME_CONFIG || filePath === STAGING_RUNTIME_CONFIG;
-  if ((!isApprovedExternalFile && !filePath.startsWith(PUBLIC_DIR)) || filePath.includes(`${path.sep}.git${path.sep}`) || filePath.startsWith(DATA_DIR)) {
+  if ((!isApprovedExternalFile && !filePath.startsWith(`${PUBLIC_DIR}${path.sep}`)) || filePath.includes(`${path.sep}.git${path.sep}`) || filePath.startsWith(DATA_DIR)) {
     response.writeHead(403);
     response.end("Forbidden");
     return;

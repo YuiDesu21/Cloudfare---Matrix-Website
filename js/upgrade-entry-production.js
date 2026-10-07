@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const productRemaining = document.getElementById("upgrade-product-remaining");
   try {
     const { data: sessionData } = await window.matrixSupabase.auth.getSession();
-    if (!sessionData.session) return redirect("Sign in before requesting Entry activation.");
+    if (!sessionData.session) return redirect("Sign in before requesting Premium Plan activation.");
     const [dashboardResponse, progressResponse] = await Promise.all([
       window.matrixSupabase.rpc("get_my_dashboard"),
       window.matrixSupabase.rpc("get_my_product_entry_progress", { p_entry_type: "matrix_1200_entry" })
@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const { error } = await window.matrixSupabase.rpc("request_entry_activation", { p_reference_number: reference, p_matrix_upline_code: matrixUplineCode });
       if (error) { submit.disabled = false; return show(error.message, "danger"); }
       statusBadge.textContent = "Pending Approval";
-      show("Your Entry activation request was submitted securely.", "success");
+      show("Your Premium Plan activation request was submitted securely.", "success");
     });
   } catch (error) { show(error.message, "danger"); }
   function renderProductProgress(progress = {}) {

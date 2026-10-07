@@ -25,20 +25,20 @@
 
   <main class="portal-container withdrawal-page">
     <section class="withdrawal-hero">
-      <div><span class="withdrawal-eyebrow">Member Finance</span><h1>Passive Income History</h1><p>Review every income entry, its source, due date, amount, and payment status.</p></div>
+      <div><span class="withdrawal-eyebrow">Member Finance</span><h1>Passive Income History</h1><p>Review scheduled income, purchase-locked months, and transfers by source and due date.</p></div>
       <a class="button button-primary button-small" href="withdrawal-request.html">Request Withdrawal</a>
     </section>
     <div id="income-history-alert" class="alert" style="display:none;"></div>
     <section id="income-history-content" style="display:none;">
       <div class="withdrawal-history-summary">
-        <article><span>Total Income</span><strong id="income-total">PHP 0</strong></article>
+        <article><span>Total Scheduled</span><strong id="income-total">PHP 0</strong></article>
         <article><span>Available / Due</span><strong id="income-due">PHP 0</strong></article>
         <article><span>Upcoming</span><strong id="income-upcoming">PHP 0</strong></article>
       </div>
       <div class="portal-card withdrawal-filters income-history-filters">
         <div class="form-group"><label for="income-time-filter">Time Period</label><select id="income-time-filter" class="form-control"><option value="all">All time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="year">This year</option></select></div>
-        <div class="form-group"><label for="income-status-filter">Status</label><select id="income-status-filter" class="form-control"><option value="all">All statuses</option><option value="due">Available / Due</option><option value="upcoming">Upcoming</option><option value="paid">Paid</option></select></div>
-        <div class="form-group"><label for="income-source-filter">Source</label><select id="income-source-filter" class="form-control"><option value="all">All sources</option><option value="entry">Entry Passive</option><option value="exit">Exit Passive</option><option value="matrix">1200 Matrix Income</option><option value="timeline-matrix">Timeline Matrix Income</option></select></div>
+        <div class="form-group"><label for="income-status-filter">Status</label><select id="income-status-filter" class="form-control"><option value="all">All statuses</option><option value="due">Available / Due</option><option value="locked">Purchase locked</option><option value="upcoming">Upcoming</option><option value="paid">Paid</option><option value="transferred">Transferred to Main Funds</option></select></div>
+        <div class="form-group"><label for="income-source-filter">Source</label><select id="income-source-filter" class="form-control"><option value="all">All sources</option><option value="entry">Entry Passive</option><option value="exit">Exit Passive</option><option value="matrix">Premium Plan Income</option><option value="timeline-matrix">Standard Plan Income</option><option value="patronizing-income">Patronizing Income</option><option value="budget-plan">Budget Plan Income</option></select></div>
         <div id="income-result-count" class="history-result-count"></div>
       </div>
       <div id="income-history-list" class="withdrawal-history-list"></div>

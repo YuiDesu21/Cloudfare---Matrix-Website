@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const ACTIVATION_PRICE = 693;
 
   if (!window.MatrixDB) {
-    showAlert("Please open the member portal before accessing Timeline Matrix.", "danger");
+    showAlert("Please open the member portal before accessing Standard Plan.", "danger");
     return;
   }
 
@@ -109,7 +109,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (button.dataset.timelineAction === "withdraw") window.location.href = "main-funds.html";
         if (button.dataset.timelineAction === "withdrawal-history") window.location.href = "withdrawal-history.html";
         if (button.dataset.timelineAction === "history") window.location.href = "passive-income-history.html";
-        if (button.dataset.timelineAction === "entry") window.location.href = "upgrade-entry-production.html";
+        if (button.dataset.timelineAction === "entry") window.location.href = "upgrade-entry.html";
         if (button.dataset.timelineAction === "logout") logout();
       });
     });
@@ -133,11 +133,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.gcashName.value = member.fullName || "";
     elements.gcashNumber.value = validGcashNumber(member.phone);
     elements.submit.disabled = Boolean(pending);
-    elements.submit.textContent = pending ? "Timeline Activation Pending" : "Submit Timeline Activation";
+    elements.submit.textContent = pending ? "Standard Plan Activation Pending" : "Submit Standard Plan Activation";
     renderPaymentMode();
 
     if (!active) {
-      if (pending) showAlert("Your Timeline Matrix activation is waiting for admin approval.", "info");
+      if (pending) showAlert("Your Standard Plan activation is waiting for admin approval.", "info");
       return;
     }
 
@@ -159,7 +159,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (details.paymentMethod === "available_balance") {
       const mainSummary = MatrixDB.getMemberMatrixSummary(member.id, "power3-passive");
       if (getAvailableBalance(mainSummary) < ACTIVATION_PRICE) {
-        showAlert("Available balance is not enough for the PHP 693 Timeline activation.", "danger");
+        showAlert("Available balance is not enough for the PHP 693 Standard Plan activation.", "danger");
         return;
       }
     } else {
@@ -183,7 +183,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       elements.submit.disabled = true;
       MatrixDB.requestTimelineActivation(member.id, details);
-      showAlert("Timeline Matrix activation was submitted for admin approval.", "success");
+      showAlert("Standard Plan activation was submitted for admin approval.", "success");
       render();
     } catch (error) {
       elements.submit.disabled = false;
@@ -356,7 +356,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderTree() {
     const tree = MatrixDB.getMemberTree(member.id, PLAN_ID);
     if (!tree) {
-      elements.tree.innerHTML = `<div class="empty-state"><p>No Timeline Matrix position found.</p></div>`;
+      elements.tree.innerHTML = `<div class="empty-state"><p>No Standard Plan position found.</p></div>`;
       return;
     }
     elements.tree.innerHTML = `

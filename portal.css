@@ -1087,6 +1087,8 @@ textarea.form-control { min-height: 92px; resize: vertical; }
 .products-plus-facts { margin-bottom: 1rem; }
 .products-plus-detail-layout .button:disabled { cursor: not-allowed; filter: grayscale(0.7); opacity: 0.38; }
 .product-plus-schedule { display: grid; gap: 0.65rem; }
+#commerce-order-list,
+#commerce-history-list { align-content: start; max-height: min(34rem, 70vh); overflow-y: auto; padding-right: 0.3rem; }
 .product-plus-month { align-items: center; background: rgba(2, 7, 4, 0.5); border: 1px solid rgba(255, 201, 28, 0.14); border-radius: 8px; display: grid; gap: 0.8rem; grid-template-columns: 74px minmax(0, 1fr) auto; padding: 0.8rem; }
 .product-plus-month.vested { border-color: rgba(75, 214, 117, 0.28); }
 .product-plus-month-index { align-items: center; background: rgba(255, 201, 28, 0.08); border-radius: 6px; color: var(--gold); display: flex; font-size: 0.72rem; font-weight: 900; justify-content: center; min-height: 48px; text-transform: uppercase; }
@@ -1377,7 +1379,7 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
 /* Tab Layout for Admin */
 .admin-tabs {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
   border-bottom: 1px solid rgba(255, 201, 28, 0.2);
@@ -2523,6 +2525,10 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
   margin-top: 1.25rem;
 }
 
+#commerce-package-count { white-space: nowrap; flex-shrink: 0; }
+
+.commerce-contextual .withdrawal-hero h1 { font-size: 2.5rem; line-height: 1.1; }
+
 .patronizing-entry-option {
   background: rgba(9, 28, 14, 0.92);
   border: 1px solid rgba(255, 201, 28, 0.22);
@@ -2823,14 +2829,20 @@ button.tree-node-card { color: inherit; cursor: pointer; font-family: inherit; }
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .commerce-cart-checkout { width: 100%; }
-  .patronizing-entry-grid { grid-template-columns: 1fr; }
   .package-item-row { grid-template-columns: 86px minmax(150px, 1fr) 112px 82px 82px 112px; }
+}
+
+@media (max-width: 720px) {
+  .patronizing-entry-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 580px) {
+  .commerce-contextual .withdrawal-hero h1 { font-size: 2rem; }
 }
 
 @media (max-width: 580px) {
   #admin-user-status .badge { display: none; }
   #admin-user-status { margin-left: auto; min-width: auto; }
-  .admin-tabs { justify-content: flex-start; }
   .matrix-explorer-controls { grid-template-columns: 1fr; }
   .matrix-explorer-heading { flex-direction: column; }
   .matrix-explorer-columns { display: none; }

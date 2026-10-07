@@ -9,19 +9,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  if (window.MATRIX_USES_SUPABASE) await MatrixDB.initializeDatabase();
-  const memberId = window.MATRIX_USES_SUPABASE
-    ? ((await MatrixDB.getAuthenticatedMember()) || {}).id
-    : sessionStorage.getItem(SESSION_KEY);
-  const member = memberId ? MatrixDB.getMemberById(memberId) : null;
-  if (!member) {
-    sessionStorage.removeItem(SESSION_KEY);
-    showAccessError("Your member session is no longer available. Please sign in again.");
-    return;
-  }
+  try {
+    if (window.MATRIX_USES_SUPABASE) await MatrixDB.initializeDatabase();
+    const memberId = window.MATRIX_USES_SUPABASE
+      ? ((await MatrixDB.getAuthenticatedMember()) || {}).id
+      : sessionStorage.getItem(SESSION_KEY);
+    const member = memberId ? MatrixDB.getMemberById(memberId) : null;
+    if (!member) {
+      sessionStorage.removeItem(SESSION_KEY);
+      showAccessError("Your member session is no longer available. Please sign in again.");
+      return;
+    }
 
-  if (isRequestPage) await initializeRequestPage(member);
-  else await initializeHistoryPage(member);
+    if (isRequestPage) await initializeRequestPage(member);
+    else await initializeHistoryPage(member);
+  } catch (error) {
+    showAlert(error.message || "Member finance could not be loaded. Please try again.", "danger");
+  }
 
   async function initializeRequestPage(memberData) {
     const summary = MatrixDB.getMemberMatrixSummary(memberData.id);

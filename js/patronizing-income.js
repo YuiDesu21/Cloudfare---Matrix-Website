@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let member = null;
   let dashboard = null;
+  let selectedTokenPlan = "f3_token";
 
   if (!window.MatrixDB) {
     showAlert("Please sign in through your member dashboard before opening Patronizing Income.", "danger");
@@ -54,6 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     tokenSubmit.disabled = true;
     try {
       await MatrixDB.requestPatronizingTokenEntry({
+        planCode: selectedTokenPlan,
         paymentMethodId: paymentMethod.value,
         referenceNumber: document.getElementById("patronizing-reference").value.trim(),
         notes: document.getElementById("patronizing-notes").value.trim()
@@ -89,45 +91,42 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function renderEntryOptions(isActive, pendingToken, pendingProduct) {
-    const tokenDisabled = isActive || pendingToken || pendingProduct;
-    const productDisabled = isActive || pendingToken;
     const plans = dashboard.plans || [];
-    const token = plans.find(plan => plan.entryType === "f3_token") || { entryAmount: 2100, f3Tokens: 35, monthlyRequirement: 1000, monthlyIncome: 200, durationMonths: 24 };
-    const product = plans.find(plan => plan.entryType === "products") || { entryAmount: 5818, monthlyRequirement: 1250, monthlyIncome: 250, durationMonths: 24 };
-    const productProgress = getProductEntryProgress(product.entryAmount);
-    return `
-      <article class="patronizing-entry-option">
-        <span>F3 Token Entry</span>
-        <h2>Buy ${formatNumber(token.f3Tokens)} F3 Token worth PHP ${formatNumber(token.entryAmount)}</h2>
-        <ul>
-          <li>${token.durationMonths} Months</li>
-          <li>Required PHP ${formatNumber(token.monthlyRequirement)} worth product purchases per month</li>
-          <li>PHP ${formatNumber(token.monthlyIncome)} per month</li>
-        </ul>
-        <button class="button button-primary button-small" type="button" data-patronizing-entry="token" ${tokenDisabled ? "disabled" : ""}>Request F3 Token Entry</button>
-      </article>
-      <article class="patronizing-entry-option">
-        <span>Product Entry</span>
-        <h2>Buy Products worth PHP ${formatNumber(product.entryAmount)}</h2>
-        <ul>
-          <li>${product.durationMonths} Months</li>
-          <li>Required PHP ${formatNumber(product.monthlyRequirement)} worth product purchases per month</li>
-          <li>PHP ${formatNumber(product.monthlyIncome)} per month</li>
-        </ul>
-        <div class="entry-progress-compact">
-          <div class="entry-progress-meter"><span style="width:${productProgress.percent}%"></span></div>
-          <div><strong>PHP ${formatNumber(productProgress.approved)} approved</strong><small>PHP ${formatNumber(productProgress.pending)} pending · PHP ${formatNumber(productProgress.remaining)} remaining</small></div>
-        </div>
-        <a class="button button-primary button-small ${productDisabled ? "disabled" : ""}" href="${productDisabled ? "#" : "packages-orders.html?purpose=patronizing_entry_product"}">${productProgress.approved > 0 || productProgress.pending > 0 ? "Continue Products" : "Choose Products"}</a>
-      </article>
-    `;
+    const entryPurposes = ["patronizing_entry_product", "patronizing_entry_package"];
+    const orders = typeof MatrixDB.getCommerceOrders === "function" ? MatrixDB.getCommerceOrders() : [];
+    const startedPurpose = orders.find(order => entryPurposes.includes(order.orderPurpose) && !["rejected", "cancelled"].includes(order.status))?.orderPurpose;
+    return plans.map(plan => {
+      const isToken = plan.entryType === "f3_token";
+      const purpose = plan.planCode === "products_2800" ? "patronizing_entry_package" : "patronizing_entry_product";
+      const disabled = isActive || Boolean(pendingToken) || (isToken ? Boolean(pendingProduct || startedPurpose) : Boolean(startedPurpose && startedPurpose !== purpose));
+      const progress = isActive || isToken ? null : getProductEntryProgress(plan.entryAmount, purpose);
+      return `
+        <article class="patronizing-entry-option">
+          <span>${isToken ? "F3 Token Entry" : purpose === "patronizing_entry_package" ? "Standard Plan Package Entry" : "Product Entry"}</span>
+          <h2>${isToken ? `Buy ${formatNumber(plan.f3Tokens)} F3 Token worth PHP ${formatNumber(plan.entryAmount)}` : `Buy ${purpose === "patronizing_entry_package" ? "Standard Plan packages" : "products"} worth PHP ${formatNumber(plan.entryAmount)}`}</h2>
+          <ul>
+            <li>${Number(plan.durationMonths)} Months</li>
+            <li>Required PHP ${formatNumber(plan.monthlyRequirement)} worth product purchases per month</li>
+            <li>PHP ${formatNumber(plan.monthlyIncome)} per month</li>
+          </ul>
+          ${progress ? `<div class="entry-progress-compact">
+            <div class="entry-progress-meter"><span style="width:${progress.percent}%"></span></div>
+            <div><strong>PHP ${formatNumber(progress.approved)} approved</strong><small>PHP ${formatNumber(progress.pending)} pending · PHP ${formatNumber(progress.remaining)} remaining</small></div>
+          </div>` : ""}
+          ${isActive
+            ? `<button class="button button-primary button-small" type="button" disabled>${plan.planCode === dashboard.entry.planCode ? "Active Entry" : "Entry Unavailable"}</button>`
+            : isToken
+            ? `<button class="button button-primary button-small" type="button" data-patronizing-token-plan="${escapeHtml(plan.planCode)}" ${disabled ? "disabled" : ""}>Request ${formatNumber(plan.f3Tokens)} F3 Entry</button>`
+            : `<a class="button button-primary button-small ${disabled ? "disabled" : ""}" href="${disabled ? "#" : `packages-orders.html?purpose=${purpose}`}">${progress.approved > 0 || progress.pending > 0 ? "Continue Entry" : purpose === "patronizing_entry_package" ? "Choose Packages" : "Choose Products"}</a>`}
+        </article>`;
+    }).join("");
   }
 
-  function getProductEntryProgress(targetAmount) {
+  function getProductEntryProgress(targetAmount, purpose) {
     const approvedStatuses = ["payment_approved", "shipped", "received"];
     const pendingStatuses = ["pending_shipping_fee", "approved_for_payment", "payment_submitted"];
     const orders = typeof MatrixDB.getCommerceOrders === "function" ? MatrixDB.getCommerceOrders() : [];
-    const entryOrders = orders.filter(order => order.orderPurpose === "patronizing_entry_product");
+    const entryOrders = orders.filter(order => order.orderPurpose === purpose);
     const approved = entryOrders.filter(order => approvedStatuses.includes(order.status)).reduce((sum, order) => sum + Number(order.packageTotal || 0), 0);
     const pending = entryOrders.filter(order => pendingStatuses.includes(order.status)).reduce((sum, order) => sum + Number(order.packageTotal || 0), 0);
     const target = Number(targetAmount || 5818);
@@ -140,13 +139,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function bindEntryButtons() {
-    const tokenButton = entryOptions.querySelector("[data-patronizing-entry='token']");
-    if (tokenButton) tokenButton.addEventListener("click", openTokenModal);
+    entryOptions.querySelectorAll("[data-patronizing-token-plan]").forEach(button => {
+      button.addEventListener("click", () => openTokenModal(button.dataset.patronizingTokenPlan));
+    });
   }
 
   function renderMonthly(entry) {
     const summary = dashboard.monthlySummary || {};
-    document.getElementById("patronizing-active-badge").textContent = `${entry.entryType === "f3_token" ? "F3 Token" : "Product"} Entry`;
+    document.getElementById("patronizing-active-badge").textContent = entry.entryType === "f3_token"
+      ? `${formatNumber(entry.f3Tokens)} F3 Token Entry`
+      : entry.planCode === "products_2800" ? "Standard Plan Package Entry" : "Product Entry";
     document.getElementById("patronizing-income-status").className = `matrix-qualification ${Number(summary.lockedIncome || 0) > 0 ? "locked" : "qualified"}`;
     document.getElementById("patronizing-income-status").textContent = Number(summary.lockedIncome || 0) > 0 ? "Locked Income" : "Unlocked";
     document.getElementById("patronizing-locked-income").textContent = `PHP ${formatNumber(summary.lockedIncome || 0)}`;
@@ -207,7 +209,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     `;
   }
 
-  function openTokenModal() {
+  function openTokenModal(planCode) {
+    const plan = (dashboard.plans || []).find(item => item.planCode === planCode && item.entryType === "f3_token");
+    if (!plan) return;
+    selectedTokenPlan = planCode;
+    document.getElementById("patronizing-token-summary").textContent = `Buy ${formatNumber(plan.f3Tokens)} F3 Token worth PHP ${formatNumber(plan.entryAmount)}.`;
+    document.getElementById("patronizing-token-wallet-note").textContent = `This is where admin will send the ${formatNumber(plan.f3Tokens)} F3 Token after approval.`;
     const methods = MatrixDB.getPaymentMethods();
     tokenForm.reset();
     tokenAlert.style.display = "none";

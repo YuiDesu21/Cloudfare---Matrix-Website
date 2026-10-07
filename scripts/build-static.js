@@ -62,4 +62,25 @@ const vendorDirectory = path.join(output, "vendor");
 fs.mkdirSync(vendorDirectory, { recursive: true });
 fs.copyFileSync(supabaseBundle, path.join(vendorDirectory, "supabase.js"));
 
+function checkLocalPageReferences(directory) {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const filePath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== "vendor") checkLocalPageReferences(filePath);
+      continue;
+    }
+    if (!/\.(?:html|js)$/.test(entry.name)) continue;
+    const source = fs.readFileSync(filePath, "utf8");
+    for (const match of source.matchAll(/["'`]((?:\.\/)?[A-Za-z0-9_./-]+\.(?:html|css|js))(?:[?#][^"'`]*)?["'`]/g)) {
+      const relativeReference = match[1].replace(/^\/+/, "");
+      const targets = [output, path.dirname(filePath)].map(base => path.resolve(base, relativeReference));
+      if (!targets.some(target => target.startsWith(`${output}${path.sep}`) && fs.existsSync(target))) {
+        throw new Error(`Broken deployment reference in ${path.relative(output, filePath)}: ${match[1]}`);
+      }
+    }
+  }
+}
+
+checkLocalPageReferences(output);
+
 console.log(`Static deployment assembled in ${output}`);

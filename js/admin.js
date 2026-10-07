@@ -448,7 +448,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!upgradeRequestsTableBody) return;
     const requests = MatrixDB.getUpgradeRequests().filter(item => item.status === "pending");
     const eligible = MatrixDB.getEligibleParents("power3-passive");
-    upgradeRequestsTableBody.innerHTML = requests.length ? "" : `<tr><td colspan="7" class="empty-state">No pending Entry activations.</td></tr>`;
+    upgradeRequestsTableBody.innerHTML = requests.length ? "" : `<tr><td colspan="7" class="empty-state">No pending Premium Plan activations.</td></tr>`;
     requests.forEach(request => {
       const row=document.createElement("tr");
       const options=eligible.map(parent=>`<option value="${parent.memberId}">${escapeHtml(parent.fullName)} (@${escapeHtml(parent.username)}) — ${parent.childrenCount}/${parent.maxChildren}</option>`).join("");
@@ -460,8 +460,8 @@ document.addEventListener("DOMContentLoaded", () => {
       walletCell.innerHTML = copyField(request.walletAddress);
       row.insertBefore(walletCell, row.children[2]);
       walletCell.querySelector(".copy-admin-value").addEventListener("click", event => copyAdminValue(event.currentTarget));
-      row.querySelector(".approve-upgrade").addEventListener("click",()=>{try{const select=row.querySelector(".upgrade-parent");const parent=request.fixedParentId||(select?select.value:null);if(!request.fixedParentId&&eligible.length&&!parent)throw new Error("Select a placement parent.");openDecisionModal({title:"Approve Entry Activation",context:`Record the PHP 1,200 payment verification for ${request.fullName}.`,confirmLabel:"Verify & Activate",onConfirm:note=>MatrixDB.approveUpgrade(request.id,parent||null,note)})}catch(error){showPendingAlert(error.message,"danger")}});
-      row.querySelector(".reject-upgrade").addEventListener("click",()=>openDecisionModal({title:"Reject Entry Activation",context:`Record why the Entry activation for ${request.fullName} is being rejected.`,confirmLabel:"Reject Request",onConfirm:note=>MatrixDB.rejectUpgrade(request.id,note)}));
+      row.querySelector(".approve-upgrade").addEventListener("click",()=>{try{const select=row.querySelector(".upgrade-parent");const parent=request.fixedParentId||(select?select.value:null);if(!request.fixedParentId&&eligible.length&&!parent)throw new Error("Select a placement parent.");openDecisionModal({title:"Approve Premium Plan Activation",context:`Record the PHP 1,200 payment verification for ${request.fullName}.`,confirmLabel:"Verify & Activate",onConfirm:note=>MatrixDB.approveUpgrade(request.id,parent||null,note)})}catch(error){showPendingAlert(error.message,"danger")}});
+      row.querySelector(".reject-upgrade").addEventListener("click",()=>openDecisionModal({title:"Reject Premium Plan Activation",context:`Record why the Premium Plan activation for ${request.fullName} is being rejected.`,confirmLabel:"Reject Request",onConfirm:note=>MatrixDB.rejectUpgrade(request.id,note)}));
       upgradeRequestsTableBody.appendChild(row);
     });
   }
@@ -469,7 +469,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderTimelineQueue() {
     if (!timelineRequestsTableBody || !MatrixDB.getTimelineRequests) return;
     const requests = MatrixDB.getTimelineRequests().filter(item => item.status === "pending");
-    timelineRequestsTableBody.innerHTML = requests.length ? "" : `<tr><td colspan="7" class="empty-state">No pending Timeline Matrix activations.</td></tr>`;
+    timelineRequestsTableBody.innerHTML = requests.length ? "" : `<tr><td colspan="7" class="empty-state">No pending Standard Plan activations.</td></tr>`;
     requests.forEach(request => {
       const row = document.createElement("tr");
       const paymentDetails = request.paymentMethod === "available_balance"
@@ -481,12 +481,12 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${request.paymentMethod === "available_balance" ? "Available Balance" : "GCash"}</td>
         <td>${paymentDetails}</td>
         <td>${formatDate(request.createdAt)}</td>
-        <td><span style="color:var(--muted);font-size:.72rem">Next open Timeline slot</span></td>
+        <td><span style="color:var(--muted);font-size:.72rem">Next open Standard Plan slot</span></td>
         <td><div class="actions"><button class="button btn-success approve-timeline">Approve</button><button class="button btn-danger reject-timeline">Reject</button></div></td>
       `;
       row.querySelectorAll(".copy-admin-value").forEach(button => button.addEventListener("click", event => copyAdminValue(event.currentTarget)));
-      row.querySelector(".approve-timeline").addEventListener("click", () => openDecisionModal({title:"Approve Timeline Activation",context:`Record the PHP 693 payment or balance verification for ${request.fullName}.`,confirmLabel:"Approve Activation",onConfirm:note=>MatrixDB.approveTimelineActivation(request.id,note)}));
-      row.querySelector(".reject-timeline").addEventListener("click", () => openDecisionModal({title:"Reject Timeline Activation",context:`Record why the Timeline request for ${request.fullName} is being rejected.`,confirmLabel:"Reject Request",onConfirm:note=>MatrixDB.rejectTimelineActivation(request.id,note)}));
+      row.querySelector(".approve-timeline").addEventListener("click", () => openDecisionModal({title:"Approve Standard Plan Activation",context:`Record the PHP 693 payment or balance verification for ${request.fullName}.`,confirmLabel:"Approve Activation",onConfirm:note=>MatrixDB.approveTimelineActivation(request.id,note)}));
+      row.querySelector(".reject-timeline").addEventListener("click", () => openDecisionModal({title:"Reject Standard Plan Activation",context:`Record why the Standard Plan request for ${request.fullName} is being rejected.`,confirmLabel:"Reject Request",onConfirm:note=>MatrixDB.rejectTimelineActivation(request.id,note)}));
       timelineRequestsTableBody.appendChild(row);
     });
   }

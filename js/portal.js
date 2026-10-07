@@ -297,7 +297,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else if (button.dataset.accountAction === "income") {
         window.location.href = "passive-income-history.html";
       } else if (button.dataset.accountAction === "entry") {
-        window.location.href = "upgrade-entry-production.html";
+        window.location.href = "upgrade-entry.html";
       } else if (button.dataset.accountAction === "admin") {
         window.location.href = "admin.html";
       }
@@ -488,9 +488,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function handleResetPassword(event) {
     event.preventDefault();
     resetPasswordAlert.style.display = "none";
-    if (resetPasswordNew.value.length < 8) {
+    if (resetPasswordNew.value.length < 10 || !/[A-Za-z]/.test(resetPasswordNew.value) || !/\d/.test(resetPasswordNew.value)) {
       resetPasswordAlert.className = "alert alert-danger";
-      resetPasswordAlert.textContent = "Your new password must contain at least 8 characters.";
+      resetPasswordAlert.textContent = "Use at least 10 characters with a letter and a number.";
       resetPasswordAlert.style.display = "block";
       return;
     }
@@ -668,10 +668,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     dbEmail.textContent = pending.email;
     dbPhone.textContent = pending.phone;
     dbJoinDate.textContent = formatDate(pending.createdAt);
-    dbSponsor.textContent = "Not in 1200 Matrix yet";
+    dbSponsor.textContent = "Not in Premium Plan yet";
     populateProfileDetailsForm(pending);
 
-    // Hide 1200 Matrix upline code
+    // Hide Premium Plan upline code
     referralContainer.style.display = "none";
 
     // Fill Dashboard Views
@@ -724,9 +724,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     dbAccountId.textContent = member.accountCode;
     populateProfileDetailsForm(member);
 
-    dbSponsor.textContent = "Use this code for direct 1200 Matrix placement";
+    dbSponsor.textContent = "Use this code for direct Premium Plan placement";
 
-    // Show 1200 Matrix upline code panel
+    // Show Premium Plan upline code panel
     referralContainer.style.display = member.matrixUplineCode ? "block" : "none";
     refLinkInput.value = member.matrixUplineCode || "";
 
@@ -954,11 +954,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     dbAvatarLetter.textContent = member.fullName.charAt(0).toUpperCase(); dbFullName.textContent = member.fullName; dbUsername.textContent = `@${member.username}`;
     dbWallet.textContent = shortenWallet(member.walletAddress); dbEmail.textContent = member.email; dbPhone.textContent = member.phone; dbJoinDate.textContent = formatDate(member.createdAt);
     dbAccountId.textContent = member.accountCode;
-    dbSponsor.textContent = "Not in 1200 Matrix yet";
+    dbSponsor.textContent = "Not in Premium Plan yet";
     populateProfileDetailsForm(member);
     renderShippingAddresses(MatrixDB.getShippingAddresses());
     referralContainer.style.display = "none";
-    dbWelcomeTitle.textContent = `Welcome, ${member.fullName}!`; dbWelcomeDesc.textContent = "Your free account is ready. Unlock Entry to join the Power of Three matrix.";
+    dbWelcomeTitle.textContent = `Welcome, ${member.fullName}!`; dbWelcomeDesc.textContent = "Your free account is ready. Activate the Premium Plan to join its matrix.";
     activeMetricsRow.style.display = "none"; pendingDetailsCard.style.display = "none"; balanceCard.style.display = "none"; productsPlusCard.style.display = "none"; activeTreeCard.style.display = "none";
     matrixOverviewCard.style.display = "block"; matrixSelectedBadge.textContent = "Locked";
     matrixTabs.innerHTML = `<button class="matrix-tab active locked" type="button"><strong>Entry</strong><span class="matrix-tab-status">${renderStatusIcon(true)}<span>Locked</span></span></button>`;
@@ -969,7 +969,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     matrixActionMessage.textContent = "";
     matrixDateFact.style.display = "none";
     matrixExitNote.textContent = "PHP 1,200 activation · PHP 900 held-token allocation + PHP 300 matrix allocation · PHP 693 cash-exit entitlement if three-invite qualification is not completed";
-    matrixExits.innerHTML = `<article class="exit-card"><div class="exit-number">Entry</div><div><h5>Unlock the first available plan</h5><p>Submit your GCash payment reference. Admin approval activates and places your account in the matrix.</p>${FEATURES.entryActivation ? `<a class="button button-primary button-small" href="upgrade-entry.html">Unlock Entry</a>` : `<span class="badge badge-pending">Activation requests coming soon</span>`}</div></article>`;
+    matrixExits.innerHTML = `<article class="exit-card"><div class="exit-number">Entry</div><div><h5>Activate Premium Plan</h5><p>Submit your GCash payment reference. Admin approval activates and places your account in the matrix.</p>${FEATURES.entryActivation ? `<a class="button button-primary button-small" href="upgrade-entry.html">Activate Premium Plan</a>` : `<span class="badge badge-pending">Activation requests coming soon</span>`}</div></article>`;
   }
 
   function renderMatrixOverview(member, positions, summary) {
@@ -1321,7 +1321,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await renderLevel(memberId);
   }
 
-  // Copy 1200 Matrix upline code to clipboard
+  // Copy Premium Plan upline code to clipboard
   function copyReferralLink() {
     refLinkInput.select();
     refLinkInput.setSelectionRange(0, 99999); // For mobile devices
