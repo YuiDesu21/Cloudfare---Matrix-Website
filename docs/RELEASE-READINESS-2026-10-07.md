@@ -1,6 +1,6 @@
 # Release readiness (updated October 8, 2026)
 
-No live migration, Cloudflare deployment, or live account change was made during this review. The source checkout remains linked to staging (`sssfvmyukpmzbktdlybg`). The live project is `rvylugnfclguwhdvxprn`.
+The 23 reviewed migrations and commit `5ce7e16` were deployed to the live project on October 8 after the checks below. The source checkout remains linked to staging (`sssfvmyukpmzbktdlybg`); the live project is `rvylugnfclguwhdvxprn`.
 
 ## Verified gates
 
@@ -22,14 +22,14 @@ No live migration, Cloudflare deployment, or live account change was made during
 - The active Patronizing entry cards no longer show new product-entry progress or a misleading Choose Products link. The current plan is labeled Active Entry, and the other plans are disabled as Entry Unavailable. The JavaScript check, Supabase check, clean-room pilot, static build, and diff check pass after this UI fix.
 - The earlier live database backup is `data/backups/live-rvylugnfclguwhdvxprn-20261006-212215.backup`, SHA-256 `114E8D125DA837D2B8D7EAEF4C98726BDA2A18C8C42B0EE672FFF8A5B19E2F9C`. It is ignored by Git.
 - That backup restored in a disposable PostgreSQL 17.6 Docker container with no network. All 22 pending migrations applied in order to the restored live copy. Four rollback-only funds, payment, Patronizing, and Owner-review tests passed there. After testing, the upgraded copy retained six Auth users, six profiles, and 18 reward rows, with zero orphan profiles and zero unvalidated public constraints. The new Budget root brought matrix positions from four to five. The container was removed; the backup hash is unchanged.
-- On October 8, a fresh live archive was taken through the project's verified `aws-1` session pooler: `data/backups/live-rvylugnfclguwhdvxprn-20261008-015819.backup`, 3,272,383 bytes, SHA-256 `2B84FE09A4ED4B5D205470C5818AB58D5A402A835D7CF39787CA9C2F445519E8`. Its 775-entry archive contains 28 public tables plus Auth and Storage metadata. Live still has 52 migrations through `202609090002`, six Auth users, six profiles, four matrix positions, 18 reward rows, and zero Storage buckets or objects.
+- On October 8, a fresh live archive was taken through the project's verified `aws-1` session pooler: `data/backups/live-rvylugnfclguwhdvxprn-20261008-015819.backup`, 3,272,383 bytes, SHA-256 `2B84FE09A4ED4B5D205470C5818AB58D5A402A835D7CF39787CA9C2F445519E8`. Its 775-entry archive contains 28 public tables plus Auth and Storage metadata. Before cutover, live had 52 migrations through `202609090002`, six Auth users, six profiles, four matrix positions, 18 reward rows, and zero Storage buckets or objects.
 - That fresh archive restored successfully into a separate PostgreSQL 17.6 Docker container with `--network none`. All 23 pending migrations through `202610070003` applied in order. Five rollback-only funds, payment, Patronizing tiers/discount, and Owner-review smoke tests passed. The upgraded copy retained six Auth users, six profiles, and 18 reward rows; the new Budget root made five matrix positions. It has 75 migration records, zero orphan profiles, and zero unvalidated public constraints. No hosted project was used as a restore target.
 
-## Remaining technical release work
+## Post-deployment checks
 
-1. Obtain explicit user acceptance of the staging pilot results. The approved-withdrawal UI was rehearsed with a fictional destination, but there was no external payout, so actual GCash completion remains an operational check for a real transaction. Staging currently has only the Budget root matrix position.
-2. Review the local release commit and verify the exact commit that Cloudflare Pages will publish. The code is not yet deployed.
-3. At cutover, recheck that the live schema version, Storage count, and backup are still current. The read-only comparison identified exactly 23 pending migrations with no remote-only history; the fresh offline rehearsal above applied all 23. Apply only those reviewed migrations, deploy the tested static build, and immediately check member sign-in, admin sign-in, a read-only dashboard, and ledger totals. Stop and restore from backup if counts or critical flows disagree.
+1. The owner accepted the fictional staging pilot and authorized the controlled live rollout. After deployment, the owner confirmed both live member and admin dashboards load and balances look unchanged; no credentials were shared. The approved-withdrawal UI was rehearsed with a fictional destination, but actual GCash completion remains an operational check for a real transaction.
+2. Live migration history advanced from 52 to 75 records through `202610070003`. The new Budget root brought matrix positions from four to five; six Auth users, six profiles, and 18 reward rows were unchanged. There are zero orphan profiles and zero unvalidated public constraints. The published Patronizing JavaScript contains the active-entry fix, its public configuration points to the live project, eight primary routes return HTTP 200, and member/admin login pages show no browser errors.
+3. Monitor the first real approval, funds movement, and payout with ledger reconciliation. If a critical signed-in flow or balance differs, stop new approvals and investigate against the verified pre-cutover archive before making further changes.
 
 ## Accepted limitations and separate sign-off
 
@@ -38,6 +38,6 @@ No live migration, Cloudflare deployment, or live account change was made during
 - Owner Finances remains a limited historical view, not a complete cash/liability report. It must not be used as the final financial reconciliation source.
 - Independent legal review of the token, monthly income, and investment offers was explicitly deferred. Technical readiness does not authorize public financial enrollment or promotion.
 
-## Cutover hold
+## Release status
 
-Do not push migrations to live or publish this build yet. Pilot acceptance and the final controlled cutover remain open. Legal review is tracked separately and remains necessary before public enrollment.
+The technical cutover and signed-in acceptance completed. Real transaction monitoring remains open. Legal review is tracked separately and remains necessary before public financial enrollment or promotion.
