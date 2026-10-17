@@ -845,8 +845,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     updateCount("timeline", pending.length);
     if (!pending.length) { timelineList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No pending Standard Plan requests</strong><p>Approved members enter the automatic left-to-right timeline queue.</p></div>`; return; }
     timelineList.innerHTML = pending.map(request => {
-      const payment = request.paymentMethod === "available_balance"
-        ? `<div><span>Payment</span><strong>Available Balance</strong></div>`
+      const payment = request.paymentMethod === "main_funds"
+        ? `<div><span>Payment</span><strong>Main Funds</strong></div>`
+        : request.paymentMethod === "available_balance"
+        ? `<div><span>Payment</span><strong>Legacy Available Balance</strong></div>`
         : `<div><span>Payment method</span><strong>${escapeHtml(request.paymentMethodSnapshot?.methodName || "Legacy GCash")}</strong></div><div><span>Payment account</span><strong>${escapeHtml(request.paymentMethodSnapshot?.accountName || request.gcashName || "-")} &middot; ${escapeHtml(request.paymentMethodSnapshot?.accountNumber || request.gcashNumber || "-")}</strong></div><div><span>Reference</span><strong>${escapeHtml(request.referenceNumber)}</strong></div>`;
       return `<article class="portal-card withdrawal-history-item" data-timeline-request-id="${escapeHtml(request.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(request.accountCode)} &middot; Standard Plan</span><h2>${escapeHtml(request.fullName)}</h2></div><span class="withdrawal-status status-pending">Pending</span></div><div class="withdrawal-history-details"><div><span>Username</span><strong>@${escapeHtml(request.username)}</strong></div><div><span>Activation</span><strong>${money(request.amount)}</strong></div>${payment}<div><span>Requested</span><strong>${new Date(request.createdAt).toLocaleString()}</strong></div></div><div class="balance-card-buttons" style="margin-top:1rem"><button class="button button-primary button-small approve-timeline" type="button">Approve &amp; Place</button><button class="button button-outline button-small reject-timeline" type="button">Reject</button></div></article>`;
     }).join("");
@@ -1150,7 +1152,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function openTimelineDecision(request, action) {
     timelineDecision = { requestId: request.id, rpc: action === "approve" ? "admin_approve_timeline_request" : "admin_reject_timeline_request" };
     document.getElementById("timeline-decision-title").textContent = `${action === "approve" ? "Approve" : "Reject"} Standard Plan Request`;
-    document.getElementById("timeline-decision-summary").textContent = `${request.fullName} | ${money(request.amount)} | ${request.paymentMethod === "available_balance" ? "Available Balance" : request.referenceNumber}`;
+    document.getElementById("timeline-decision-summary").textContent = `${request.fullName} | ${money(request.amount)} | ${request.paymentMethod === "main_funds" ? "Main Funds" : request.paymentMethod === "available_balance" ? "Legacy Available Balance" : request.referenceNumber}`;
     document.getElementById("timeline-decision-note").value = "";
     document.getElementById("timeline-decision-submit").textContent = action === "approve" ? "Approve & Place" : "Reject Request";
     timelineDecisionAlert.style.display = "none";

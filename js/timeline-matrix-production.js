@@ -15,6 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     activationForm: document.getElementById("timeline-activation-form"),
     paymentMethod: document.getElementById("timeline-payment-method"),
     availableBalance: document.getElementById("timeline-available-balance"),
+    availableBalanceLabel: document.querySelector('label[for="timeline-available-balance"]'),
     externalFields: Array.from(document.querySelectorAll(".timeline-external-field")),
     paymentPreview: document.getElementById("timeline-payment-preview"),
     reference: document.getElementById("timeline-reference"),
@@ -43,6 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let timelineDashboard = null;
   let productEntryProgress = null;
   let availableBalance = 0;
+  let mainFundsAvailable = 0;
   let selectedExit = 1;
   let paymentMethods = [];
 
@@ -50,6 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   elements.paymentMethod.addEventListener("change", renderPaymentMode);
   elements.activationForm.addEventListener("submit", submitActivation);
   elements.productsCard.hidden = true;
+  elements.availableBalanceLabel.textContent = "Main Funds Available";
 
   const { data: sessionData, error: sessionError } = await window.matrixSupabase.auth.getSession();
   if (sessionError || !sessionData.session) {
@@ -60,23 +63,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function refresh() {
     hideAlert();
-    const [mainResponse, timelineResponse, pendingExitResponse, productProgressResponse, approvalResponse, methodsResponse] = await Promise.all([
+    const [mainResponse, timelineResponse, pendingExitResponse, productProgressResponse, approvalResponse, methodsResponse, fundsResponse] = await Promise.all([
       window.matrixSupabase.rpc("get_my_dashboard"),
       window.matrixSupabase.rpc("get_my_timeline_dashboard"),
       window.matrixSupabase.rpc("get_pending_exit_balance"),
       window.matrixSupabase.rpc("get_my_product_entry_progress", { p_entry_type: "timeline_entry" }),
       window.matrixSupabase.from("timeline_exit_progress").select("exit_number,approved_at").eq("member_id", sessionData.session.user.id),
-      window.matrixSupabase.rpc("get_active_payment_methods")
+      window.matrixSupabase.rpc("get_active_payment_methods"),
+      window.matrixSupabase.rpc("get_my_member_funds_dashboard")
     ]);
-    const error = mainResponse.error || timelineResponse.error || pendingExitResponse.error || productProgressResponse.error || approvalResponse.error || methodsResponse.error;
+    const error = mainResponse.error || timelineResponse.error || pendingExitResponse.error || productProgressResponse.error || approvalResponse.error || methodsResponse.error || fundsResponse.error;
     if (error) return showAlert(error.message, "danger");
     mainDashboard = mainResponse.data;
     timelineDashboard = timelineResponse.data;
     productEntryProgress = productProgressResponse.data;
     paymentMethods = methodsResponse.data || [];
     const selectedMethod = elements.paymentMethod.value;
-    elements.paymentMethod.innerHTML = paymentMethods.map(method => `<option value="${escapeHtml(method.id)}">${escapeHtml(method.methodName)} - ${escapeHtml(method.accountName)}</option>`).join("") + '<option value="available_balance">Available Balance</option>';
-    if (selectedMethod === "available_balance" || paymentMethods.some(method => method.id === selectedMethod)) elements.paymentMethod.value = selectedMethod;
+    elements.paymentMethod.innerHTML = paymentMethods.map(method => `<option value="${escapeHtml(method.id)}">${escapeHtml(method.methodName)} - ${escapeHtml(method.accountName)}</option>`).join("") + '<option value="main_funds">Main Funds</option>';
+    if (selectedMethod === "main_funds" || paymentMethods.some(method => method.id === selectedMethod)) elements.paymentMethod.value = selectedMethod;
     timelineDashboard.approvedExits = approvalResponse.data || [];
     member = mainDashboard && mainDashboard.member;
     if (!member) return showAlert("Your member profile could not be loaded.", "danger");
@@ -86,6 +90,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       - Number(pendingExitResponse.data || 0),
       0
     );
+    mainFundsAvailable = Number(fundsResponse.data.mainAvailable || 0);
     render();
   }
 
@@ -93,7 +98,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.userStatus.style.display = "block";
     elements.userName.textContent = member.fullName || member.username || "Member";
     elements.avatar.textContent = (member.fullName || "M").charAt(0).toUpperCase();
-    elements.availableBalance.value = money(availableBalance);
+    elements.availableBalance.value = money(mainFundsAvailable);
     renderPaymentMode();
 
     const isActive = Boolean(timelineDashboard && timelineDashboard.isActive);
@@ -138,7 +143,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function renderPaymentMode() {
-    const balancePayment = elements.paymentMethod.value === "available_balance";
+    const balancePayment = elements.paymentMethod.value === "main_funds";
     elements.externalFields.forEach(field => { field.style.display = balancePayment ? "none" : ""; });
     const method = paymentMethods.find(item => item.id === elements.paymentMethod.value);
     elements.paymentPreview.innerHTML = method ? `${method.qrImageData ? `<img src="${escapeHtml(method.qrImageData)}" alt="${escapeHtml(method.methodName)} payment QR code">` : ""}<div><strong>${escapeHtml(method.methodName)}</strong><p>${escapeHtml(method.accountName)} · ${escapeHtml(method.accountNumber)}</p>${method.instructions ? `<small>${escapeHtml(method.instructions)}</small>` : ""}</div>` : "";
@@ -164,12 +169,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     event.preventDefault();
     hideAlert();
     const paymentMethod = elements.paymentMethod.value;
-    if (paymentMethod === "available_balance" && availableBalance < 693) {
-      showAlert("Available Balance is not enough for the PHP 693 Standard Plan activation.", "danger");
+    if (paymentMethod === "main_funds" && mainFundsAvailable < 693) {
+      showAlert("Main Funds needs at least PHP 693 for Standard Plan activation.", "danger");
       return;
     }
-    const args = { p_payment_method: paymentMethod === "available_balance" ? "available_balance" : "external", p_payment_method_id: paymentMethod === "available_balance" ? null : paymentMethod, p_reference_number: "" };
-    if (paymentMethod !== "available_balance") {
+    const args = { p_payment_method: paymentMethod === "main_funds" ? "main_funds" : "external", p_payment_method_id: paymentMethod === "main_funds" ? null : paymentMethod, p_reference_number: "" };
+    if (paymentMethod !== "main_funds") {
       const reference = elements.reference.value.trim();
       if (!paymentMethods.some(method => method.id === paymentMethod) || !/^[A-Za-z0-9-]{6,40}$/.test(reference)) {
         showAlert("Choose a payment method and enter a valid reference number.", "danger");
