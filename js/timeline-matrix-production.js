@@ -15,9 +15,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     activationForm: document.getElementById("timeline-activation-form"),
     paymentMethod: document.getElementById("timeline-payment-method"),
     availableBalance: document.getElementById("timeline-available-balance"),
-    gcashFields: Array.from(document.querySelectorAll(".timeline-gcash-field")),
-    gcashName: document.getElementById("timeline-gcash-name"),
-    gcashNumber: document.getElementById("timeline-gcash-number"),
+    externalFields: Array.from(document.querySelectorAll(".timeline-external-field")),
+    paymentPreview: document.getElementById("timeline-payment-preview"),
     reference: document.getElementById("timeline-reference"),
     submit: document.getElementById("timeline-submit"),
     productProgress: document.getElementById("timeline-product-progress"),
@@ -45,10 +44,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   let productEntryProgress = null;
   let availableBalance = 0;
   let selectedExit = 1;
+  let paymentMethods = [];
 
   setupAccountMenu();
   elements.paymentMethod.addEventListener("change", renderPaymentMode);
-  elements.gcashNumber.addEventListener("input", () => { elements.gcashNumber.value = elements.gcashNumber.value.replace(/\D/g, "").slice(0, 11); });
   elements.activationForm.addEventListener("submit", submitActivation);
   elements.productsCard.hidden = true;
 
@@ -61,17 +60,24 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function refresh() {
     hideAlert();
-    const [mainResponse, timelineResponse, pendingExitResponse, productProgressResponse] = await Promise.all([
+    const [mainResponse, timelineResponse, pendingExitResponse, productProgressResponse, approvalResponse, methodsResponse] = await Promise.all([
       window.matrixSupabase.rpc("get_my_dashboard"),
       window.matrixSupabase.rpc("get_my_timeline_dashboard"),
       window.matrixSupabase.rpc("get_pending_exit_balance"),
-      window.matrixSupabase.rpc("get_my_product_entry_progress", { p_entry_type: "timeline_entry" })
+      window.matrixSupabase.rpc("get_my_product_entry_progress", { p_entry_type: "timeline_entry" }),
+      window.matrixSupabase.from("timeline_exit_progress").select("exit_number,approved_at").eq("member_id", sessionData.session.user.id),
+      window.matrixSupabase.rpc("get_active_payment_methods")
     ]);
-    const error = mainResponse.error || timelineResponse.error || pendingExitResponse.error || productProgressResponse.error;
+    const error = mainResponse.error || timelineResponse.error || pendingExitResponse.error || productProgressResponse.error || approvalResponse.error || methodsResponse.error;
     if (error) return showAlert(error.message, "danger");
     mainDashboard = mainResponse.data;
     timelineDashboard = timelineResponse.data;
     productEntryProgress = productProgressResponse.data;
+    paymentMethods = methodsResponse.data || [];
+    const selectedMethod = elements.paymentMethod.value;
+    elements.paymentMethod.innerHTML = paymentMethods.map(method => `<option value="${escapeHtml(method.id)}">${escapeHtml(method.methodName)} - ${escapeHtml(method.accountName)}</option>`).join("") + '<option value="available_balance">Available Balance</option>';
+    if (selectedMethod === "available_balance" || paymentMethods.some(method => method.id === selectedMethod)) elements.paymentMethod.value = selectedMethod;
+    timelineDashboard.approvedExits = approvalResponse.data || [];
     member = mainDashboard && mainDashboard.member;
     if (!member) return showAlert("Your member profile could not be loaded.", "danger");
     availableBalance = Math.max(
@@ -88,11 +94,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     elements.userName.textContent = member.fullName || member.username || "Member";
     elements.avatar.textContent = (member.fullName || "M").charAt(0).toUpperCase();
     elements.availableBalance.value = money(availableBalance);
-    elements.gcashName.value = elements.gcashName.value || member.fullName || "";
-    elements.gcashNumber.value = elements.gcashNumber.value || validGcashNumber(member.phone);
     renderPaymentMode();
 
     const isActive = Boolean(timelineDashboard && timelineDashboard.isActive);
+    const rules = timelineDashboard && timelineDashboard.rules || [];
+    document.getElementById("timeline-rules-card").style.display = rules.length ? "block" : "none";
+    const ledger = timelineDashboard.rewardLedger || [];
+    const approvals = timelineDashboard.approvedExits || [];
+    document.getElementById("timeline-rules-rows").innerHTML = rules.filter(rule => Number(rule.matrixMonths) > 0).map(rule => {
+      const eligible = ledger.filter(item => Number(item.exit) === Number(rule.exit) && item.sourceType === "timeline_matrix" && item.status !== "void" && new Date(item.dueAt) <= new Date()).length;
+      return `<tr><th scope="row">Exit ${Number(rule.exit)}</th><td>${money(rule.matrixIncome)}</td>
+        <td>${MatrixBenefits.progress(eligible, rule.matrixMonths)}</td><td>${MatrixBenefits.state(capitalize(rule.status), rule.status === "active" ? "active" : rule.status === "qualified" ? "pending" : "locked")}</td></tr>`;
+    }).join("");
+    document.getElementById("timeline-benefit-products-rows").innerHTML = rules.filter(rule => Number(rule.productMonths) > 0).map(rule => {
+      const approvedAt = approvals.find(item => Number(item.exit_number) === Number(rule.exit))?.approved_at;
+      const start = approvedAt ? new Date(approvedAt) : null;
+      const eligible = start ? Array.from({ length: Number(rule.productMonths) }, (_, index) => index + 1)
+        .filter(month => Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + month + 1, 0, 23, 59, 59) <= Date.now()).length : 0;
+      return `<tr><th scope="row">Exit ${Number(rule.exit)}</th><td>${money(rule.productSpend)}</td><td>${money(rule.productBonusAmount)}</td>
+        <td>${MatrixBenefits.progress(eligible, rule.productMonths)}</td><td>${MatrixBenefits.state(approvedAt ? "Active" : capitalize(rule.status), approvedAt ? "active" : rule.status === "qualified" ? "pending" : "locked")}</td></tr>`;
+    }).join("");
     const pending = timelineDashboard && timelineDashboard.pendingRequest;
     elements.statusBadge.textContent = isActive ? "Active" : pending ? "Pending Approval" : "Not Active";
     elements.statusBadge.className = `badge ${isActive ? "badge-active" : "badge-pending"}`;
@@ -118,7 +139,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function renderPaymentMode() {
     const balancePayment = elements.paymentMethod.value === "available_balance";
-    elements.gcashFields.forEach(field => { field.style.display = balancePayment ? "none" : ""; });
+    elements.externalFields.forEach(field => { field.style.display = balancePayment ? "none" : ""; });
+    const method = paymentMethods.find(item => item.id === elements.paymentMethod.value);
+    elements.paymentPreview.innerHTML = method ? `${method.qrImageData ? `<img src="${escapeHtml(method.qrImageData)}" alt="${escapeHtml(method.methodName)} payment QR code">` : ""}<div><strong>${escapeHtml(method.methodName)}</strong><p>${escapeHtml(method.accountName)} · ${escapeHtml(method.accountNumber)}</p>${method.instructions ? `<small>${escapeHtml(method.instructions)}</small>` : ""}</div>` : "";
   }
 
   function renderProductEntryProgress(isActive) {
@@ -145,17 +168,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       showAlert("Available Balance is not enough for the PHP 693 Standard Plan activation.", "danger");
       return;
     }
-    const args = { p_payment_method: paymentMethod, p_gcash_name: "", p_gcash_number: "", p_reference_number: "" };
-    if (paymentMethod === "gcash") {
-      const name = elements.gcashName.value.trim();
-      const number = elements.gcashNumber.value.trim();
+    const args = { p_payment_method: paymentMethod === "available_balance" ? "available_balance" : "external", p_payment_method_id: paymentMethod === "available_balance" ? null : paymentMethod, p_reference_number: "" };
+    if (paymentMethod !== "available_balance") {
       const reference = elements.reference.value.trim();
-      if (!/^[\p{L} .'-]+$/u.test(name) || !/^09\d{9}$/.test(number) || !/^[A-Za-z0-9-]{6,40}$/.test(reference)) {
-        showAlert("Enter a valid GCash account name, number, and reference number.", "danger");
+      if (!paymentMethods.some(method => method.id === paymentMethod) || !/^[A-Za-z0-9-]{6,40}$/.test(reference)) {
+        showAlert("Choose a payment method and enter a valid reference number.", "danger");
         return;
       }
-      args.p_gcash_name = name;
-      args.p_gcash_number = number;
       args.p_reference_number = reference;
     }
     elements.submit.disabled = true;
@@ -218,12 +237,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       elements.accountMenu.hidden = true;
       const action = button.dataset.timelineAction;
       if (action === "profile") window.location.href = "portal.html#profile";
-      if (action === "main") window.location.href = "portal.html";
+      if (action === "budget") window.location.href = "budget-plan.html";
+      if (action === "patronizing") window.location.href = "patronizing-income.html";
       if (action === "packages") window.location.href = "packages-orders.html";
-      if (action === "withdraw") window.location.href = "withdrawal-request.html";
+      if (action === "product-plus") window.location.href = "packages-orders.html?type=product_plus_requirement";
+      if (action === "funds") window.location.href = "main-funds.html";
+      if (action === "withdraw") window.location.href = "main-funds.html?dialog=withdraw";
       if (action === "withdrawal-history") window.location.href = "withdrawal-history.html";
       if (action === "history") window.location.href = "passive-income-history.html";
-      if (action === "entry") window.location.href = "upgrade-entry.html";
+      if (action === "entry") window.location.href = "portal.html?view=premium";
       if (action === "logout") { await window.matrixSupabase.auth.signOut(); window.location.href = "portal.html"; }
     }));
     document.addEventListener("click", event => {
@@ -231,10 +253,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  function validGcashNumber(value) {
-    const digits = String(value || "").replace(/\D/g, "");
-    return /^09\d{9}$/.test(digits) ? digits : /^639\d{9}$/.test(digits) ? `0${digits.slice(2)}` : "";
-  }
   function money(value) { return `PHP ${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
   function capitalize(value) { const text = String(value || ""); return text.charAt(0).toUpperCase() + text.slice(1); }
   function escapeHtml(value) { return String(value == null ? "" : value).replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[character])); }

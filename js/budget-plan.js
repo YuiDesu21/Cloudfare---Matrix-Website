@@ -32,32 +32,49 @@ document.addEventListener("DOMContentLoaded", async () => {
   const tokenPrice = Number(settingsResponse.data.unit_price);
   const methods = methodsResponse.data || [];
   const walletAddress = profileResponse.data.member?.walletAddress || "";
+  const contracts = funds.investments || [];
+  const contractIds = contracts.map(contract => contract.id);
+  const investmentIncomeResponse = contractIds.length
+    ? await window.matrixSupabase.from("budget_investment_income").select("contract_id,due_at").in("contract_id", contractIds)
+    : { data: [], error: null };
+  if (investmentIncomeResponse.error) return showError(investmentIncomeResponse.error.message);
+  const investmentIncome = investmentIncomeResponse.data || [];
 
   const rules = data.rules || [];
   const rank = Number(data.rank ?? -1);
   const current = rules.find(rule => Number(rule.rank) === rank);
   const entryCredit = Number(data.entryCredit || 0);
   const investmentCredit = Number(data.investmentCredit || 0);
-  document.getElementById("budget-status").textContent = data.isActive ? "Active" : "Not Active";
-  document.getElementById("budget-rank").textContent = current ? current.name : "Not Active";
+  const budgetStatus = document.getElementById("budget-status");
+  budgetStatus.textContent = data.isActive ? "Active" : "Not Active";
+  budgetStatus.className = `badge ${data.isActive ? "badge-active" : "badge-pending"}`;
+  const rankBadge = document.getElementById("budget-rank");
+  rankBadge.textContent = current ? current.name : "Not Active";
+  rankBadge.className = `badge ${data.isActive ? "badge-active" : "badge-pending"}`;
   document.getElementById("budget-entry-value").textContent = `${money(entryCredit)} / PHP 150`;
   document.getElementById("budget-investment-value").textContent = `${money(investmentCredit)} / PHP 300`;
   document.getElementById("budget-entry-bar").style.width = `${Math.min(entryCredit / 150 * 100, 100)}%`;
-  document.getElementById("budget-investment-bar").style.width = `${Math.min(investmentCredit / 300 * 100, 100)}%`;
-  document.getElementById("budget-investment-status").textContent = data.canInvest ? "Qualified" : "Locked";
+  const investmentBadge = document.getElementById("budget-investment-status");
+  investmentBadge.textContent = data.canInvest ? "Qualified" : "Locked";
+  investmentBadge.className = `badge ${data.canInvest ? "badge-active" : "badge-pending"}`;
   document.getElementById("budget-eligibility-note").textContent = !data.isActive
     ? "Matrix placement begins when approved purchases reach PHP 150 in qualifying value."
     : rank < 1
       ? "Reach Overcomer rank to invest. Additional approved purchases continue filling the PHP 300 qualification."
       : data.canInvest ? "You meet the purchase and rank requirements for investing." : "Keep purchasing eligible products to complete the PHP 300 investment qualification.";
 
-  document.getElementById("budget-passive-rows").innerHTML = rules.map(rule => `
-    <tr><th scope="row">${escapeHtml(rule.name)}</th><td>${Number(rule.monthlyPassive) ? money(rule.monthlyPassive) : "-"}</td>
-      <td>${Number(rule.passiveMonths) || "-"}</td><td>${rule.reachedAt ? "Reached" : "Locked"}</td></tr>`).join("");
+  document.getElementById("budget-passive-rows").innerHTML = rules.map(rule => {
+    const months = Number(rule.passiveMonths || 0);
+    const eligible = (data.passiveIncome || []).filter(item => item.sourceLabel === `Budget Plan ${rule.name}` && item.status !== "scheduled").length;
+    const state = !rule.reachedAt ? "Locked" : eligible >= months && months ? "Complete" : eligible ? "Eligible" : "Scheduled";
+    return `<tr><th scope="row">${escapeHtml(rule.name)}</th><td>${Number(rule.monthlyPassive) ? money(rule.monthlyPassive) : "-"}</td>
+      <td>${months ? MatrixBenefits.progress(eligible, months) : "-"}</td><td>${MatrixBenefits.state(state, !rule.reachedAt ? "locked" : eligible ? "active" : "pending")}</td></tr>`;
+  }).join("");
   document.getElementById("budget-investment-rows").innerHTML = rules.filter(rule => Number(rule.investmentAmount) > 0).map(rule => {
-    const contracts = (funds.investments || []).filter(item => Number(item.rank) === Number(rule.rank));
-    const usedMonths = contracts.reduce((sum, item) => sum + Number(item.months || 0), 0);
-    const active = contracts.find(item => new Date(item.unlocksAt) > new Date());
+    const rankContracts = contracts.filter(item => Number(item.rank) === Number(rule.rank));
+    const usedMonths = rankContracts.reduce((sum, item) => sum + Number(item.months || 0), 0);
+    const eligibleMonths = investmentIncome.filter(item => rankContracts.some(contract => contract.id === item.contract_id) && new Date(item.due_at) <= new Date()).length;
+    const active = rankContracts.find(item => new Date(item.unlocksAt) > new Date());
     const pending = pendingRequests.some(item => Number(item.rank_number) === Number(rule.rank));
     const qualified = data.canInvest && rank >= Number(rule.rank);
     const funded = Number(funds.investmentAvailable || 0) >= Number(rule.investmentAmount);
@@ -66,7 +83,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       : pending ? "Pending approval" : !qualified ? "Locked" : !funded ? "Add funds" : "Request Investment";
     const actionable = qualified && funded && !complete && !active && !pending;
     return `<tr><th scope="row">${escapeHtml(rule.name)}</th><td>${money(rule.investmentAmount)}</td>
-      <td>${money(Number(rule.investmentAmount) * .3)}</td><td>${usedMonths} / ${Number(rule.investmentMonths)}</td>
+      <td>${money(Number(rule.investmentAmount) * .3)}</td><td>${MatrixBenefits.progress(eligibleMonths, rule.investmentMonths)}</td>
       <td>${Math.min(Number(rule.contractMonths), Number(rule.investmentMonths) - usedMonths)} months</td>
       <td><button class="button button-outline button-small budget-action" type="button" data-budget-invest-rank="${Number(rule.rank)}" ${actionable ? "" : "disabled"}>${escapeHtml(label)}</button></td></tr>`;
   }).join("");

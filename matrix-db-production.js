@@ -1,6 +1,6 @@
 /** Supabase-only production data adapter. Local JSON and sandbox controls are intentionally excluded. */
 const MATRIX_PLANS = {
-  "power3-passive": { id: "power3-passive", name: "Premium Plan", maxChildren: 3, price: 20, pesoValue: 1200 },
+  "power3-passive": { id: "power3-passive", name: "Premium Plan", maxChildren: 3, price: 20, pesoValue: 1500 },
   "timeline-power3": { id: "timeline-power3", name: "Standard Plan", maxChildren: 3, price: 693, pesoValue: 693 },
   "patronizing-income": { id: "patronizing-income", name: "Patronizing Income", maxChildren: 3, price: 0, pesoValue: 0 }
 };
@@ -242,6 +242,17 @@ const MatrixDB = {
       p_product_type: details.productType,
       p_shipping_address_id: details.shippingAddressId,
       p_items: details.items || [],
+      p_member_notes: details.memberNotes || ""
+    });
+    if (error) throw error;
+    await this.refreshCommerceOrders();
+    return data;
+  },
+  async requestProductPlusVoucherOrder(details = {}) {
+    const { data, error } = await window.matrixSupabase.rpc("request_shop_order", {
+      p_shipping_address_id: details.shippingAddressId,
+      p_items: details.items || [],
+      p_voucher_amount: details.voucherAmount,
       p_member_notes: details.memberNotes || ""
     });
     if (error) throw error;

@@ -109,25 +109,36 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const dbWelcomeTitle = document.getElementById("db-welcome-title");
   const dbWelcomeDesc = document.getElementById("db-welcome-desc");
+  const dashboardWelcomeMeta = document.getElementById("dashboard-welcome-meta");
+  const dashboardAccountState = document.getElementById("dashboard-account-state");
+  document.getElementById("dashboard-view-profile").addEventListener("click", event => {
+    event.preventDefault();
+    openProfileDrawer();
+  });
+  const dashboardContent = document.querySelector(".dashboard-content");
+  const dashboardOverview = document.getElementById("dashboard-overview");
 
   const activeMetricsRow = document.getElementById("active-metrics-row");
   const metricReferrals = document.getElementById("metric-referrals");
   const metricChildren = document.getElementById("metric-children");
 
-  const matrixOverviewCard = document.getElementById("matrix-overview-card");
-  const matrixTabs = document.getElementById("matrix-tabs");
-  const matrixSelectedBadge = document.getElementById("matrix-selected-badge");
-  const matrixQualification = document.getElementById("matrix-qualification");
-  const matrixTitle = document.getElementById("matrix-title");
-  const matrixSummary = document.getElementById("matrix-summary");
-  const matrixRequirement = document.getElementById("matrix-requirement");
-  const matrixActionLink = document.getElementById("matrix-action-link");
-  const matrixActionMessage = document.getElementById("matrix-action-message");
-  const matrixDateFact = document.getElementById("matrix-date-fact");
-  const matrixDateLabel = document.getElementById("matrix-date-label");
-  const matrixPlacedTime = document.getElementById("matrix-placed-time");
-  const matrixExitNote = document.getElementById("matrix-exit-note");
-  const matrixExits = document.getElementById("matrix-exits");
+  const premiumNextStep = document.getElementById("premium-next-step");
+  const premiumNextStepTitle = document.getElementById("premium-next-step-title");
+  const premiumNextStepStatus = document.getElementById("premium-next-step-status");
+  const premiumNextStepCopy = document.getElementById("premium-next-step-copy");
+  const premiumNextStepAction = document.getElementById("premium-next-step-action");
+  const premiumActivation = document.getElementById("premium-activation");
+  const premiumActivationForm = document.getElementById("premium-activation-form");
+  const premiumActivationStatus = document.getElementById("premium-activation-status");
+  const premiumActivationAlert = document.getElementById("premium-activation-alert");
+  const premiumActivationUpline = document.getElementById("premium-activation-upline");
+  const premiumActivationReference = document.getElementById("premium-activation-reference");
+  const premiumActivationMethod = document.getElementById("premium-activation-method");
+  const premiumActivationMethodDetails = document.getElementById("premium-activation-method-details");
+  const premiumActivationPending = document.getElementById("premium-activation-pending");
+  const premiumActivationSubmit = document.getElementById("premium-activation-submit");
+  let premiumActivationMember = null;
+  let premiumActivationLoad = 0;
   const balanceCard = document.getElementById("balance-card");
   const balanceTotalBadge = document.getElementById("balance-total-badge");
   const balanceTotal = document.getElementById("balance-total");
@@ -183,6 +194,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Route URL queries
   const params = new URLSearchParams(window.location.search);
   const action = params.get("action");
+  const premiumViewRequested = params.get("view") === "premium";
+  const premiumProductProgress = document.getElementById("premium-product-progress");
+  const returnToShop = params.get("returnTo") === "shop.html";
   const FEATURES = (window.MATRIX_CONFIG && window.MATRIX_CONFIG.features) || {};
 
   accountMenu.querySelectorAll('[data-account-action="withdraw"], [data-account-action="history"]').forEach(button => {
@@ -194,7 +208,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const passiveIncomeMenuButton = accountMenu.querySelector('[data-account-action="income"]');
   if (passiveIncomeMenuButton) passiveIncomeMenuButton.hidden = !FEATURES.passiveIncomeHistory;
 
-  const MATRIX_RULES = MatrixDB.getMatrixRules();
 
   regPhone.addEventListener("input", () => { regPhone.value = regPhone.value.replace(/\D/g, "").slice(0, 11); });
   regFullName.addEventListener("input", () => { regFullName.value = regFullName.value.replace(/[^\p{L} .'-]/gu, "").slice(0, 30); });
@@ -217,6 +230,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       } catch (error) {
         window.alert(error.message);
       }
+    } else if (returnToShop) {
+      window.location.assign("shop.html");
     } else if (window.location.hash === "#profile") {
       openProfileDrawer();
       window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
@@ -274,6 +289,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     notificationMenu.hidden = !open;
     notificationMenuToggle.setAttribute("aria-expanded", open ? "true" : "false");
   });
+  function openNotificationsFromLink() {
+    if (window.location.hash !== "#notifications" || dashboardSection.style.display === "none") return;
+    closeAccountMenu();
+    notificationMenu.hidden = false;
+    notificationMenuToggle.setAttribute("aria-expanded", "true");
+    window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
+  }
+  window.addEventListener("hashchange", openNotificationsFromLink);
+  if (sessionRestored) openNotificationsFromLink();
 
   accountMenu.querySelectorAll("[data-account-action]").forEach(button => {
     button.addEventListener("click", () => {
@@ -282,6 +306,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         openProfileDrawer();
       } else if (button.dataset.accountAction === "packages") {
         window.location.href = "packages-orders.html";
+      } else if (button.dataset.accountAction === "product-plus") {
+        window.location.href = "packages-orders.html?type=product_plus_requirement";
       } else if (button.dataset.accountAction === "patronizing") {
         window.location.href = "patronizing-income.html";
       } else if (button.dataset.accountAction === "timeline") {
@@ -291,13 +317,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else if (button.dataset.accountAction === "funds") {
         window.location.href = "main-funds.html";
       } else if (button.dataset.accountAction === "withdraw") {
-        window.location.href = "withdrawal-request.html";
+        window.location.href = "main-funds.html?dialog=withdraw";
       } else if (button.dataset.accountAction === "history") {
         window.location.href = "withdrawal-history.html";
       } else if (button.dataset.accountAction === "income") {
         window.location.href = "passive-income-history.html";
       } else if (button.dataset.accountAction === "entry") {
-        window.location.href = "upgrade-entry.html";
+        window.location.href = "portal.html?view=premium";
       } else if (button.dataset.accountAction === "admin") {
         window.location.href = "admin.html";
       }
@@ -328,6 +354,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   shippingPostal.addEventListener("input", () => { shippingPostal.value = shippingPostal.value.replace(/\D/g, "").slice(0, 4); });
   shippingCancelBtn.addEventListener("click", () => resetShippingAddressForm());
   shippingAddressForm.addEventListener("submit", handleShippingAddressSubmit);
+  premiumActivationForm.addEventListener("submit", handlePremiumActivationSubmit);
+  premiumActivationMethod.addEventListener("change", renderPremiumPaymentMethod);
   requestWithdrawalBtn.addEventListener("click", () => {
     window.location.href = "main-funds.html";
   });
@@ -359,6 +387,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     authSection.style.display = "block";
     dashboardSection.style.display = "none";
     headerUserStatus.style.display = "none";
+    document.dispatchEvent(new Event("matrix:member-signed-out"));
     clearForms();
   }
 
@@ -440,6 +469,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const member = await MatrixDB.signIn(credential, password);
         if (!member) throw new Error("No Matrix profile is linked to this account.");
         renderDashboard(member);
+        if (returnToShop) window.location.assign("shop.html");
       } catch (error) {
         showLoginError(error.message === "Invalid login credentials" ? "Incorrect email or password." : error.message);
       }
@@ -657,6 +687,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     headerUserName.textContent = pending.fullName;
     headerAvatarLetter.textContent = pending.fullName.charAt(0).toUpperCase();
     headerUserStatus.style.display = "flex";
+    document.dispatchEvent(new CustomEvent("matrix:member-authenticated", { detail: { member: pending } }));
 
     // Fill Sidebar Details
     dbStatusBadge.className = "badge badge-pending";
@@ -680,7 +711,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     activeMetricsRow.style.display = "none";
     activeTreeCard.style.display = "none";
-    matrixOverviewCard.style.display = "none";
+    premiumNextStep.style.display = "none";
     balanceCard.style.display = "none";
     productsPlusCard.style.display = "none";
 
@@ -701,6 +732,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     headerUserName.textContent = member.fullName;
     headerAvatarLetter.textContent = member.fullName.charAt(0).toUpperCase();
     headerUserStatus.style.display = "flex";
+    document.dispatchEvent(new CustomEvent("matrix:member-authenticated", { detail: { member } }));
 
     const summary = MatrixDB.getMemberMatrixSummary(member.id);
     const adminMenuButton = accountMenu.querySelector('[data-account-action="admin"]');
@@ -731,13 +763,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     refLinkInput.value = member.matrixUplineCode || "";
 
     // Welcome Box details
-    dbWelcomeTitle.textContent = `Welcome Back, ${member.fullName}!`;
-    dbWelcomeDesc.textContent = "You are an active participant in our network. View your squad structure and downline tree below.";
+    dbWelcomeTitle.textContent = premiumViewRequested ? "Premium Plan" : "Overview";
+    dbWelcomeDesc.textContent = premiumViewRequested ? "Review your matrix position, exits, income, and Products Plus." : `Welcome back, ${member.fullName.split(/\s+/)[0]}. Here's where your plans and funds stand today.`;
+    dashboardWelcomeMeta.hidden = premiumViewRequested;
+    dashboardAccountState.textContent = "Account ready";
 
     // Active components
     pendingDetailsCard.style.display = "none";
     activeMetricsRow.style.display = "grid";
-    matrixOverviewCard.style.display = "block";
+    premiumNextStep.style.display = "flex";
     balanceCard.style.display = "block";
     productsPlusCard.style.display = FEATURES.productsPlus ? "block" : "none";
     activeTreeCard.style.display = "block";
@@ -745,11 +779,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Find position detail
     const pos = summary && summary.position ? summary.position : MatrixDB.getPositionByMemberId(member.id);
     const positions = pos ? [pos] : [];
-    renderMatrixOverview(member, positions, summary);
+    renderPremiumNextStep(member, summary);
+    renderPremiumRules(summary);
     renderBalancePanel(member, summary);
     renderProductsPlusPanel(member, summary);
     renderNotifications(summary);
     renderShippingAddresses(MatrixDB.getShippingAddresses());
+    setDashboardView(member);
+    renderMemberOverview(member, summary);
 
     if (pos) {
       // Calculate direct 1200 downlines and total downline children
@@ -763,6 +800,205 @@ document.addEventListener("DOMContentLoaded", async () => {
       metricChildren.textContent = "0";
       treeVisualizer.innerHTML = `<div class="empty-state"><p>Matrix position is not established. Contact admin.</p></div>`;
     }
+  }
+
+  function setDashboardView(member) {
+    dashboardContent.classList.toggle("show-premium", premiumViewRequested);
+    document.body.classList.toggle("premium-plan-view", premiumViewRequested);
+    dashboardOverview.hidden = premiumViewRequested;
+    premiumProductProgress.style.display = premiumViewRequested && member.status !== "active" ? "grid" : "none";
+    if (premiumViewRequested && member.status !== "active") renderPremiumProductProgress();
+    premiumActivation.style.display = premiumViewRequested && member.status !== "active" && FEATURES.entryActivation ? "block" : "none";
+    if (premiumViewRequested && member.status !== "active" && FEATURES.entryActivation) renderPremiumActivation(member);
+    else premiumActivationLoad += 1;
+  }
+
+  async function renderPremiumActivation(member) {
+    const load = ++premiumActivationLoad;
+    premiumActivationMember = member;
+    premiumActivationForm.hidden = false;
+    premiumActivationPending.hidden = true;
+    premiumActivationSubmit.disabled = true;
+    premiumActivationStatus.textContent = "Checking";
+    premiumActivationStatus.className = "benefit-state benefit-state-pending";
+    premiumActivationAlert.style.display = "none";
+    try {
+      const methods = window.MATRIX_USES_SUPABASE
+        ? (await window.matrixSupabase.rpc("get_active_payment_methods"))
+        : { data: MatrixDB.getPaymentMethods() };
+      if (methods.error) throw methods.error;
+      if (load !== premiumActivationLoad) return;
+      const selected = premiumActivationMethod.value;
+      premiumActivationMethod.innerHTML = (methods.data || []).length
+        ? methods.data.map(method => `<option value="${escapeHtml(method.id)}">${escapeHtml(method.methodName)} - ${escapeHtml(method.accountName)}</option>`).join("")
+        : '<option value="">No active payment methods</option>';
+      if ((methods.data || []).some(method => method.id === selected)) premiumActivationMethod.value = selected;
+      premiumActivationMethod._methods = methods.data || [];
+      renderPremiumPaymentMethod();
+      let requests;
+      if (window.MATRIX_USES_SUPABASE) {
+        const { data, error } = await window.matrixSupabase.rpc("get_my_entry_requests");
+        if (error) throw error;
+        requests = data || [];
+      } else {
+        requests = MatrixDB.getMemberUpgradeRequests(member.id);
+      }
+      if (load !== premiumActivationLoad) return;
+      const pending = requests.find(request => request.status === "pending");
+      if (pending) {
+        showPremiumActivationPending(pending);
+      } else {
+        const rejected = requests.find(request => request.status === "rejected");
+        premiumActivationStatus.textContent = rejected ? "Not approved" : "Not submitted";
+        premiumActivationStatus.className = "benefit-state benefit-state-locked";
+        premiumActivationSubmit.disabled = !premiumActivationMethod.value;
+        if (rejected) showPremiumActivationAlert("Your previous request was not approved. Check the details and submit a new reference.", "info");
+      }
+    } catch (error) {
+      if (load !== premiumActivationLoad) return;
+      showPremiumActivationAlert(error.message, "danger");
+    }
+  }
+
+  function renderPremiumPaymentMethod() {
+    const method = (premiumActivationMethod._methods || []).find(item => item.id === premiumActivationMethod.value);
+    premiumActivationMethodDetails.innerHTML = method ? `${method.qrImageData ? `<img src="${escapeHtml(method.qrImageData)}" alt="${escapeHtml(method.methodName)} payment QR code">` : ""}<div><strong>${escapeHtml(method.methodName)}</strong><p>${escapeHtml(method.accountName)} · ${escapeHtml(method.accountNumber)}</p>${method.instructions ? `<small>${escapeHtml(method.instructions)}</small>` : ""}</div>` : "";
+    if (!premiumActivationForm.hidden) premiumActivationSubmit.disabled = !method;
+  }
+
+  async function handlePremiumActivationSubmit(event) {
+    event.preventDefault();
+    if (!premiumActivationMember || premiumActivationMember.status === "active" || premiumActivationSubmit.disabled) return;
+    if (!document.getElementById("premium-activation-confirm").checked) {
+      showPremiumActivationAlert("Confirm the payment details before submitting.", "danger");
+      return;
+    }
+    const reference = premiumActivationReference.value.trim();
+    const uplineCode = premiumActivationUpline.value.trim().toUpperCase();
+    const methodId = premiumActivationMethod.value;
+    if (!methodId) return showPremiumActivationAlert("Choose a payment method.", "danger");
+    premiumActivationSubmit.disabled = true;
+    premiumActivationAlert.style.display = "none";
+    try {
+      let pending;
+      if (window.MATRIX_USES_SUPABASE) {
+        const { data, error } = await window.matrixSupabase.rpc("request_entry_activation", { p_reference_number: reference, p_matrix_upline_code: uplineCode, p_payment_method_id: methodId });
+        if (error) throw error;
+        pending = (data || []).find(request => request.status === "pending");
+      } else {
+        pending = MatrixDB.requestUpgrade(premiumActivationMember.id, reference, uplineCode);
+      }
+      showPremiumActivationPending(pending || { referenceNumber: reference, matrixUplineCode: uplineCode, paymentMethodSnapshot: (premiumActivationMethod._methods || []).find(item => item.id === methodId) });
+      showPremiumActivationAlert("Your Premium Plan activation request was submitted for review.", "success");
+    } catch (error) {
+      premiumActivationSubmit.disabled = false;
+      showPremiumActivationAlert(error.message, "danger");
+    }
+  }
+
+  function showPremiumActivationPending(request) {
+    premiumActivationStatus.textContent = "Pending approval";
+    premiumActivationStatus.className = "benefit-state benefit-state-pending";
+    premiumActivationForm.hidden = true;
+    premiumActivationPending.hidden = false;
+    document.getElementById("premium-pending-reference").textContent = request.referenceNumber || "-";
+    document.getElementById("premium-pending-method").textContent = request.paymentMethodSnapshot?.methodName || "-";
+    document.getElementById("premium-pending-upline").textContent = request.matrixUplineCode || "-";
+  }
+
+  function showPremiumActivationAlert(message, type) {
+    premiumActivationAlert.className = `alert alert-${type}`;
+    premiumActivationAlert.textContent = message;
+    premiumActivationAlert.style.display = "block";
+  }
+
+  function renderPremiumRules(summary) {
+    const rulesCard = document.getElementById("premium-rules-card");
+    const exits = summary && summary.exits || [];
+    const ledger = summary && summary.rewardLedger || [];
+    const entry = summary && summary.rules && summary.rules.entry;
+    rulesCard.style.display = premiumViewRequested && (exits.length || entry) ? "block" : "none";
+    const incomeRows = [];
+    if (entry && Number(entry.passiveMonths) > 0) {
+      const eligible = ledger.filter(item => item.sourceType === "entry" && item.status !== "void" && new Date(item.dueAt) <= new Date()).length;
+      const active = summary && summary.member && summary.member.status === "active";
+      incomeRows.push(`<tr><th scope="row">Entry</th><td>PHP ${formatNumber(entry.passiveIncome)}</td><td>${MatrixBenefits.progress(eligible, entry.passiveMonths)}</td><td>${MatrixBenefits.state(active ? "Active" : "Locked", active ? "active" : "locked")}</td></tr>`);
+    }
+    exits.filter(exit => Number(exit.passiveMonths) > 0).forEach(exit => {
+      const eligible = ledger.filter(item => item.sourceType === "exit" && Number(item.exit) === Number(exit.exit) && item.status !== "void" && new Date(item.dueAt) <= new Date()).length;
+      incomeRows.push(`<tr><th scope="row">Exit ${Number(exit.exit)}</th><td>PHP ${formatNumber(exit.passiveIncome)}</td><td>${MatrixBenefits.progress(eligible, exit.passiveMonths)}</td><td>${MatrixBenefits.state(capitalizeStatus(exit.status), exit.status === "active" ? "active" : exit.status === "qualified" || exit.status === "pending" ? "pending" : "locked")}</td></tr>`);
+    });
+    exits.filter(exit => Number(exit.matrixIncome) > 0 && Number(exit.matrixMonths) > 0).forEach(exit => {
+      const eligible = ledger.filter(item => item.sourceType === "matrix" && Number(item.exit) === Number(exit.exit) && item.status !== "void" && new Date(item.dueAt) <= new Date()).length;
+      incomeRows.push(`<tr><th scope="row">Exit ${Number(exit.exit)} matrix</th><td>PHP ${formatNumber(exit.matrixIncome)}</td><td>${MatrixBenefits.progress(eligible, exit.matrixMonths)}</td><td>${MatrixBenefits.state(capitalizeStatus(exit.status), exit.status === "active" ? "active" : exit.status === "qualified" || exit.status === "pending" ? "pending" : "locked")}</td></tr>`);
+    });
+    document.getElementById("premium-rules-rows").innerHTML = incomeRows.join("");
+    const entitlements = summary && summary.productPlusEntitlements || [];
+    document.getElementById("premium-benefit-products-rows").innerHTML = exits.filter(exit => Number(exit.productMonths) > 0).map(exit => {
+      const benefit = entitlements.find(item => Number(item.exit) === Number(exit.exit));
+      const eligible = benefit && benefit.active ? Number(benefit.vestedMonths || 0) : 0;
+      const bonus = Number(exit.productSpend || 0) * Number(exit.productBonusPercent || 0) / 100;
+      return `<tr><th scope="row">Exit ${Number(exit.exit)}</th><td>PHP ${formatNumber(exit.productSpend)}</td><td>PHP ${formatNumber(bonus)} (${Number(exit.productBonusPercent || 0)}%)</td><td>${MatrixBenefits.progress(eligible, exit.productMonths)}</td><td>${MatrixBenefits.state(benefit && benefit.active ? "Active" : "Locked", benefit && benefit.active ? "active" : "locked")}</td></tr>`;
+    }).join("");
+  }
+
+  async function renderPremiumProductProgress() {
+    if (!window.matrixSupabase) return;
+    const badge = document.getElementById("premium-product-progress-badge");
+    try {
+      const { data, error } = await window.matrixSupabase.rpc("get_my_product_entry_progress", { p_entry_type: "matrix_1200_entry" });
+      if (error) throw error;
+      const approved = Number(data?.approvedAmount || 0);
+      const pending = Number(data?.pendingAmount || 0);
+      const target = Number(data?.targetAmount || 1500);
+      const remaining = Math.max(Number(data?.remainingAmount ?? target - approved), 0);
+      const percent = target > 0 ? Math.min(approved / target * 100, 100) : 0;
+      const money = value => `PHP ${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      badge.textContent = `${Math.round(percent)}% Complete`;
+      document.getElementById("premium-product-progress-bar").style.width = `${percent}%`;
+      document.getElementById("premium-product-approved").textContent = money(approved);
+      document.getElementById("premium-product-pending").textContent = money(pending);
+      document.getElementById("premium-product-remaining").textContent = money(remaining);
+    } catch (error) {
+      badge.textContent = "Progress unavailable";
+    }
+  }
+
+  async function renderMemberOverview(member, summary) {
+    if (premiumViewRequested || !window.matrixSupabase) return;
+    const standard = summary && summary.timelineDashboard;
+    const patronizing = summary && summary.patronizingDashboard;
+    const setPlanStatus = (id, label) => {
+      const status = document.getElementById(id);
+      status.textContent = label;
+      status.dataset.state = label.toLowerCase().replace(/\s+/g, "-");
+    };
+    setPlanStatus("overview-premium-status", member.status === "active" ? "Active" : "Not active");
+    setPlanStatus("overview-standard-status", standard && standard.isActive ? "Active" : standard && standard.pendingRequest ? "Pending review" : "Not active");
+    setPlanStatus("overview-patronizing-status", patronizing && patronizing.entry ? "Active" : patronizing && (patronizing.pendingTokenRequest || patronizing.pendingProductEntryOrder) ? "Pending review" : "Not active");
+
+    const [budgetResult, fundsResult, shopResult] = await Promise.all([
+      window.matrixSupabase.rpc("get_my_budget_plan_dashboard"),
+      window.matrixSupabase.rpc("get_my_member_funds_dashboard"),
+      window.matrixSupabase.rpc("get_public_shop_products")
+    ]);
+    setPlanStatus("overview-budget-status", budgetResult.error ? "Unavailable" : budgetResult.data && budgetResult.data.isActive ? "Active" : budgetResult.data && Number(budgetResult.data.entryCredit || 0) > 0 ? "In progress" : "Not active");
+    if (!fundsResult.error && fundsResult.data) {
+      const money = value => `PHP ${Number(value || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      document.getElementById("overview-main-funds").textContent = money(fundsResult.data.mainAvailable);
+      document.getElementById("overview-investment-funds").textContent = money(fundsResult.data.investmentAvailable);
+    }
+    const preview = document.getElementById("overview-shop-products");
+    if (shopResult.error) {
+      preview.innerHTML = '<p class="shop-empty">Products are temporarily unavailable.</p>';
+      return;
+    }
+    const products = Array.isArray(shopResult.data) ? shopResult.data.slice(0, 3) : [];
+    preview.innerHTML = products.length ? products.map(product => {
+      const image = /^(?:data:image\/(?:png|jpeg|webp|gif);base64,|assets\/products\/[a-z0-9-]+\.(?:jpg|png)$)/i.test(product.photoData || "") ? product.photoData : "";
+      const price = Number(product.price || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return `<a class="dashboard-shop-item" href="shop.html">${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(product.name)}">` : '<span class="dashboard-shop-no-photo">Photo unavailable</span>'}<span class="dashboard-shop-info"><strong>${escapeHtml(product.name)}</strong><span>PHP ${price}</span></span></a>`;
+    }).join("") : '<p class="shop-empty">No products are available yet.</p>';
   }
 
   function renderNotifications(summary) {
@@ -958,137 +1194,47 @@ document.addEventListener("DOMContentLoaded", async () => {
     populateProfileDetailsForm(member);
     renderShippingAddresses(MatrixDB.getShippingAddresses());
     referralContainer.style.display = "none";
-    dbWelcomeTitle.textContent = `Welcome, ${member.fullName}!`; dbWelcomeDesc.textContent = "Your free account is ready. Activate the Premium Plan to join its matrix.";
+    dbWelcomeTitle.textContent = premiumViewRequested ? "Premium Plan" : "Overview";
+    dbWelcomeDesc.textContent = premiumViewRequested ? "Activate the Premium Plan to join its matrix." : `Welcome back, ${member.fullName.split(/\s+/)[0]}. Here's where your plans and funds stand today.`;
+    dashboardWelcomeMeta.hidden = premiumViewRequested;
+    dashboardAccountState.textContent = "Account ready";
     activeMetricsRow.style.display = "none"; pendingDetailsCard.style.display = "none"; balanceCard.style.display = "none"; productsPlusCard.style.display = "none"; activeTreeCard.style.display = "none";
-    matrixOverviewCard.style.display = "block"; matrixSelectedBadge.textContent = "Locked";
-    matrixTabs.innerHTML = `<button class="matrix-tab active locked" type="button"><strong>Entry</strong><span class="matrix-tab-status">${renderStatusIcon(true)}<span>Locked</span></span></button>`;
-    matrixQualification.innerHTML = `${renderStatusIcon(true)}<span>Locked</span>`; matrixQualification.className = "matrix-qualification locked";
-    matrixTitle.textContent = "Entry:"; matrixSummary.textContent = "Buy 1,200 Pesos worth of F3 Token";
-    matrixRequirement.textContent = "Submit the GCash transaction reference for admin verification.";
-    matrixActionLink.hidden = true;
-    matrixActionMessage.textContent = "";
-    matrixDateFact.style.display = "none";
-    matrixExitNote.textContent = "PHP 1,200 activation · PHP 900 held-token allocation + PHP 300 matrix allocation · PHP 693 cash-exit entitlement if three-invite qualification is not completed";
-    matrixExits.innerHTML = `<article class="exit-card"><div class="exit-number">Entry</div><div><h5>Activate Premium Plan</h5><p>Submit your GCash payment reference. Admin approval activates and places your account in the matrix.</p>${FEATURES.entryActivation ? `<a class="button button-primary button-small" href="upgrade-entry.html">Activate Premium Plan</a>` : `<span class="badge badge-pending">Activation requests coming soon</span>`}</div></article>`;
+    premiumNextStep.style.display = "none";
+    renderPremiumRules(MatrixDB.getMemberMatrixSummary(member.id));
+    setDashboardView(member);
+    renderMemberOverview(member, MatrixDB.getMemberMatrixSummary(member.id));
   }
 
-  function renderMatrixOverview(member, positions, summary) {
-    const rules = summary && summary.rules ? summary.rules : MATRIX_RULES;
-    const exits = summary && summary.exits ? summary.exits : [];
-    const nextExit = exits.find(item => item.status !== "active");
-    let selectedId = "entry";
-
-    matrixTabs.innerHTML = [`entry`, ...exits.map(exit => String(exit.exit))].map(exitId => {
-      const isEntry = exitId === "entry";
-      const exit = exits.find(item => String(item.exit) === exitId);
-      const status = isEntry ? "active" : (exit ? exit.status : "locked");
-      return `
-        <button class="matrix-tab ${exitId === selectedId ? "active" : ""} ${status === "locked" ? "locked" : ""}" type="button" data-matrix-id="${exitId}" role="tab" aria-selected="${exitId === selectedId}">
-          <strong>${isEntry ? "Entry" : `Exit ${exit.exit}`}</strong>
-          <span class="matrix-tab-status">
-            ${renderStatusIcon(status === "locked")}
-            <span>${capitalizeStatus(status)}</span>
-          </span>
-        </button>
-      `;
-    }).join("");
-
-    matrixTabs.querySelectorAll(".matrix-tab").forEach(button => {
-      button.addEventListener("click", () => {
-        selectedId = button.dataset.matrixId;
-        renderMatrixDetail(member, positions, summary, selectedId, nextExit ? nextExit.exit : null);
-        matrixTabs.querySelectorAll(".matrix-tab").forEach(tab => {
-          const isActive = tab.dataset.matrixId === selectedId;
-          tab.classList.toggle("active", isActive);
-          tab.setAttribute("aria-selected", isActive ? "true" : "false");
-        });
-      });
-    });
-
-    enableDragScroll(matrixTabs);
-
-    renderMatrixDetail(member, positions, summary, selectedId, nextExit ? nextExit.exit : null);
-  }
-
-  function renderMatrixDetail(member, positions, summary, matrixId, nextExitNumber) {
-    const rules = summary && summary.rules ? summary.rules : MATRIX_RULES;
-    const placement = getMatrixPlacement(member, positions, summary);
-
-    if (matrixId === "entry") {
-      matrixSelectedBadge.textContent = "Entry";
-      matrixQualification.innerHTML = `${renderStatusIcon(false)}<span>Active</span>`;
-      matrixQualification.className = "matrix-qualification qualified";
-      matrixTitle.textContent = "Entry:";
-      matrixSummary.textContent = `Hold ${formatNumber(rules.entry.holdF3)} F3 Token worth ${formatNumber(rules.entry.holdPesoValue)} Pesos`;
-      matrixRequirement.textContent = "Entry starts on admin approval.";
-      matrixActionLink.hidden = true;
-      matrixActionMessage.textContent = "";
-      matrixDateFact.style.display = placement && placement.placedAt ? "" : "none";
-      matrixDateLabel.textContent = "Entry Date";
-      matrixPlacedTime.textContent = placement ? formatDateTime(placement.placedAt) : "-";
-      matrixExitNote.textContent = `Earn PHP ${formatNumber(rules.entry.passiveIncome)} monthly for ${rules.entry.passiveMonths} months.`;
-      matrixExits.innerHTML = renderEntryCard(rules, summary);
+  function renderPremiumNextStep(member, summary) {
+    const nextExit = summary && summary.exits && summary.exits.find(exit => exit.status !== "active");
+    premiumNextStepAction.hidden = true;
+    premiumNextStepAction.onclick = null;
+    premiumNextStepStatus.className = "benefit-state";
+    if (member.status !== "active") {
       return;
     }
-
-    const exit = (summary.exits || []).find(item => String(item.exit) === matrixId);
-    if (!exit) return;
-
-    matrixSelectedBadge.textContent = `Exit ${exit.exit}`;
-    matrixQualification.innerHTML = `${renderStatusIcon(exit.status === "locked")}<span>${capitalizeStatus(exit.status)}</span>`;
-    matrixQualification.className = `matrix-qualification ${exit.status === "locked" ? "locked" : "qualified"}`;
-    const actionVerb = exit.actionType === "reinvest" || /^Re-Stake/i.test(exit.actionLabel) ? "Re-Stake" : "Buy";
-    matrixTitle.textContent = `Exit ${exit.exit}:`;
-    matrixSummary.textContent = formatExitActionSummary(exit, { fallbackVerb: actionVerb });
-    matrixRequirement.textContent = exit.requirementRank.split(" / ")[0];
-    const isNextExit = exit.exit === nextExitNumber;
-    const canRequestExit = isNextExit && exit.status === "qualified";
-    const canShowRequirement = isNextExit && exit.status === "locked";
-    matrixActionLink.hidden = !(canRequestExit || canShowRequirement);
-    matrixActionLink.textContent = actionVerb;
-    matrixActionMessage.textContent = "";
-    if (canRequestExit) {
-      matrixActionLink.href = `exit-action.html?exit=${encodeURIComponent(exit.exit)}`;
-      matrixActionLink.onclick = null;
-    } else if (canShowRequirement) {
-      matrixActionLink.href = "#";
-      matrixActionLink.onclick = event => {
-        event.preventDefault();
-        const remaining = Math.max(Number(exit.requiredDownlines || 0) - Number(exit.qualifiedDownlines || 0), 0);
-        const requiredLevel = Number(exit.requiredDownlineExit || 0) === 0 ? "Entry" : `Exit ${exit.requiredDownlineExit}`;
-        matrixActionMessage.textContent = `${remaining} direct ${remaining === 1 ? "downline" : "downlines"} at ${requiredLevel} needed`;
-      };
-    } else {
-      matrixActionLink.onclick = null;
+    if (!nextExit) {
+      premiumNextStepTitle.textContent = "All exits active";
+      premiumNextStepStatus.textContent = "Active";
+      premiumNextStepStatus.classList.add("benefit-state-active");
+      premiumNextStepCopy.textContent = "Review your monthly income and Products Plus eligibility below.";
+      return;
     }
-    const exitDate = exit.status === "pending"
-      ? exit.requestedAt
-      : exit.status === "active" ? exit.approvedAt : null;
-    matrixDateFact.style.display = exit.status === "locked" ? "none" : "";
-    matrixDateLabel.textContent = exit.status === "pending" ? "Requested Date" : "Approval Date";
-    matrixPlacedTime.textContent = exitDate
-      ? formatDateTime(exitDate)
-      : exit.status === "qualified" ? "Ready to request" : "Awaiting approval";
-    matrixExitNote.textContent = `${exit.qualifiedDownlines}/${exit.requiredDownlines} required downlines qualified`;
-    matrixExits.innerHTML = renderExitCard(exit, summary);
-  }
-
-  function renderEntryCard(rules, summary) {
-    const entryRewards = summary && summary.rewardLedger ? summary.rewardLedger.filter(item => item.sourceType === "entry") : [];
-    const totalEntry = rules.entry.passiveIncome * rules.entry.passiveMonths;
-    return `
-      <article class="exit-card">
-        <div class="exit-number">Entry</div>
-        <div>
-          <h5>Passive Income: PHP ${formatNumber(rules.entry.passiveIncome)} x ${rules.entry.passiveMonths} months</h5>
-          <p>Total entry passive income entitlement: PHP ${formatNumber(totalEntry)}. This starts when admin approves the member's registration.</p>
-          <div class="exit-meta">
-            <span>${entryRewards.length} ledger entries created</span>
-            <span>Balance due is shown in the Balance tab later</span>
-          </div>
-        </div>
-      </article>
-    `;
+    const remaining = Math.max(Number(nextExit.requiredDownlines || 0) - Number(nextExit.qualifiedDownlines || 0), 0);
+    const requiredLevel = Number(nextExit.requiredDownlineExit || 0) === 0 ? "Entry" : `Exit ${nextExit.requiredDownlineExit}`;
+    premiumNextStepTitle.textContent = `Exit ${nextExit.exit}`;
+    premiumNextStepStatus.textContent = capitalizeStatus(nextExit.status);
+    premiumNextStepStatus.classList.add(nextExit.status === "qualified" ? "benefit-state-active" : "benefit-state-pending");
+    if (nextExit.status === "qualified") {
+      premiumNextStepCopy.textContent = `${nextExit.actionLabel}: PHP ${formatNumber(nextExit.actionAmount)}. Your downline requirement is complete; submit the exit request for approval.`;
+      premiumNextStepAction.hidden = false;
+      premiumNextStepAction.href = `exit-action.html?exit=${encodeURIComponent(nextExit.exit)}`;
+      premiumNextStepAction.textContent = nextExit.actionType === "reinvest" || /^Re-Stake/i.test(nextExit.actionLabel) ? "Re-Stake" : "Buy";
+    } else if (nextExit.status === "pending") {
+      premiumNextStepCopy.textContent = "Your exit request is awaiting admin approval.";
+    } else {
+      premiumNextStepCopy.textContent = `${remaining} direct ${remaining === 1 ? "downline" : "downlines"} at ${requiredLevel} needed to qualify.`;
+    }
   }
 
   function renderStatusIcon(locked) {
@@ -1097,50 +1243,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       : `<svg class="status-icon status-icon-unlock" aria-hidden="true" viewBox="0 0 16 16" focusable="false"><path d="M10 7V5.25a2 2 0 0 0-3.74-1l-1.3-.75A3.5 3.5 0 0 1 11.5 5.25V7h.75c.69 0 1.25.56 1.25 1.25v5c0 .69-.56 1.25-1.25 1.25h-8.5c-.69 0-1.25-.56-1.25-1.25v-5C2.5 7.56 3.06 7 3.75 7H10Z"/></svg>`;
   }
 
-  function renderExitCard(exit, summary) {
-    const ledger = summary && Array.isArray(summary.rewardLedger) ? summary.rewardLedger : [];
-    const now = new Date();
-    const passiveVested = ledger.filter(item => item.sourceType === "exit" && Number(item.exit) === Number(exit.exit) && new Date(item.dueAt) <= now).length;
-    const matrixVested = ledger.filter(item => item.sourceType === "matrix" && Number(item.exit) === Number(exit.exit) && new Date(item.dueAt) <= now).length;
-    const productBonus = Number(exit.productSpend || 0) * (Number(exit.productBonusPercent || 0) / 100);
-    return `
-      <article class="exit-card">
-        <div class="exit-number">Exit ${exit.exit}</div>
-        <div>
-          <h5>${formatExitActionSummary(exit, { includeAmount: true })}</h5>
-          <p>${exit.requirementRank.split(" / ")[0]}. Once qualified, submit a request and wait for admin approval.</p>
-          <div class="exit-meta">
-            <span>Downlines: ${exit.qualifiedDownlines}/${exit.requiredDownlines}</span>
-            <span>Passive: PHP ${formatNumber(exit.passiveIncome)} monthly · ${passiveVested}/${exit.passiveMonths} vested</span>
-            ${exit.productSpend > 0 ? `<span>Products Plus: PHP ${formatNumber(exit.productSpend)} + PHP ${formatNumber(productBonus)} (${exit.productBonusPercent}%) · ${exit.productMonths} months</span>` : "<span>No Products Plus for this exit</span>"}
-          </div>
-        </div>
-      </article>
-      <article class="exit-card matrix-income-card">
-        <div class="exit-number">Bonus</div>
-        <div>
-          <h5>Matrix Income: PHP ${formatNumber(exit.matrixIncome || 0)} monthly</h5>
-          <p>Credited to your available balance at the end of each eligible month after this Exit is approved.</p>
-          <div class="exit-meta">
-            <span>Credited months: ${matrixVested}/${exit.matrixMonths || 0}</span>
-            <span>Total entitlement: PHP ${formatNumber(Number(exit.matrixIncome || 0) * Number(exit.matrixMonths || 0))}</span>
-          </div>
-        </div>
-      </article>
-    `;
-  }
-
-  function formatExitActionSummary(exit, options = {}) {
-    const isRestake = exit.actionType === "reinvest" || /^Re-Stake/i.test(exit.actionLabel);
-    const verb = options.fallbackVerb || (isRestake ? "Re-Stake" : "Buy");
-    if (Number(exit.exit) === 1 && isRestake) {
-      return options.includeAmount
-        ? `${exit.actionLabel}: PHP ${formatNumber(exit.actionAmount)}`
-        : exit.actionLabel;
-    }
-    const summary = `${verb} ${formatNumber(exit.actionAmount)} Pesos worth of F3 Token`;
-    return options.includeAmount ? `${exit.actionLabel}: PHP ${formatNumber(exit.actionAmount)}` : summary;
-  }
 
   function renderBalancePanel(member, summary) {
     const earned = Number(summary ? summary.earnedBalance : 0);
@@ -1219,19 +1321,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         </article>
       `;
     }
-  }
-
-  function getMatrixPlacement(member, positions, summary) {
-    const position = positions.find(item => item.memberId === member.id);
-
-    if (!position) return null;
-
-    const positionNumber = Number(summary && summary.positionNumber) || 0;
-
-    return {
-      label: positionNumber > 0 ? `Position #${positionNumber}` : "Placed",
-      placedAt: position.placedAt
-    };
   }
 
   // Draw Matrix Tree Structure
@@ -1351,6 +1440,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function openProfileDrawer() {
+    closeAccountMenu();
+    closeNotificationMenu();
     profileDrawer.classList.add("open");
     profileDrawer.setAttribute("aria-hidden", "false");
     document.body.classList.add("profile-open");

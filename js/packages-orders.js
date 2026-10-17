@@ -2,8 +2,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const COMMERCE_PACKAGE_TYPES = [
     { id: "timeline_entry", label: "Standard Plan" },
     { id: "matrix_1200_entry", label: "Premium Plan" },
-    { id: "product_plus_requirement", label: "Product Plus Buy" },
-    { id: "product_plus_voucher", label: "Voucher Products" }
+    { id: "product_plus_requirement", label: "Product Plus Buy" }
   ];
   const PRODUCT_PLUS_TYPES = ["product_plus_requirement", "product_plus_voucher"];
   const PATRONIZING_PURPOSES = ["patronizing_entry_product", "patronizing_entry_package", "patronizing_monthly_requirement", "patronizing_exit_discount"];
@@ -11,7 +10,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const patronizingPurpose = PATRONIZING_PURPOSES.includes(queryParams.get("purpose")) ? queryParams.get("purpose") : "";
   const budgetPurpose = queryParams.get("purpose") === "budget_qualification";
   const patronizingExitNumber = Number(queryParams.get("exit") || 0);
-  const requestedPackageType = COMMERCE_PACKAGE_TYPES.some(type => type.id === queryParams.get("type")) ? queryParams.get("type") : "";
+  const requestedPackageType = COMMERCE_PACKAGE_TYPES.some(type => type.id === queryParams.get("type")) || queryParams.get("type") === "product_plus_voucher" ? queryParams.get("type") : "";
+  const isProductPlusPage = PRODUCT_PLUS_TYPES.includes(requestedPackageType);
 
   const pageAlert = document.getElementById("packages-orders-alert");
   const content = document.getElementById("packages-orders-content");
@@ -52,13 +52,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   let selectedCommercePackageType = "timeline_entry";
   let pendingCommercePackage = null;
   let pendingProductCartType = null;
+  let pendingUseVouchers = false;
+  let useVouchers = false;
   let pendingPatronizingPurpose = "";
   let pendingBudgetPurpose = false;
   let pendingPatronizingExit = null;
   let pendingPaymentOrder = null;
   const productCarts = { product_plus_requirement: [], product_plus_voucher: [] };
   const checkoutDraftKey = "matrix-checkout-address-draft";
-  if (requestedPackageType) selectedCommercePackageType = requestedPackageType;
+  if (requestedPackageType) selectedCommercePackageType = requestedPackageType === "product_plus_voucher" ? "product_plus_requirement" : requestedPackageType;
+  if (queryParams.get("type") === "product_plus_voucher") window.history.replaceState(null, "", "packages-orders.html?type=product_plus_requirement");
   if (patronizingPurpose || budgetPurpose) selectedCommercePackageType = patronizingPurpose === "patronizing_entry_package" ? "timeline_entry" : "product_plus_requirement";
 
   const context = patronizingPurpose === "patronizing_entry_package" ? {
@@ -91,8 +94,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("commerce-section-title").textContent = context.sectionTitle;
     document.getElementById("commerce-section-description").textContent = context.sectionDescription;
     const back = document.getElementById("commerce-page-back");
-    back.href = "patronizing-income.html";
-    back.textContent = "Back";
+    back.hidden = false;
+  } else if (isProductPlusPage) {
+    document.title = "Product Plus | Matrix Portal";
+    document.getElementById("commerce-page-title").textContent = "Product Plus";
+    document.getElementById("commerce-page-description").textContent = "Browse Product Plus items and review your order requests.";
+    document.getElementById("commerce-section-title").textContent = "Product Plus";
+    document.getElementById("commerce-section-description").textContent = "Choose products and review your available vouchers at checkout. Shipping is reviewed separately.";
   }
 
   if (!window.MatrixDB) {
@@ -112,14 +120,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (draft && draft.memberId === member.id && draft.search === window.location.search
         && PRODUCT_PLUS_TYPES.includes(draft.type) && Array.isArray(draft.items)) {
         const products = MatrixDB.getCommerceProducts();
-        productCarts[draft.type] = draft.items.map(item => {
+        const cartType = draft.type === "product_plus_voucher" ? "product_plus_requirement" : draft.type;
+        productCarts[cartType] = draft.items.map(item => {
           const product = products.find(candidate => candidate.id === item.productId && candidate.isActive);
           const quantity = Number(item.quantity);
           return product && Number.isInteger(quantity) && quantity >= 1 && quantity <= 999
             ? { productId: product.id, quantity, price: Number(product.price), productName: product.productName }
             : null;
         }).filter(Boolean);
-        selectedCommercePackageType = draft.type;
+        selectedCommercePackageType = cartType;
       }
     } catch (_) {
       // A stale checkout draft should never block the catalog.
@@ -167,17 +176,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     const patronizing = typeof MatrixDB.getPatronizingDashboard === "function" ? MatrixDB.getPatronizingDashboard() : null;
     const visiblePackages = packages.filter(item => item.packageType === selectedCommercePackageType);
     const visibleProducts = products.filter(item => item.productType === selectedCommercePackageType && (!budgetPurpose || item.budgetCategory));
-    commercePackageCount.textContent = `${packages.length + products.length} Item${packages.length + products.length === 1 ? "" : "s"}`;
-    if (patronizingPurpose || budgetPurpose) {
+    const catalogTypes = COMMERCE_PACKAGE_TYPES.filter(type => PRODUCT_PLUS_TYPES.includes(type.id) === isProductPlusPage);
+    const catalogCount = isProductPlusPage
+      ? products.filter(item => item.productType === "product_plus_requirement").length
+      : packages.filter(item => catalogTypes.some(type => type.id === item.packageType)).length;
+    commercePackageCount.textContent = `${catalogCount} Item${catalogCount === 1 ? "" : "s"}`;
+    if (patronizingPurpose || budgetPurpose || isProductPlusPage) {
       commercePackageTabs.hidden = true;
       commercePackageCount.textContent = patronizingPurpose === "patronizing_entry_package"
         ? `${visiblePackages.length} Package${visiblePackages.length === 1 ? "" : "s"}`
         : `${visibleProducts.length} Product${visibleProducts.length === 1 ? "" : "s"}`;
     } else {
       commercePackageTabs.hidden = false;
-      commercePackageTabs.innerHTML = COMMERCE_PACKAGE_TYPES.map(type => {
+      commercePackageTabs.innerHTML = catalogTypes.map(type => {
         const count = PRODUCT_PLUS_TYPES.includes(type.id)
-          ? products.filter(item => item.productType === type.id).length
+          ? products.filter(item => item.productType === "product_plus_requirement" && (type.id !== "product_plus_voucher" || item.voucherEligible)).length
           : packages.filter(item => item.packageType === type.id).length;
         return `<button class="matrix-tab ${selectedCommercePackageType === type.id ? "active" : ""} ${count ? "" : "locked"}" type="button" data-commerce-type="${type.id}" role="tab" aria-selected="${selectedCommercePackageType === type.id}"><strong>${escapeHtml(type.label)}</strong><span class="matrix-tab-status"><span>${count}</span></span></button>`;
       }).join("");
@@ -225,6 +238,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const requestState = getCommercePackageRequestState(commercePackage, summary, orders, availableVoucherValue);
     const voucherHint = `Voucher available: PHP ${formatNumber(availableVoucherValue)}${reservedVoucherValue > 0 ? ` | Reserved: PHP ${formatNumber(reservedVoucherValue)}` : ""}${!requestState.canRequest && requestState.buttonLabel !== "Need More Vouchers" ? ` | ${requestState.hint}` : ""}`;
     const items = commercePackage.items || [];
+    const productPhotos = new Map(MatrixDB.getCommerceProducts()
+      .filter(product => product.photoData)
+      .map(product => [product.productName.trim().toLowerCase(), product.photoData]));
     return `
       <article class="commerce-browser-package">
         <div class="commerce-browser-heading">
@@ -236,12 +252,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         </div>
         ${commercePackage.description ? `<p>${escapeHtml(commercePackage.description)}</p>` : ""}
         <div class="commerce-browser-items">
-          ${items.map(item => `
+          ${items.map(item => {
+            const photoData = item.photoData || productPhotos.get(item.itemName.trim().toLowerCase());
+            return `
             <figure class="commerce-browser-product">
-              ${item.photoData ? `<img class="${item.imageFit === "contain" ? "commerce-image-contain" : ""}" src="${escapeHtml(item.photoData)}" alt="${escapeHtml(item.itemName)}" loading="lazy">` : `<span>No Photo</span>`}
+              ${photoData ? `<img class="${item.imageFit === "contain" ? "commerce-image-contain" : ""}" src="${escapeHtml(photoData)}" alt="${escapeHtml(item.itemName)}" loading="lazy">` : `<span>No Photo</span>`}
               <figcaption><strong>${escapeHtml(item.itemName)}${quantityBadge(item)}</strong><small>${isVoucherPackage ? `${formatNumber(item.price)} vouchers` : `PHP ${formatNumber(item.price)}`}${Number(item.quantity || 1) > 1 ? " each" : ""}</small></figcaption>
             </figure>
-          `).join("")}
+          `; }).join("")}
         </div>
         <div class="commerce-browser-actions">
           ${isVoucherPackage ? `<span class="commerce-voucher-note">${escapeHtml(voucherHint)}</span>` : `<span>${escapeHtml(requestState.hint)}</span>`}
@@ -252,38 +270,40 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function renderProductPlusShop(products, summary, orders = [], patronizing = null) {
-    const isVoucherMode = selectedCommercePackageType === "product_plus_voucher";
     const cart = productCarts[selectedCommercePackageType] || [];
     const voucherBalanceValue = Number(summary && summary.vouchers ? summary.vouchers.balance : 0);
     const reservedVoucherValue = getReservedVoucherValue(orders);
     const availableVoucherValue = Math.max(voucherBalanceValue - reservedVoucherValue, 0);
     const cartTotal = getProductCartTotal(selectedCommercePackageType);
+    if (useVouchers && (cartTotal > availableVoucherValue || cart.some(item => !products.find(product => product.id === item.productId && product.voucherEligible)))) useVouchers = false;
+    const isVoucherMode = isProductPlusPage && useVouchers;
     const patronizingContext = getPatronizingCheckoutContext(patronizing, cartTotal);
     const canCheckout = patronizingContext
       ? cart.length > 0 && patronizingContext.canCheckout
-      : cart.length > 0 && (!isVoucherMode || availableVoucherValue >= cartTotal);
+      : cart.length > 0 && (!isVoucherMode || availableVoucherValue >= cartTotal && cart.every(item => products.find(product => product.id === item.productId && product.voucherEligible)));
     commercePackageList.innerHTML = `
       <div class="commerce-product-shop">
         <aside class="commerce-cart-panel">
           <div class="commerce-cart-heading">
-            <div><span>${escapeHtml(patronizingContext ? patronizingContext.eyebrow : (isVoucherMode ? "Voucher checkout" : "Buy requirement checkout"))}</span><strong>Cart</strong></div>
+            <div><span>${escapeHtml(patronizingContext ? patronizingContext.eyebrow : "Product Plus checkout")}</span><strong>Cart</strong></div>
             <b>${cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0)} item${cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0) === 1 ? "" : "s"}</b>
           </div>
           <div class="commerce-cart-lines">
-            ${cart.length ? cart.map(item => renderCartLine(item, products, isVoucherMode)).join("") : `<p class="commerce-cart-empty">Add products to start checkout.</p>`}
+            ${cart.length ? cart.map(item => renderCartLine(item, products, false)).join("") : `<p class="commerce-cart-empty">Add products to start checkout.</p>`}
           </div>
           <div class="commerce-cart-total">
-            <span>${escapeHtml(patronizingContext ? patronizingContext.totalLabel : (isVoucherMode ? "Voucher total" : "PHP total"))}</span>
-            <strong>${escapeHtml(patronizingContext ? patronizingContext.totalValue : (isVoucherMode ? `${formatNumber(cartTotal)} vouchers` : `PHP ${formatNumber(cartTotal)}`))}</strong>
+            <span>${escapeHtml(patronizingContext ? patronizingContext.totalLabel : "Products")}</span>
+            <strong>${escapeHtml(patronizingContext ? patronizingContext.totalValue : `PHP ${formatNumber(cartTotal)}`)}</strong>
+            ${isProductPlusPage ? `<small>${isVoucherMode ? `${formatNumber(cartTotal)} vouchers to redeem` : "Paid purchase"}</small>` : ""}
             ${patronizingContext && patronizingContext.discountValue ? `<small>Discount: ${escapeHtml(patronizingContext.discountValue)}</small>` : ""}
           </div>
           <div class="commerce-cart-action">
-            ${patronizingContext ? `<p class="commerce-voucher-note">${escapeHtml(patronizingContext.hint)}</p>` : (isVoucherMode ? `<p class="commerce-voucher-note">Available: PHP ${formatNumber(availableVoucherValue)}${reservedVoucherValue > 0 ? ` | Reserved: PHP ${formatNumber(reservedVoucherValue)}` : ""}</p>` : `<p class="commerce-voucher-note">Shipping fee is added after admin checks J&T.</p>`)}
-            <button class="button button-primary button-small commerce-cart-checkout" type="button" ${canCheckout ? "" : "disabled"}>${escapeHtml(patronizingContext ? patronizingContext.buttonLabel : (isVoucherMode && cartTotal > availableVoucherValue ? "Need More Vouchers" : "Request Checkout"))}</button>
+            ${patronizingContext ? `<p class="commerce-voucher-note">${escapeHtml(patronizingContext.hint)}</p>` : isProductPlusPage ? `<label class="commerce-voucher-choice"><input type="checkbox" class="commerce-use-vouchers" ${isVoucherMode ? "checked" : ""} ${!cart.length || cartTotal > availableVoucherValue ? "disabled" : ""}><span>Use vouchers <strong>${formatNumber(availableVoucherValue)} available</strong></span></label><p class="commerce-voucher-note">${isVoucherMode ? "Voucher redemption does not count toward Product Plus buy requirements or earn new vouchers." : "Approved paid purchases count toward Product Plus buy requirements and earn vouchers. Vouchers can cover the full product total when your balance is enough."} Shipping is reviewed separately.</p>` : `<p class="commerce-voucher-note">Shipping fee is added after admin checks J&T.</p>`}
+            <button class="button button-primary button-small commerce-cart-checkout" type="button" ${canCheckout ? "" : "disabled"}>${escapeHtml(patronizingContext ? patronizingContext.buttonLabel : isVoucherMode ? "Redeem Vouchers" : "Request Checkout")}</button>
           </div>
         </aside>
         <section class="commerce-product-grid">
-          ${products.length ? products.map(product => renderCommerceProductCard(product, isVoucherMode)).join("") : `<div class="empty-state"><p>No active products for this type yet.</p></div>`}
+          ${products.length ? products.map(product => renderCommerceProductCard(product, false)).join("") : `<div class="empty-state"><p>No active products for this type yet.</p></div>`}
         </section>
       </div>
     `;
@@ -306,6 +326,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
     const checkout = commercePackageList.querySelector(".commerce-cart-checkout");
     if (checkout) checkout.addEventListener("click", () => openProductCartOrderModal(selectedCommercePackageType, patronizingContext));
+    const voucherChoice = commercePackageList.querySelector(".commerce-use-vouchers");
+    if (voucherChoice) voucherChoice.addEventListener("change", () => { useVouchers = voucherChoice.checked; renderCommercePackagesPanel(); });
   }
 
   function getPatronizingCheckoutContext(patronizing, cartTotal) {
@@ -380,7 +402,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       <article class="commerce-product-card" data-product-id="${escapeHtml(product.id)}">
         ${product.photoData ? `<img src="${escapeHtml(product.photoData)}" alt="${escapeHtml(product.productName)}" loading="lazy">` : `<span class="commerce-product-empty">No Photo</span>`}
         <div class="commerce-product-body">
-          <span>${budgetPurpose ? "Budget Plan Product" : escapeHtml(product.productTypeLabel)}</span>
+          <span>${budgetPurpose ? "Budget Plan Product" : isVoucherMode ? "Voucher redemption" : escapeHtml(product.productTypeLabel)}</span>
           ${budgetPurpose ? `<small>${escapeHtml(budgetCategory)} | ${({ pc: 25, groceries: 10, lifestyle: 25 })[product.budgetCategory]}% qualifies</small>` : ""}
           <h4>${escapeHtml(product.productName)}</h4>
           ${product.description ? `<p>${escapeHtml(product.description)}</p>` : ""}
@@ -478,8 +500,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (hasActiveSamePackage) return { canRequest: false, buttonLabel: "Order Active", hint: "You already have an active order for this package." };
     if (commercePackage.packageType === "product_plus_voucher" && availableVoucherValue < total) return { canRequest: false, buttonLabel: "Need More Vouchers", hint: "Save more vouchers before requesting this package." };
     if (commercePackage.packageType === "matrix_1200_entry") {
-      const progress = getEntryProgressFromOrders(orders, "matrix_1200_entry", 1200);
-      const remainingAfterThis = Math.max(1200 - Number(progress.approved || 0) - total, 0);
+      const progress = getEntryProgressFromOrders(orders, "matrix_1200_entry", 1500);
+      const remainingAfterThis = Math.max(1500 - Number(progress.approved || 0) - total, 0);
       return {
         canRequest: true,
         buttonLabel: remainingAfterThis > 0 ? "Buy Toward Entry" : "Complete Entry",
@@ -512,7 +534,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function getReservedVoucherValue(orders = []) {
     return orders
-      .filter(order => order.packageType === "product_plus_voucher" && order.status === "pending_shipping_fee")
+      .filter(order => order.status === "pending_shipping_fee" && (order.packageType === "product_plus_voucher" || order.orderPurpose === "shop"))
       .reduce((sum, order) => sum + Number(order.voucherAmount || 0), 0);
   }
 
@@ -607,6 +629,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!cart.length) return;
     pendingCommercePackage = null;
     pendingProductCartType = productType;
+    pendingUseVouchers = isProductPlusPage && useVouchers;
     pendingBudgetPurpose = budgetPurpose;
     pendingPatronizingPurpose = patronizingPurpose && patronizingContext ? patronizingContext.purpose : "";
     pendingPatronizingExit = patronizingContext && patronizingContext.exitNumber ? patronizingContext.exitNumber : null;
@@ -624,7 +647,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const totalQuantity = cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
     commerceOrderSummary.textContent = patronizingContext
       ? `${totalQuantity} product${totalQuantity === 1 ? "" : "s"} | ${patronizingContext.eyebrow} | ${patronizingContext.totalValue}`
-      : `${totalQuantity} product${totalQuantity === 1 ? "" : "s"} | ${productType === "product_plus_voucher" ? `${formatNumber(total)} vouchers` : `PHP ${formatNumber(total)}`}`;
+      : `${totalQuantity} product${totalQuantity === 1 ? "" : "s"} | ${pendingUseVouchers ? `${formatNumber(total)} vouchers` : `PHP ${formatNumber(total)}`}`;
     commerceOrderAddress.innerHTML = addresses.length
       ? addresses.map(address => `<option value="${escapeHtml(address.id)}" ${address.isDefault ? "selected" : ""}>${escapeHtml(address.fullName)} - ${escapeHtml(address.city)}, ${escapeHtml(address.province)}</option>`).join("")
       : `<option value="">Add a shipping address first</option>`;
@@ -638,6 +661,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     commerceOrderModal.style.display = "none";
     pendingCommercePackage = null;
     pendingProductCartType = null;
+    pendingUseVouchers = false;
     pendingPatronizingPurpose = "";
     pendingBudgetPurpose = false;
     pendingPatronizingExit = null;
@@ -709,6 +733,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             items: productCarts[pendingProductCartType].map(item => ({ productId: item.productId, quantity: item.quantity })),
             memberNotes: commerceOrderNotes.value.trim()
           });
+        } else if (pendingUseVouchers) {
+          await MatrixDB.requestProductPlusVoucherOrder({
+            shippingAddressId: commerceOrderAddress.value,
+            items: productCarts[pendingProductCartType].map(item => ({ productId: item.productId, quantity: item.quantity })),
+            voucherAmount: getProductCartTotal(pendingProductCartType),
+            memberNotes: commerceOrderNotes.value.trim()
+          });
         } else {
           await MatrixDB.requestCommerceProductOrder({
             productType: pendingProductCartType,
@@ -718,6 +749,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           });
         }
         productCarts[pendingProductCartType] = [];
+        useVouchers = false;
       } else {
         const details = {
           packageId: pendingCommercePackage.id,
@@ -805,8 +837,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function commerceOrderTotalLabel(order) {
     if (Number(order.voucherAmount || 0) > 0) {
-      const shipping = Number(order.shippingFee || order.amountDue || 0);
-      return shipping > 0 ? `PHP ${formatNumber(order.voucherAmount)} vouchers + PHP ${formatNumber(shipping)}` : `PHP ${formatNumber(order.voucherAmount)} vouchers`;
+      const cashDue = Number(order.amountDue || 0);
+      return cashDue > 0 ? `PHP ${formatNumber(order.voucherAmount)} vouchers + PHP ${formatNumber(cashDue)} due` : `PHP ${formatNumber(order.voucherAmount)} vouchers`;
     }
     const total = Number(order.amountDue || order.packageTotal || 0);
     return `PHP ${formatNumber(total)}`;

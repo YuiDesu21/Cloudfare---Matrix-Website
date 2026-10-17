@@ -22,6 +22,7 @@ const PUBLIC_ROOT_FILES = new Set([
   "index.html", "portal.html", "exit-action.html", "withdrawal-request.html",
   "main-funds.html", "withdrawal-history.html", "passive-income-history.html",
   "patronizing-income.html", "budget-plan.html", "packages-orders.html",
+  "shop.html", "orders.html",
   "timeline-matrix.html", "upgrade-entry.html", "upgrade-entry-production.html",
   "admin.html", "admin-production.html", "styles.css", "portal.css",
   "robots.txt", "matrix-db.js"
@@ -135,7 +136,7 @@ function assertSessionCurrent(db, auth) {
 }
 
 const MATRIX_PLANS = {
-  "power3-passive": { id: "power3-passive", name: "Premium Plan", maxChildren: 3, price: 20, pesoValue: 1200 },
+  "power3-passive": { id: "power3-passive", name: "Premium Plan", maxChildren: 3, price: 20, pesoValue: 1500 },
   "timeline-power3": { id: "timeline-power3", name: "Standard Plan", maxChildren: 3, price: 693, pesoValue: 693 }
 };
 
@@ -404,7 +405,7 @@ function assertActionAuthorization(db, action, payload, auth) {
   if (action === "signOut") return;
 
   const ownMemberActions = new Set([
-    "getMemberMatrixSummary", "getMemberWithdrawalRequests", "getPositionByMemberId",
+    "getMemberMatrixSummary", "getMemberWithdrawalRequests", "getMemberUpgradeRequests", "getPositionByMemberId",
     "requestUpgrade", "requestTimelineActivation", "requestExitAction", "requestWithdrawal",
     "requestProductPlusClaim"
   ]);
@@ -499,12 +500,6 @@ function ensureDatabase() {
   }
   if (migrateSandboxRewardSchedule(db)) changed = true;
   if (ensureTimelineProgression(db)) changed = true;
-  for (const request of db.upgradeRequests || []) {
-    if (request.status === "pending" && Number(request.amount) !== 1200) {
-      request.amount = 1200;
-      changed = true;
-    }
-  }
   const activeMemberIds = new Set((db.members || []).filter(item => item.status === "active").map(item => item.id));
   const memberIds = new Set((db.members || []).map(item => item.id));
   const validRewardLedger = (db.rewardLedger || []).filter(entry => activeMemberIds.has(entry.memberId));
@@ -1568,6 +1563,9 @@ function handleAction(action, payload, auth = null, context = {}) {
     case "getUpgradeRequests":
       data = (db.upgradeRequests || []).map(request => { const member = db.members.find(item => item.id === request.memberId); const sponsor = member && member.sponsorId ? db.members.find(item => item.id === member.sponsorId) : null; return { ...request, fullName: member ? member.fullName : "Unknown", username: member ? member.username : "unknown", accountCode: member ? member.accountCode : "", walletAddress: member ? member.walletAddress : "", fixedParentId: sponsor ? sponsor.id : null, fixedParentName: sponsor ? sponsor.fullName : null, fixedParentCode: sponsor ? sponsor.accountCode : null }; });
       break;
+    case "getMemberUpgradeRequests":
+      data = (db.upgradeRequests || []).filter(request => request.memberId === payload.memberId).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+      break;
     case "getTimelineRequests":
       data = (db.timelineRequests || []).map(request => {
         const member = db.members.find(item => item.id === request.memberId);
@@ -1709,9 +1707,11 @@ function handleAction(action, payload, auth = null, context = {}) {
       if (!member) throw new Error("Member not found.");
       if (member.status === "active") throw new Error("Premium Plan is already active.");
       const referenceNumber = normalizePaymentReference(payload.referenceNumber);
+      const matrixUplineCode = String(payload.matrixUplineCode || "").trim().toUpperCase();
+      if (matrixUplineCode && !/^M1200-[A-Z0-9]{8}$/.test(matrixUplineCode)) throw new Error("Enter a valid Premium Plan upline code.");
       assertPaymentReferenceAvailable(db, referenceNumber, member.id, "entry");
       if ((db.upgradeRequests || []).some(item => item.memberId === member.id && item.status === "pending")) throw new Error("You already have a pending Entry request.");
-      const request = { id: generateUUID(), memberId: member.id, planId: "power3-passive", amount: 1200, referenceNumber, status: "pending", createdAt: new Date().toISOString() };
+      const request = { id: generateUUID(), memberId: member.id, planId: "power3-passive", amount: 1500, referenceNumber, matrixUplineCode, status: "pending", createdAt: new Date().toISOString() };
       db.upgradeRequests.push(request); shouldWrite = true; data = request;
       addActivityLog(db, "upgrade-request", `${member.fullName} requested Entry activation.`);
       break;

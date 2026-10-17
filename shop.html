@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Browse Matrix Consumer Services products">
+  <title>Shop | Matrix</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="portal.css">
+  <script src="js/member-navigation-boot.js"></script>
+</head>
+<body class="portal-body shop-page">
+  <a class="skip-link" href="#shop-main">Skip to products</a>
+  <header class="portal-header site-header">
+    <div class="container header-wrapper">
+      <a class="brand" href="index.html"><span class="brand-mark">M</span><span><strong>Matrix</strong><small>Consumer Services Shop</small></span></a>
+      <nav class="shop-header-links" aria-label="Shop navigation">
+        <a href="index.html">Home</a>
+        <a id="shop-account-link" href="portal.html?returnTo=shop.html">Sign In</a>
+      </nav>
+    </div>
+  </header>
+  <main id="shop-main" class="portal-container shop-shell">
+    <header class="shop-heading">
+      <div><span class="withdrawal-eyebrow">Matrix Shop</span><h1 id="shop-title">Products</h1></div>
+    </header>
+    <div id="shop-alert" class="alert" role="status" hidden></div>
+    <div class="shop-layout">
+      <section aria-label="Available products">
+        <section id="shop-budget-progress" class="shop-budget-progress" aria-label="Budget Plan purchase progress" hidden>
+          <div class="shop-budget-heading"><div><small>BUDGET PLAN PURCHASE PROGRESS</small><strong id="shop-budget-total">PHP 0.00 / PHP 150.00</strong></div><span id="shop-budget-remaining">PHP 150.00 remaining</span></div>
+          <div class="entry-progress-meter" role="progressbar" aria-label="Projected Budget Plan entry progress" aria-valuemin="0" aria-valuemax="150" aria-valuenow="0"><span id="shop-budget-bar"></span></div>
+          <p id="shop-budget-breakdown">Approved PHP 0.00 · This cart PHP 0.00</p>
+          <small>Cart credit is an estimate. Eligible cash purchases count after payment approval; vouchers and shipping do not count.</small>
+        </section>
+        <div class="shop-toolbar">
+          <label for="shop-search">Search products</label>
+          <input id="shop-search" class="form-control" type="search" placeholder="Search products" autocomplete="off">
+          <span id="shop-count" aria-live="polite">0 products</span>
+        </div>
+        <div id="shop-products" class="shop-products" aria-live="polite"></div>
+      </section>
+      <aside class="shop-cart" aria-label="Shopping cart">
+        <div class="shop-cart-title"><h2>Cart</h2><span id="shop-cart-count">0 items</span></div>
+        <p id="shop-budget-cart-note" class="shop-budget-cart-note" hidden>Budget entry credit varies by product and applies after payment approval.</p>
+        <div id="shop-cart-items" class="shop-cart-items"></div>
+        <div class="shop-cart-total"><span>Products</span><strong id="shop-cart-subtotal">PHP 0.00</strong></div>
+        <div id="shop-member-checkout" hidden>
+          <div class="form-group"><label for="shop-address">Shipping address</label><select id="shop-address" class="form-control"></select><a id="shop-address-link" href="portal.html#profile">Manage addresses</a></div>
+          <div id="shop-voucher-group" class="form-group"><label for="shop-voucher-amount">Use vouchers</label><input id="shop-voucher-amount" class="form-control" type="number" min="0" step="0.01" value="0"><small id="shop-voucher-hint"></small></div>
+          <div class="form-group"><label for="shop-order-notes">Order notes</label><textarea id="shop-order-notes" class="form-control" rows="2" maxlength="240"></textarea></div>
+          <div class="shop-cart-total"><span class="shop-cart-due-label">Products after vouchers</span><strong id="shop-cart-due">PHP 0.00</strong></div>
+          <p class="shop-shipping-note">Shipping is added after admin review.</p>
+          <button id="shop-checkout" class="button button-primary btn-block" type="button" disabled>Request Order</button>
+        </div>
+        <a id="shop-sign-in" class="button button-primary btn-block" href="portal.html?returnTo=shop.html">Sign in to checkout</a>
+      </aside>
+    </div>
+  </main>
+  <script src="js/runtime-config.js"></script>
+  <script src="vendor/supabase.js"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/shop.js?v=20261015-unified-budget"></script>
+  <script src="js/member-navigation.js"></script>
+</body>
+</html>

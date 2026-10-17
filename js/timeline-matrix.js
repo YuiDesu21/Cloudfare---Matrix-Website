@@ -104,12 +104,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       button.addEventListener("click", () => {
         closeAccountMenu();
         if (button.dataset.timelineAction === "profile") window.location.href = "portal.html#profile";
-        if (button.dataset.timelineAction === "main") window.location.href = "portal.html";
+        if (button.dataset.timelineAction === "budget") window.location.href = "budget-plan.html";
+        if (button.dataset.timelineAction === "patronizing") window.location.href = "patronizing-income.html";
         if (button.dataset.timelineAction === "packages") window.location.href = "packages-orders.html";
-        if (button.dataset.timelineAction === "withdraw") window.location.href = "main-funds.html";
+        if (button.dataset.timelineAction === "product-plus") window.location.href = "packages-orders.html?type=product_plus_requirement";
+        if (button.dataset.timelineAction === "funds") window.location.href = "main-funds.html";
+        if (button.dataset.timelineAction === "withdraw") window.location.href = "main-funds.html?dialog=withdraw";
         if (button.dataset.timelineAction === "withdrawal-history") window.location.href = "withdrawal-history.html";
         if (button.dataset.timelineAction === "history") window.location.href = "passive-income-history.html";
-        if (button.dataset.timelineAction === "entry") window.location.href = "upgrade-entry.html";
+        if (button.dataset.timelineAction === "entry") window.location.href = "portal.html?view=premium";
         if (button.dataset.timelineAction === "logout") logout();
       });
     });

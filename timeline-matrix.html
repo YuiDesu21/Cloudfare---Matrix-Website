@@ -7,6 +7,7 @@
   <title>Standard Plan | Matrix Portal</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="portal.css">
+  <script src="js/member-navigation-boot.js"></script>
 </head>
 <body class="portal-body">
   <header class="portal-header site-header">
@@ -26,12 +27,15 @@
         </button>
         <nav id="timeline-account-menu" class="account-menu" aria-label="Timeline account" hidden>
           <button type="button" data-timeline-action="profile">Profile</button>
-          <button type="button" data-timeline-action="main">Dashboard</button>
-          <button type="button" data-timeline-action="packages">Packages &amp; Orders</button>
-          <button type="button" data-timeline-action="withdraw">Main Funds</button>
+          <button type="button" data-timeline-action="budget">Budget Plan</button>
+          <button type="button" data-timeline-action="entry">Premium Plan</button>
+          <button type="button" data-timeline-action="patronizing">Patronizing Income</button>
+          <button type="button" data-timeline-action="packages">Entry Orders</button>
+          <button type="button" data-timeline-action="product-plus">Product Plus</button>
+          <button type="button" data-timeline-action="funds">Main Funds</button>
+          <button type="button" data-timeline-action="withdraw">Withdraw</button>
           <button type="button" data-timeline-action="withdrawal-history">Withdrawal History</button>
           <button type="button" data-timeline-action="history">Passive Income History</button>
-          <button type="button" data-timeline-action="entry">Premium Plan Entry</button>
           <button type="button" data-timeline-action="logout" class="account-menu-signout">Sign Out</button>
         </nav>
       </div>
@@ -50,14 +54,7 @@
 
     <div id="timeline-alert" class="alert" style="display:none"></div>
 
-    <section id="timeline-activation-card" class="portal-card matrix-overview-card" style="display:none">
-        <div class="matrix-card-header">
-          <div>
-            <h3>Activate Standard Plan</h3>
-            <p>Submit a PHP 693 activation request. Admin approval places your account in the next open timeline slot.</p>
-          </div>
-          <span class="badge">PHP 693</span>
-        </div>
+    <section id="timeline-activation-card" style="display:none">
       <div id="timeline-product-progress" class="entry-progress-panel" hidden>
         <div>
           <span class="withdrawal-eyebrow">Product Entry Progress</span>
@@ -72,12 +69,17 @@
         </dl>
         <a class="button button-primary button-small" href="packages-orders.html?type=timeline_entry">Continue Buying Products</a>
       </div>
+      <section class="portal-card matrix-overview-card timeline-payment-card">
+        <div class="matrix-card-header budget-token-header">
+          <span class="budget-token-mark" aria-hidden="true">S</span>
+          <div class="budget-token-heading"><div class="budget-token-title"><h3>Activate Standard Plan</h3><span class="plan-entry-amount"><small>Entry</small><strong>PHP 693</strong></span></div><p>Submit a PHP 693 activation request. Admin approval places your account in the next open timeline slot.</p></div>
+        </div>
       <form id="timeline-activation-form" novalidate>
         <div class="withdrawal-fields-grid">
           <div class="form-group">
             <label for="timeline-payment-method">Payment Method</label>
             <select id="timeline-payment-method" class="form-control" required>
-              <option value="gcash">GCash</option>
+              <option value="">Loading payment methods...</option>
               <option value="available_balance">Available Balance</option>
             </select>
           </div>
@@ -85,22 +87,30 @@
             <label for="timeline-available-balance">Available Balance</label>
             <input id="timeline-available-balance" class="form-control" type="text" readonly>
           </div>
-          <div class="form-group timeline-gcash-field">
-            <label for="timeline-gcash-name">GCash Account Name</label>
-            <input id="timeline-gcash-name" class="form-control" type="text" maxlength="30" pattern="[A-Za-zÀ-ÿÑñ .'-]+">
-          </div>
-          <div class="form-group timeline-gcash-field">
-            <label for="timeline-gcash-number">GCash Number</label>
-            <input id="timeline-gcash-number" class="form-control" type="tel" inputmode="numeric" maxlength="11" pattern="09[0-9]{9}" placeholder="09XXXXXXXXX">
-          </div>
-          <div class="form-group timeline-gcash-field withdrawal-full-width">
-            <label for="timeline-reference">GCash Reference Number</label>
+          <div id="timeline-payment-preview" class="plan-payment-preview timeline-external-field withdrawal-full-width" aria-live="polite"></div>
+          <div class="form-group timeline-external-field withdrawal-full-width">
+            <label for="timeline-reference">Payment Reference Number</label>
             <input id="timeline-reference" class="form-control" type="text" maxlength="40" pattern="[A-Za-z0-9-]{6,40}" placeholder="Paste the transaction reference">
             <small class="field-limit">6-40 letters, numbers, or hyphens</small>
           </div>
         </div>
         <button id="timeline-submit" class="button button-primary withdrawal-submit" type="submit">Submit Standard Plan Activation</button>
       </form>
+      </section>
+    </section>
+
+    <section id="timeline-rules-card" class="benefits-section" data-benefits style="display:none" aria-labelledby="timeline-benefits-title">
+      <div class="benefits-heading"><h3 id="timeline-benefits-title">Benefits</h3><p>Track approved timeline income and Products Plus months.</p></div>
+      <div class="benefit-tabs" role="tablist" aria-label="Standard benefits">
+        <button class="benefit-tab" type="button" role="tab" id="timeline-income-tab" aria-controls="timeline-income-panel" data-benefit-tab="timeline-income-panel">Monthly Income</button>
+        <button class="benefit-tab" type="button" role="tab" id="timeline-products-tab" aria-controls="timeline-products-panel" data-benefit-tab="timeline-products-panel">Products Plus</button>
+      </div>
+      <div class="benefit-panel" id="timeline-income-panel" role="tabpanel" aria-labelledby="timeline-income-tab">
+        <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Exit</th><th>Monthly income</th><th>Eligible months</th><th>Status</th></tr></thead><tbody id="timeline-rules-rows"></tbody></table></div>
+      </div>
+      <div class="benefit-panel" id="timeline-products-panel" role="tabpanel" aria-labelledby="timeline-products-tab" hidden>
+        <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Exit</th><th>Monthly purchase</th><th>Voucher reward</th><th>Eligible months</th><th>Status</th></tr></thead><tbody id="timeline-benefit-products-rows"></tbody></table></div>
+      </div>
     </section>
 
     <section id="timeline-dashboard" class="timeline-dashboard-stack" style="display:none">
@@ -212,5 +222,7 @@
   <script src="matrix-db.js"></script>
   <script src="js/timeline-matrix.js"></script>
   <script src="js/timeline-matrix-production.js"></script>
+  <script src="js/member-navigation.js"></script>
+  <script src="js/benefit-tabs.js"></script>
 </body>
 </html>

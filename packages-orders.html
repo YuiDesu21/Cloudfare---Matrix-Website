@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Matrix member products, packages, and order requests">
-  <title>Products &amp; Orders | Matrix Portal</title>
+  <title>Entry Orders | Matrix Portal</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="portal.css">
+  <script src="js/member-navigation-boot.js"></script>
 </head>
 <body class="portal-body">
   <header class="portal-header site-header">
@@ -30,10 +31,10 @@
     <section class="withdrawal-hero">
       <div>
         <span id="commerce-page-eyebrow" class="withdrawal-eyebrow">Member Orders</span>
-        <h1 id="commerce-page-title">Products &amp; Orders</h1>
-        <p id="commerce-page-description">Browse entry packages, add Product Plus products to cart, and submit an order request with your saved shipping address.</p>
+        <h1 id="commerce-page-title">Entry Orders</h1>
+        <p id="commerce-page-description">Browse plan entry packages and review all your orders, including Shop orders.</p>
       </div>
-      <a id="commerce-page-back" class="button button-outline button-small" href="portal.html">Dashboard</a>
+      <div class="shop-header-links"><a id="commerce-page-back" class="button button-outline button-small" href="patronizing-income.html" hidden>Back</a></div>
     </section>
 
     <div id="packages-orders-alert" class="alert" style="display:none"></div>
@@ -42,12 +43,12 @@
       <div id="commerce-packages-card" class="portal-card matrix-overview-card">
         <div class="matrix-card-header">
           <div>
-            <h3 id="commerce-section-title">Products &amp; Entry Packages</h3>
-            <p id="commerce-section-description">Select a type, review products or entry packages, then request checkout for admin shipping-fee review.</p>
+            <h3 id="commerce-section-title">Entry Packages</h3>
+            <p id="commerce-section-description">Choose a plan package, then request checkout for admin shipping-fee review.</p>
           </div>
           <span id="commerce-package-count" class="badge">0 Items</span>
         </div>
-        <div id="commerce-package-tabs" class="matrix-tabs package-type-tabs" role="tablist" aria-label="Package types"></div>
+        <div id="commerce-package-tabs" class="matrix-tabs package-type-tabs" role="tablist" aria-label="Catalog types"></div>
         <div id="commerce-package-list" class="commerce-package-browser"></div>
         <section class="commerce-order-history">
           <div class="exit-header-row"><h4>Order Requests</h4><span id="commerce-order-count">0 requests</span></div>
@@ -121,6 +122,6 @@
   <script src="js/supabase-client.js"></script>
   <script src="matrix-db.js?v=20261006-tiers"></script>
   <script src="js/member-navigation.js"></script>
-  <script src="js/packages-orders.js?v=20261006-tiers"></script>
+  <script src="js/packages-orders.js?v=20261015-unified-product-plus"></script>
 </body>
 </html>

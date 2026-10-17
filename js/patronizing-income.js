@@ -78,8 +78,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const pendingToken = dashboard.pendingTokenRequest;
     const pendingProduct = dashboard.pendingProductEntryOrder;
     const isActive = Boolean(entry);
+    document.getElementById("patronizing-benefit-income-rows").innerHTML = isActive
+      ? `<tr><th scope="row">${entry.entryType === "f3_token" ? "F3 Token" : "Product Entry"}</th><td>PHP ${formatNumber(entry.monthlyIncome)}</td><td>PHP ${formatNumber(entry.monthlyRequirement)}</td><td>${MatrixBenefits.progress((dashboard.months || []).filter(month => month.status === "unlocked").length, entry.durationMonths)}</td><td>${MatrixBenefits.state("Active", "active")}</td></tr>`
+      : `<tr><td colspan="5">Activate Patronizing Income to see your monthly benefit progress.</td></tr>`;
+    document.getElementById("patronizing-rules-rows").innerHTML = (dashboard.exits || []).map(exit => `
+      <tr><th scope="row">Exit ${Number(exit.exit)}</th>
+        <td>PHP ${formatNumber(exit.maxPurchase)}</td><td>${formatNumber(exit.discountPercent)}%</td><td>PHP ${formatNumber(exit.usedPurchase)}</td>
+        <td>${MatrixBenefits.state(String(exit.status || "locked").replace(/^./, letter => letter.toUpperCase()), exit.status === "active" ? "active" : exit.status === "qualified" ? "pending" : "locked")}</td></tr>`).join("");
     entryBadge.textContent = isActive ? "Active" : pendingToken || pendingProduct ? "Pending" : "Not Active";
-    entryBadge.className = `badge ${isActive ? "badge-active" : pendingToken || pendingProduct ? "badge-pending" : ""}`;
+    entryBadge.className = `badge ${isActive ? "badge-active" : "badge-pending"}`;
     entryOptions.innerHTML = renderEntryOptions(isActive, pendingToken, pendingProduct);
     dashboardCard.hidden = !isActive;
     exitsCard.hidden = !isActive;
@@ -103,7 +110,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       return `
         <article class="patronizing-entry-option">
           <span>${isToken ? "F3 Token Entry" : purpose === "patronizing_entry_package" ? "Standard Plan Package Entry" : "Product Entry"}</span>
-          <h2>${isToken ? `Buy ${formatNumber(plan.f3Tokens)} F3 Token worth PHP ${formatNumber(plan.entryAmount)}` : `Buy ${purpose === "patronizing_entry_package" ? "Standard Plan packages" : "products"} worth PHP ${formatNumber(plan.entryAmount)}`}</h2>
+          <h2>${isToken ? `Buy ${formatNumber(plan.f3Tokens)} F3 Token` : `Buy ${purpose === "patronizing_entry_package" ? "Standard Plan packages" : "products"}`}</h2>
+          <strong class="patronizing-entry-price">PHP ${formatNumber(plan.entryAmount)} <small>entry</small></strong>
           <ul>
             <li>${Number(plan.durationMonths)} Months</li>
             <li>Required PHP ${formatNumber(plan.monthlyRequirement)} worth product purchases per month</li>

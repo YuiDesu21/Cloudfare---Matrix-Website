@@ -4,7 +4,7 @@
  */
 
 const MATRIX_PLANS = {
-  "power3-passive": { id: "power3-passive", name: "Premium Plan", maxChildren: 3, price: 20, pesoValue: 1200 },
+  "power3-passive": { id: "power3-passive", name: "Premium Plan", maxChildren: 3, price: 20, pesoValue: 1500 },
   "timeline-power3": { id: "timeline-power3", name: "Standard Plan", maxChildren: 3, price: 693, pesoValue: 693 },
   "patronizing-income": { id: "patronizing-income", name: "Patronizing Income", maxChildren: 3, price: 0, pesoValue: 0 }
 };
@@ -96,8 +96,9 @@ const LocalMatrixDB = {
     return callMatrixApi("getWithdrawalRequests");
   },
   getUpgradeRequests() { return callMatrixApi("getUpgradeRequests"); },
+  getMemberUpgradeRequests(memberId) { return callMatrixApi("getMemberUpgradeRequests", { memberId }); },
   getTimelineRequests() { return callMatrixApi("getTimelineRequests"); },
-  requestUpgrade(memberId, referenceNumber) { return callMatrixApi("requestUpgrade", { memberId, referenceNumber }); },
+  requestUpgrade(memberId, referenceNumber, matrixUplineCode = "") { return callMatrixApi("requestUpgrade", { memberId, referenceNumber, matrixUplineCode }); },
   requestTimelineActivation(memberId, details = {}) { return callMatrixApi("requestTimelineActivation", { memberId, ...details }); },
   approveTimelineActivation(requestId, decisionNote) { return callMatrixApi("approveTimelineActivation", { requestId, decisionNote }); },
   rejectTimelineActivation(requestId, decisionNote) { return callMatrixApi("rejectTimelineActivation", { requestId, decisionNote }); },
@@ -141,6 +142,7 @@ const LocalMatrixDB = {
   },
   getCommerceProducts() { return []; },
   requestCommerceProductOrder() { throw new Error("Product Plus cart checkout is available on the live Supabase site."); },
+  requestProductPlusVoucherOrder() { throw new Error("Product Plus voucher checkout is available on the live Supabase site."); },
   getPatronizingDashboard() { return null; },
   requestPatronizingTokenEntry() { throw new Error("Patronizing Income is available on the live Supabase site."); },
   requestPatronizingProductOrder() { throw new Error("Patronizing Income checkout is available on the live Supabase site."); },
@@ -363,6 +365,7 @@ const SupabaseMatrixDB = {
   getMemberByAccountCode() { return null; },
   getCommerceProducts() { return (supabaseState.dashboard && supabaseState.dashboard.commerceProducts) || []; },
   async requestCommerceProductOrder() { throw new Error("Product Plus cart checkout is available in the production adapter."); },
+  async requestProductPlusVoucherOrder() { throw new Error("Product Plus voucher checkout is available in the production adapter."); },
   getPatronizingDashboard() { return (supabaseState.dashboard && supabaseState.dashboard.patronizingDashboard) || null; },
   async requestPatronizingTokenEntry(details = {}) {
     const { data, error } = await window.matrixSupabase.rpc("request_patronizing_token_entry_plan", {

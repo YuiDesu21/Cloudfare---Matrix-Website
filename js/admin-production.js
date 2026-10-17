@@ -53,6 +53,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const commerceProductSort = document.getElementById("admin-commerce-product-sort");
   const commerceProductPhoto = document.getElementById("admin-commerce-product-photo");
   const commerceProductPhotoPreview = document.getElementById("admin-commerce-product-photo-preview");
+  const commerceProductVoucherEligible = document.getElementById("admin-commerce-product-voucher-eligible");
   const commerceProductActive = document.getElementById("admin-commerce-product-active");
   const commerceProductSave = document.getElementById("admin-commerce-product-save");
   const commerceProductCancel = document.getElementById("admin-commerce-product-cancel");
@@ -462,6 +463,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderCommercePackages() {
     const selectedType = commercePackageFilter.value;
     const visiblePackages = selectedType === "all" ? commercePackages : commercePackages.filter(item => item.packageType === selectedType);
+    const productPhotos = new Map(commerceProducts
+      .filter(product => product.photoData)
+      .map(product => [product.productName.trim().toLowerCase(), product.photoData]));
     if (!visiblePackages.length) {
       commercePackageList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No packages found</strong><p>Create a package on the left, then it will show here.</p></div>`;
       return;
@@ -478,12 +482,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         ${commercePackage.description ? `<p class="withdrawal-history-note">${escapeHtml(commercePackage.description)}</p>` : ""}
         <div class="commerce-package-total"><span>Total</span><strong>${money(commercePackage.totalPrice)}</strong></div>
         <div class="commerce-package-items">
-          ${(commercePackage.items || []).map(item => `
+          ${(commercePackage.items || []).map(item => {
+            const photoData = item.photoData || productPhotos.get(item.itemName.trim().toLowerCase());
+            return `
             <div class="commerce-package-item">
-              ${item.photoData ? `<img src="${escapeHtml(item.photoData)}" alt="${escapeHtml(item.itemName)}">` : `<span class="commerce-item-photo-empty">No Photo</span>`}
+              ${photoData ? `<img src="${escapeHtml(photoData)}" alt="${escapeHtml(item.itemName)}">` : `<span class="commerce-item-photo-empty">No Photo</span>`}
               <div><strong>${escapeHtml(item.itemName)}${quantityBadge(item)}</strong><span>${money(item.price)}${Number(item.quantity || 1) > 1 ? ` each` : ""}</span></div>
             </div>
-          `).join("")}
+          `; }).join("")}
         </div>
         <div class="balance-card-buttons">
           <button class="button button-outline button-small edit-commerce-package" type="button">Edit</button>
@@ -597,16 +603,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   function renderCommerceProducts() {
     const selectedType = commerceProductFilter.value;
-    const visibleProducts = selectedType === "all" ? commerceProducts : commerceProducts.filter(item => item.productType === selectedType);
+    const visibleProducts = selectedType === "all" ? commerceProducts : commerceProducts.filter(item => selectedType === "voucher_eligible" ? item.voucherEligible : item.productType === selectedType);
     if (!visibleProducts.length) {
-      commerceProductList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No products found</strong><p>Create an individual Product Plus product on the left.</p></div>`;
+      commerceProductList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No products found</strong><p>Add a product using the form on the left.</p></div>`;
       return;
     }
     commerceProductList.innerHTML = visibleProducts.map(product => `
       <article class="portal-card commerce-package-card" data-commerce-product-id="${escapeHtml(product.id)}">
         <div class="withdrawal-history-topline">
           <div>
-            <span class="withdrawal-reference-label">${escapeHtml(product.productTypeLabel)} | ${escapeHtml(product.budgetCategory ? `Budget: ${product.budgetCategory.replace(/_/g, " ")}` : "No Budget category")} | Sort ${Number(product.sortOrder || 100)}</span>
+            <span class="withdrawal-reference-label">${product.productType === "shop_only" ? "Shop only" : product.productType === "product_plus_voucher" ? "Legacy voucher checkout" : "Product Plus purchase"} | ${product.voucherEligible ? "Shop voucher-eligible" : "Shop cash only"} | ${escapeHtml(product.budgetCategory ? `Budget: ${product.budgetCategory.replace(/_/g, " ")}` : "No Budget category")} | Sort ${Number(product.sortOrder || 100)}</span>
             <h2>${escapeHtml(product.productName)}</h2>
           </div>
           <span class="withdrawal-status ${product.isActive ? "status-approved" : "status-rejected"}">${product.isActive ? "Active" : "Inactive"}</span>
@@ -652,7 +658,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function handleCommerceProductSubmit(event) {
     event.preventDefault();
     commerceProductSave.disabled = true;
-    const { error } = await window.matrixSupabase.rpc("admin_save_commerce_product", {
+    const { error } = await window.matrixSupabase.rpc("admin_save_shop_product", {
       p_product_id: commerceProductId.value || null,
       p_product_type: commerceProductType.value,
       p_product_name: commerceProductName.value.trim(),
@@ -661,7 +667,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       p_photo_data: commerceProductPhotoData,
       p_is_active: commerceProductActive.checked,
       p_sort_order: Number(commerceProductSort.value || 100),
-      p_budget_category: commerceProductBudgetCategory.value || null
+      p_budget_category: commerceProductBudgetCategory.value || null,
+      p_voucher_eligible: commerceProductVoucherEligible.checked
     });
     commerceProductSave.disabled = false;
     if (error) return show(alertBox, error.message, "danger");
@@ -679,6 +686,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     commerceProductDescription.value = product.description || "";
     commerceProductPrice.value = Number(product.price || 0);
     commerceProductSort.value = product.sortOrder || 100;
+    commerceProductVoucherEligible.checked = Boolean(product.voucherEligible);
     commerceProductActive.checked = Boolean(product.isActive);
     commerceProductPhotoData = product.photoData || "";
     setCommerceProductPhotoPreview(commerceProductPhotoData);
@@ -689,7 +697,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function resetCommerceProductForm() {
     commerceProductForm.reset();
     commerceProductId.value = "";
-    commerceProductType.value = "product_plus_requirement";
+    commerceProductType.value = "shop_only";
     commerceProductBudgetCategory.value = "";
     syncBudgetProductCategory();
     commerceProductPrice.value = "";
@@ -803,7 +811,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       const slots = request.matrixUplineSlotsLeft == null ? "-" : `${Number(request.matrixUplineSlotsLeft)} open direct slot(s)`;
       return `<article class="portal-card withdrawal-history-item" data-request-id="${escapeHtml(request.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(request.accountCode)}</span><h2>${escapeHtml(request.fullName)}</h2></div><span class="withdrawal-status status-pending">Pending</span></div><div class="withdrawal-history-details"><div><span>Username</span><strong>@${escapeHtml(request.username)}</strong></div><div><span>Reference</span><strong>${escapeHtml(request.referenceNumber)}</strong></div><div><span>Amount</span><strong>PHP ${Number(request.amount).toLocaleString()}</strong></div><div><span>Requested</span><strong>${new Date(request.createdAt).toLocaleString()}</strong></div><div><span>Premium Plan Upline</span><strong>${uplineLabel}</strong></div><div><span>Upline code</span><strong>${escapeHtml(request.matrixUplineCode || "-")}</strong></div><div><span>Upline slots</span><strong>${escapeHtml(slots)}</strong></div></div><p class="withdrawal-history-note">Approval places this member directly under the selected Premium Plan upline. If the upline reaches 3 direct downlines before approval, this approval will be blocked.</p><div class="balance-card-buttons"><button class="button button-primary button-small approve-entry" type="button">Approve &amp; Place</button><button class="button button-outline button-small reject-entry" type="button">Reject</button></div></article>`;
     }).join("");
-    list.querySelectorAll("[data-request-id]").forEach(card => card.querySelector(".withdrawal-history-details").insertAdjacentHTML("beforeend", `<div><span>F3 Wallet</span>${copyField(requests.find(item => item.id === card.dataset.requestId).walletAddress)}</div>`));
+    list.querySelectorAll("[data-request-id]").forEach(card => {
+      const request = requests.find(item => item.id === card.dataset.requestId);
+      const method = request.paymentMethodSnapshot || {};
+      card.querySelector(".withdrawal-history-details").insertAdjacentHTML("beforeend", `<div><span>Payment method</span><strong>${escapeHtml(method.methodName || "Legacy request")}</strong></div><div><span>Payment account</span><strong>${escapeHtml(method.accountName || "-")} · ${escapeHtml(method.accountNumber || "-")}</strong></div><div><span>F3 Wallet</span>${copyField(request.walletAddress)}</div>`);
+    });
     bindCopyButtons(list);
     list.querySelectorAll("[data-request-id]").forEach(card => {
       card.querySelector(".approve-entry").addEventListener("click", async () => act("admin_approve_entry", { p_request_id: card.dataset.requestId, p_parent_member_id: null }));
@@ -835,7 +847,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     timelineList.innerHTML = pending.map(request => {
       const payment = request.paymentMethod === "available_balance"
         ? `<div><span>Payment</span><strong>Available Balance</strong></div>`
-        : `<div><span>GCash account</span><strong>${escapeHtml(request.gcashName)} &middot; ${escapeHtml(request.gcashNumber)}</strong></div><div><span>Reference</span><strong>${escapeHtml(request.referenceNumber)}</strong></div>`;
+        : `<div><span>Payment method</span><strong>${escapeHtml(request.paymentMethodSnapshot?.methodName || "Legacy GCash")}</strong></div><div><span>Payment account</span><strong>${escapeHtml(request.paymentMethodSnapshot?.accountName || request.gcashName || "-")} &middot; ${escapeHtml(request.paymentMethodSnapshot?.accountNumber || request.gcashNumber || "-")}</strong></div><div><span>Reference</span><strong>${escapeHtml(request.referenceNumber)}</strong></div>`;
       return `<article class="portal-card withdrawal-history-item" data-timeline-request-id="${escapeHtml(request.id)}"><div class="withdrawal-history-topline"><div><span class="withdrawal-reference-label">${escapeHtml(request.accountCode)} &middot; Standard Plan</span><h2>${escapeHtml(request.fullName)}</h2></div><span class="withdrawal-status status-pending">Pending</span></div><div class="withdrawal-history-details"><div><span>Username</span><strong>@${escapeHtml(request.username)}</strong></div><div><span>Activation</span><strong>${money(request.amount)}</strong></div>${payment}<div><span>Requested</span><strong>${new Date(request.createdAt).toLocaleString()}</strong></div></div><div class="balance-card-buttons" style="margin-top:1rem"><button class="button button-primary button-small approve-timeline" type="button">Approve &amp; Place</button><button class="button button-outline button-small reject-timeline" type="button">Reject</button></div></article>`;
     }).join("");
     timelineList.querySelectorAll("[data-timeline-request-id]").forEach(card => {
@@ -1003,7 +1015,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const openOrders = (orders || []).filter(order => !["received", "rejected", "cancelled"].includes(order.status));
     updateCount("orders", openOrders.filter(order => ["pending_shipping_fee", "payment_submitted", "payment_approved"].includes(order.status)).length);
     if (!openOrders.length) {
-      commerceOrderList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No open order requests</strong><p>Member package orders will appear here.</p></div>`;
+      commerceOrderList.innerHTML = `<div class="portal-card withdrawal-empty"><strong>No open order requests</strong><p>Member product and package orders will appear here.</p></div>`;
       return;
     }
     commerceOrderList.innerHTML = openOrders.map(order => {
@@ -1018,7 +1030,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? `<p class="withdrawal-history-note"><strong>Premium Plan upline:</strong> ${escapeHtml(upline.fullName || "Selected member")} ${upline.username ? `(@${escapeHtml(upline.username)})` : ""} &middot; ${escapeHtml(order.matrixUplineCode || "-")}</p>`
         : "";
       const purposeDetails = order.orderPurpose && order.orderPurpose !== "standard"
-        ? `<p class="withdrawal-history-note"><strong>Order purpose:</strong> ${escapeHtml(order.orderPurpose === "budget_qualification" ? "Budget Plan qualification" : patronizingPurposeLabel(order))}</p>`
+        ? `<p class="withdrawal-history-note"><strong>Order purpose:</strong> ${escapeHtml(order.orderPurpose === "budget_qualification" ? "Budget Plan qualification" : order.orderPurpose === "shop" ? "Ordinary Shop purchase" : patronizingPurposeLabel(order))}</p>`
         : "";
       const discountDetails = Number(order.discountAmount || 0) > 0
         ? `<div><span>Discount</span><strong>${money(order.discountAmount)} (${Number(order.discountPercent || 0).toLocaleString()}%)</strong></div>`

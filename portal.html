@@ -7,6 +7,7 @@
   <title>Matrix Portal | Member Dashboard</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="portal.css">
+  <script src="js/member-navigation-boot.js"></script>
 </head>
 <body class="portal-body">
   <a class="skip-link" href="#portal-main">Skip to content</a>
@@ -45,15 +46,16 @@
         </button>
         <nav id="account-menu" class="account-menu" aria-label="Member account" hidden>
           <button type="button" data-account-action="profile">Profile</button>
-          <button type="button" data-account-action="packages">Packages &amp; Orders</button>
-          <button type="button" data-account-action="patronizing">Patronizing Income</button>
-          <button type="button" data-account-action="timeline">Standard Plan</button>
           <button type="button" data-account-action="budget">Budget Plan</button>
+          <button type="button" data-account-action="timeline">Standard Plan</button>
+          <button type="button" data-account-action="entry">Premium Plan</button>
+          <button type="button" data-account-action="patronizing">Patronizing Income</button>
+          <button type="button" data-account-action="packages">Entry Orders</button>
+          <button type="button" data-account-action="product-plus">Product Plus</button>
           <button type="button" data-account-action="funds">Main Funds</button>
           <button type="button" data-account-action="withdraw">Withdraw</button>
           <button type="button" data-account-action="history">Withdrawal History</button>
           <button type="button" data-account-action="income">Passive Income History</button>
-          <button type="button" data-account-action="entry">Premium Plan Entry</button>
           <button type="button" data-account-action="admin" hidden>Admin Portal</button>
           <button id="logout-btn-header" type="button" class="account-menu-signout">Sign Out</button>
         </nav>
@@ -224,30 +226,31 @@
       <aside id="profile-drawer" class="profile-drawer" aria-hidden="true">
         <button id="profile-drawer-backdrop" class="profile-drawer-backdrop" type="button" aria-label="Close profile"></button>
         <div class="portal-card profile-drawer-card" role="dialog" aria-modal="true" aria-labelledby="profile-drawer-title">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
-            <h3 id="profile-drawer-title" style="margin: 0; font-family: Georgia, serif; color: var(--gold); text-transform: uppercase; font-size: 1.3rem;">Membership</h3>
-            <span id="db-status-badge" class="badge">PENDING</span>
+          <div class="profile-drawer-header">
+            <h3 id="profile-drawer-title">Membership</h3>
             <button id="profile-drawer-close" class="profile-drawer-close" type="button" aria-label="Close profile">&times;</button>
           </div>
 
-          <div style="text-align: center; margin: 1rem 0 1.5rem;">
-            <div style="width: 70px; height: 70px; border-radius: 50%; background: linear-gradient(135deg, var(--forest-light), var(--ink)); border: 2px solid var(--gold); display: inline-flex; align-items: center; justify-content: center; font-size: 1.8rem; font-weight: 800; color: var(--gold);">
+          <div class="profile-drawer-identity">
+            <div class="profile-drawer-avatar">
               <span id="db-avatar-letter">M</span>
             </div>
-            <h4 id="db-fullname" style="margin: 0.5rem 0 0.2rem; font-size: 1.1rem; color: #fff;"></h4>
-            <p id="db-username" style="margin: 0; font-size: 0.8rem; color: var(--gold-soft); font-weight: 600;"></p>
+            <h4 id="db-fullname"></h4>
+            <p id="db-username"></p>
+            <span id="db-status-badge" class="badge">PENDING</span>
           </div>
 
+          <h4 class="profile-details-heading">Account details</h4>
           <ul class="details-list">
             <li>
               <span class="label">Account ID</span>
               <span id="db-account-id" class="val"></span>
             </li>
-            <li>
+            <li class="profile-detail-wide">
               <span class="label">Wallet</span>
               <span id="db-wallet" class="val"></span>
             </li>
-            <li>
+            <li class="profile-detail-wide">
               <span class="label">Email</span>
               <span id="db-email" class="val"></span>
             </li>
@@ -259,7 +262,7 @@
               <span class="label">Date Enrolled</span>
               <span id="db-joindate" class="val"></span>
             </li>
-            <li>
+            <li class="profile-detail-wide">
               <span class="label">Premium Plan Upline</span>
               <span id="db-sponsor" class="val">-</span>
             </li>
@@ -327,14 +330,73 @@
       <!-- Right Column: Interactive details / visualizer -->
       <article class="dashboard-content">
         
-        <!-- Welcome Card -->
-        <div class="portal-card" style="padding: 1.5rem;">
-          <h2 id="db-welcome-title" style="text-align: left; margin: 0; font-size: 1.4rem;">Member Portal</h2>
-          <p id="db-welcome-desc" style="margin: 0.5rem 0 0; color: var(--muted); font-size: 0.88rem;"></p>
+        <div class="dashboard-welcome">
+          <h2 id="db-welcome-title">Overview</h2>
+          <p id="db-welcome-desc"></p>
+          <div id="dashboard-welcome-meta" class="dashboard-welcome-meta">
+            <span class="dashboard-ready-dot" aria-hidden="true"></span>
+            <span id="dashboard-account-state">Account ready</span>
+            <span aria-hidden="true">&middot;</span>
+            <a id="dashboard-view-profile" href="#profile">View profile</a>
+          </div>
         </div>
 
+        <div id="dashboard-overview" class="dashboard-overview">
+          <section class="dashboard-overview-section" aria-labelledby="dashboard-plans-title">
+            <div class="dashboard-section-heading"><h3 id="dashboard-plans-title">Matrix Plans</h3></div>
+            <div class="dashboard-plan-grid">
+              <a class="dashboard-plan-item" href="budget-plan.html"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 8h18m-5 6h5M6 5V3h12"/></svg><span class="dashboard-plan-copy"><span>Budget Plan</span><small>Qualifying purchases</small></span><span class="dashboard-plan-bottom"><strong id="overview-budget-status">Loading</strong><b>PHP 150 activation target</b></span></a>
+              <a class="dashboard-plan-item" href="timeline-matrix.html"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 10 9 5 9-5M3 18l9 5 9-5"/></svg><span class="dashboard-plan-copy"><span>Standard Plan</span><small>Timeline Matrix</small></span><span class="dashboard-plan-bottom"><strong id="overview-standard-status">Loading</strong><b>PHP 693 entry</b></span></a>
+              <a class="dashboard-plan-item" href="portal.html?view=premium"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m2 7 5 4 5-7 5 7 5-4-2 12H4L2 7Zm2 15h16"/></svg><span class="dashboard-plan-copy"><span>Premium Plan</span><small>3x3 Matrix</small></span><span class="dashboard-plan-bottom"><strong id="overview-premium-status">Loading</strong><b>PHP 1,500 entry</b></span></a>
+              <a class="dashboard-plan-item" href="patronizing-income.html"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></svg><span class="dashboard-plan-copy"><span>Patronizing Income</span><small>F3 Token or product entry</small></span><span class="dashboard-plan-bottom"><strong id="overview-patronizing-status">Loading</strong><b>From PHP 720</b></span></a>
+            </div>
+          </section>
+          <section class="dashboard-overview-section" aria-labelledby="dashboard-funds-title">
+            <div class="dashboard-section-heading"><h3 id="dashboard-funds-title">Funds</h3><a class="dashboard-section-action" href="main-funds.html">View funds <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a></div>
+            <div class="dashboard-funds-row"><div><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 8h18m-5 6h5M6 5V3h12"/></svg>Available in Main Funds</span><strong id="overview-main-funds">PHP 0.00</strong></div><div><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 10 9 5 9-5M3 18l9 5 9-5"/></svg>Investment Funds</span><strong id="overview-investment-funds">PHP 0.00</strong></div></div>
+          </section>
+          <section class="dashboard-overview-section" aria-labelledby="dashboard-shop-title">
+            <div class="dashboard-section-heading"><h3 id="dashboard-shop-title">Shop</h3><a class="dashboard-section-action" href="shop.html">Browse products <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></a></div>
+            <div id="overview-shop-products" class="dashboard-shop-grid"></div>
+          </section>
+        </div>
+
+        <section id="premium-product-progress" class="portal-card product-entry-progress-card premium-entry-progress-card" data-premium-view style="display: none" aria-labelledby="premium-product-progress-title">
+          <div class="matrix-card-header">
+            <div><h3 id="premium-product-progress-title">Product Entry Progress</h3><p>Buy entry packages gradually. Approved payments count toward the PHP 1,500 requirement.</p></div>
+            <span id="premium-product-progress-badge" class="badge">0% Complete</span>
+          </div>
+          <div class="entry-progress-meter"><span id="premium-product-progress-bar"></span></div>
+          <dl class="entry-progress-stats">
+            <div><dt>Approved</dt><dd id="premium-product-approved">PHP 0.00</dd></div>
+            <div><dt>Pending</dt><dd id="premium-product-pending">PHP 0.00</dd></div>
+            <div><dt>Remaining</dt><dd id="premium-product-remaining">PHP 1,500.00</dd></div>
+          </dl>
+          <a class="button button-primary button-small" href="packages-orders.html?type=matrix_1200_entry">Continue Buying Products</a>
+        </section>
+
+        <section id="premium-activation" class="premium-activation" data-premium-view style="display: none" aria-labelledby="premium-activation-title">
+          <div class="matrix-card-header budget-token-header premium-activation-heading">
+            <span class="budget-token-mark premium-activation-mark" aria-hidden="true">P</span>
+            <div class="budget-token-heading"><div class="budget-token-title"><h3 id="premium-activation-title">Activate Premium Plan</h3><span class="plan-entry-amount"><small>Entry</small><strong>PHP 1,500</strong></span></div><p>Choose a payment method and submit your reference. Admin approval places your account in the Premium matrix.</p></div>
+            <span id="premium-activation-status" class="benefit-state benefit-state-locked">Not submitted</span>
+          </div>
+          <div id="premium-activation-alert" class="alert" role="status" style="display: none"></div>
+          <div class="premium-activation-layout">
+            <form id="premium-activation-form" class="premium-activation-form">
+              <div class="form-group"><label for="premium-activation-method">Payment Method</label><select id="premium-activation-method" class="form-control" required><option value="">Loading payment methods...</option></select></div>
+              <div id="premium-activation-method-details" class="plan-payment-preview" aria-live="polite"></div>
+              <div class="form-group"><label for="premium-activation-upline">Premium Plan Upline Code</label><input id="premium-activation-upline" class="form-control" maxlength="14" placeholder="M1200-XXXXXXXX" pattern="M1200-[A-Za-z0-9]{8}" autocomplete="off" required><small class="upgrade-help">Ask an active Premium Plan member with an open direct slot for this code.</small></div>
+              <div class="form-group"><label for="premium-activation-reference">Payment Reference Number</label><input id="premium-activation-reference" class="form-control" maxlength="40" pattern="[A-Za-z0-9-]{6,40}" autocomplete="off" required><small class="upgrade-help">Enter the exact 6-40 character reference from your receipt.</small></div>
+              <label class="withdrawal-confirmation"><input id="premium-activation-confirm" type="checkbox" required><span>I confirm that I paid PHP 1,500 using the selected method, entered the correct reference, and used the right Premium Plan upline code.</span></label>
+              <button id="premium-activation-submit" class="button button-primary withdrawal-submit" type="submit" disabled>Request Entry Activation</button>
+            </form>
+            <div id="premium-activation-pending" class="premium-activation-pending" hidden><strong>Awaiting administrator approval</strong><p>Your payment reference and upline code have been submitted for review. The Premium matrix will appear here once Entry is approved.</p><dl><div><dt>Payment method</dt><dd id="premium-pending-method">-</dd></div><div><dt>Reference</dt><dd id="premium-pending-reference">-</dd></div><div><dt>Upline code</dt><dd id="premium-pending-upline">-</dd></div></dl></div>
+          </div>
+        </section>
+
         <!-- Metrics Cards (Active only) -->
-        <div id="active-metrics-row" class="metrics-row" style="display: none;">
+        <div id="active-metrics-row" class="metrics-row" data-premium-view style="display: none;">
           <div class="metric-card">
             <span class="title">Premium Plan Downlines <span class="metric-help" tabindex="0" aria-label="Members directly placed under your Premium Plan code." data-tooltip="Members directly placed under your Premium Plan code.">?</span></span>
             <span id="metric-referrals" class="value">0</span>
@@ -345,51 +407,16 @@
           </div>
         </div>
 
-        <!-- Matrix Squad Tabs -->
-        <div id="matrix-overview-card" class="portal-card matrix-overview-card" style="display: none;">
-          <div class="matrix-card-header">
-            <div>
-              <h3>Premium Plan Exit Status</h3>
-              <p>Select an exit to review your downline requirement, required Buy/Re-Stake action, passive income, and Products Plus benefit.</p>
-            </div>
-            <span id="matrix-selected-badge" class="badge">Entry</span>
+        <section id="premium-next-step" class="premium-next-step" data-premium-view style="display: none" aria-labelledby="premium-next-step-title">
+          <div>
+            <div class="premium-next-step-heading"><h3 id="premium-next-step-title">Next step</h3><span id="premium-next-step-status" class="benefit-state benefit-state-locked">Locked</span></div>
+            <p id="premium-next-step-copy"></p>
           </div>
-
-          <div id="matrix-tabs" class="matrix-tabs" role="tablist" aria-label="Matrix exits"></div>
-
-          <div class="matrix-detail-layout">
-            <section class="matrix-status-panel">
-              <div class="matrix-status-heading">
-                <h4 id="matrix-title">Premium Plan</h4>
-                <span id="matrix-qualification" class="matrix-qualification">Not Qualified</span>
-              </div>
-              <p id="matrix-summary" class="matrix-action-copy"></p>
-              <p id="matrix-requirement" class="matrix-requirement-copy"></p>
-              <div class="matrix-action-row">
-                <a id="matrix-action-link" class="button button-primary matrix-action-link" href="exit-action.html" hidden>Continue</a>
-                <span id="matrix-action-message" class="matrix-action-message" aria-live="polite"></span>
-              </div>
-
-              <dl class="matrix-facts">
-                <div id="matrix-date-fact">
-                  <dt id="matrix-date-label">Entry Date</dt>
-                  <dd id="matrix-placed-time">-</dd>
-                </div>
-              </dl>
-            </section>
-
-            <section>
-              <div class="exit-header-row">
-                <h4>Exit Rewards</h4>
-                <span id="matrix-exit-note"></span>
-              </div>
-              <div id="matrix-exits" class="matrix-exits"></div>
-            </section>
-          </div>
-        </div>
+          <a id="premium-next-step-action" class="button button-primary button-small" href="exit-action.html" hidden>Continue</a>
+        </section>
 
         <!-- Balance and Claim Controls -->
-        <div id="balance-card" class="portal-card matrix-overview-card" style="display: none;" tabindex="-1">
+        <div id="balance-card" class="portal-card matrix-overview-card" data-premium-view style="display: none;" tabindex="-1">
           <div class="matrix-card-header">
             <div>
               <h3>Matrix Income &amp; Claims</h3>
@@ -411,7 +438,7 @@
           </div>
         </div>
 
-        <div id="products-plus-card" class="portal-card matrix-overview-card" style="display: none;">
+        <div id="products-plus-card" class="portal-card matrix-overview-card" data-premium-view style="display: none;">
           <div class="matrix-card-header">
             <div>
               <h3>Products Plus</h3>
@@ -461,7 +488,7 @@
         </div>
 
         <!-- Active Matrix Tree Structure -->
-        <div id="active-tree-card" class="portal-card" style="display: none;">
+        <div id="active-tree-card" class="portal-card" data-premium-view style="display: none;">
           <h3 style="color: var(--gold); margin-top: 0; text-transform: uppercase; font-size: 1.1rem; margin-bottom: 1.5rem;">Downline Matrix Explorer</h3>
           <p style="font-size: 0.8rem; color: var(--muted); margin-bottom: 1.5rem; margin-top: -1rem;">
             Only direct matrix downlines are shown. Select an active member to open their direct downlines, then use the navigation buttons to go back.
@@ -471,6 +498,20 @@
             <!-- Node hierarchy will be injected here dynamically -->
           </div>
         </div>
+
+        <section id="premium-rules-card" class="benefits-section" data-benefits data-premium-view style="display: none" aria-labelledby="premium-benefits-title">
+          <div class="benefits-heading"><h3 id="premium-benefits-title">Benefits</h3><p>Approved exit rewards and monthly eligibility.</p></div>
+          <div class="benefit-tabs" role="tablist" aria-label="Premium benefits">
+            <button class="benefit-tab" type="button" role="tab" id="premium-income-tab" aria-controls="premium-income-panel" data-benefit-tab="premium-income-panel">Monthly Income</button>
+            <button class="benefit-tab" type="button" role="tab" id="premium-products-tab" aria-controls="premium-products-panel" data-benefit-tab="premium-products-panel">Products Plus</button>
+          </div>
+          <div class="benefit-panel" id="premium-income-panel" role="tabpanel" aria-labelledby="premium-income-tab">
+            <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Exit</th><th>Monthly income</th><th>Eligible months</th><th>Status</th></tr></thead><tbody id="premium-rules-rows"></tbody></table></div>
+          </div>
+          <div class="benefit-panel" id="premium-products-panel" role="tabpanel" aria-labelledby="premium-products-tab" hidden>
+            <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Exit</th><th>Monthly purchase</th><th>Voucher bonus</th><th>Eligible months</th><th>Status</th></tr></thead><tbody id="premium-benefit-products-rows"></tbody></table></div>
+          </div>
+        </section>
 
       </article>
 
@@ -495,5 +536,7 @@
   <script src="js/supabase-client.js"></script>
   <script src="matrix-db.js"></script>
   <script src="js/portal.js"></script>
+  <script src="js/benefit-tabs.js"></script>
+  <script src="js/member-navigation.js"></script>
 </body>
 </html>

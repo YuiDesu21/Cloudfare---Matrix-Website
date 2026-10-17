@@ -11,9 +11,14 @@ Responsive Matrix Consumer Services website prototype with:
 
 ## Run
 
+The local preview uses the staging Supabase project by default. It does not
+connect to the live project's data.
+
 ```bash
 npm start
 ```
+
+Use `npm run start:live` only when deliberately testing against the live project.
 
 Then open:
 

@@ -14,6 +14,8 @@ const publicFiles = [
   "patronizing-income.html",
   "budget-plan.html",
   "packages-orders.html",
+  "shop.html",
+  "orders.html",
   "timeline-matrix.html",
   "styles.css",
   "portal.css",
@@ -21,7 +23,7 @@ const publicFiles = [
   "robots.txt"
 ];
 const publicDirectories = ["assets"];
-const publicJavaScript = ["index.js", "portal.js", "runtime-config.js", "supabase-client.js", "member-navigation.js", "withdrawals.js", "passive-income-history.js", "patronizing-income.js", "budget-plan.js", "main-funds.js", "packages-orders.js", "exit-action.js", "timeline-matrix.js", "timeline-matrix-production.js"];
+const publicJavaScript = ["index.js", "portal.js", "runtime-config.js", "supabase-client.js", "member-navigation-boot.js", "member-navigation.js", "withdrawals.js", "passive-income-history.js", "patronizing-income.js", "budget-plan.js", "benefit-tabs.js", "funds-money.js", "main-funds.js", "packages-orders.js", "shop.js", "orders.js", "exit-action.js", "timeline-matrix.js", "timeline-matrix-production.js"];
 const mappedProductionFiles = [
   ["upgrade-entry-production.html", "upgrade-entry.html"],
   ["admin-production.html", "admin.html"],
