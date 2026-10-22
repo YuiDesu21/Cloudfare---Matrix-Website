@@ -304,15 +304,15 @@
             </div>
             <form id="shipping-address-form" class="shipping-address-form">
               <input id="shipping-address-id" type="hidden">
-              <div class="form-group"><label for="shipping-full-name">Receiver name</label><input id="shipping-full-name" class="form-control" type="text" maxlength="120" required></div>
+              <div class="form-group"><label for="shipping-full-name">Receiver name</label><input id="shipping-full-name" class="form-control" type="text" minlength="2" maxlength="120" required></div>
               <div class="form-group"><label for="shipping-phone">Phone number</label><input id="shipping-phone" class="form-control" type="tel" maxlength="18" placeholder="09XXXXXXXXX" required></div>
               <div class="shipping-address-grid">
-                <div class="form-group"><label for="shipping-region">Region</label><input id="shipping-region" class="form-control" type="text" maxlength="80" required></div>
-                <div class="form-group"><label for="shipping-province">Province</label><input id="shipping-province" class="form-control" type="text" maxlength="80" required></div>
-                <div class="form-group"><label for="shipping-city">City / Municipality</label><input id="shipping-city" class="form-control" type="text" maxlength="80" required></div>
-                <div class="form-group"><label for="shipping-barangay">Barangay</label><input id="shipping-barangay" class="form-control" type="text" maxlength="80" required></div>
+                <div class="form-group"><label for="shipping-region">Region</label><input id="shipping-region" class="form-control" type="text" minlength="2" maxlength="80" required></div>
+                <div class="form-group"><label for="shipping-province">Province</label><input id="shipping-province" class="form-control" type="text" minlength="2" maxlength="80" required></div>
+                <div class="form-group"><label for="shipping-city">City / Municipality</label><input id="shipping-city" class="form-control" type="text" minlength="2" maxlength="80" required></div>
+                <div class="form-group"><label for="shipping-barangay">Barangay</label><input id="shipping-barangay" class="form-control" type="text" minlength="2" maxlength="80" required></div>
               </div>
-              <div class="form-group"><label for="shipping-street">Street / House no.</label><input id="shipping-street" class="form-control" type="text" maxlength="180" required></div>
+              <div class="form-group"><label for="shipping-street">Street / House no.</label><input id="shipping-street" class="form-control" type="text" minlength="4" maxlength="180" required></div>
               <div class="form-group"><label for="shipping-postal">Postal code</label><input id="shipping-postal" class="form-control" type="text" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" required></div>
               <div class="form-group"><label for="shipping-notes">Delivery notes</label><textarea id="shipping-notes" class="form-control" maxlength="240" rows="3"></textarea></div>
               <label class="checkbox-line"><input id="shipping-default" type="checkbox"> Use as default address</label>
@@ -345,10 +345,10 @@
           <section class="dashboard-overview-section" aria-labelledby="dashboard-plans-title">
             <div class="dashboard-section-heading"><h3 id="dashboard-plans-title">Matrix Plans</h3></div>
             <div class="dashboard-plan-grid">
-              <a class="dashboard-plan-item" href="budget-plan.html"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 8h18m-5 6h5M6 5V3h12"/></svg><span class="dashboard-plan-copy"><span>Budget Plan</span><small>Qualifying purchases</small></span><span class="dashboard-plan-bottom"><strong id="overview-budget-status">Loading</strong><b>PHP 150 activation target</b></span></a>
-              <a class="dashboard-plan-item" href="timeline-matrix.html"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 10 9 5 9-5M3 18l9 5 9-5"/></svg><span class="dashboard-plan-copy"><span>Standard Plan</span><small>Timeline Matrix</small></span><span class="dashboard-plan-bottom"><strong id="overview-standard-status">Loading</strong><b>PHP 693 entry</b></span></a>
-              <a class="dashboard-plan-item" href="portal.html?view=premium"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m2 7 5 4 5-7 5 7 5-4-2 12H4L2 7Zm2 15h16"/></svg><span class="dashboard-plan-copy"><span>Premium Plan</span><small>3x3 Matrix</small></span><span class="dashboard-plan-bottom"><strong id="overview-premium-status">Loading</strong><b>PHP 1,500 entry</b></span></a>
-              <a class="dashboard-plan-item" href="patronizing-income.html"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></svg><span class="dashboard-plan-copy"><span>Patronizing Income</span><small>F3 Token or product entry</small></span><span class="dashboard-plan-bottom"><strong id="overview-patronizing-status">Loading</strong><b>From PHP 720</b></span></a>
+              <a class="dashboard-plan-item" href="budget-plan.html"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M3 8h18m-5 6h5M6 5V3h12"/></svg><span class="dashboard-plan-copy"><span>Budget Plan</span><small>Purchase-qualified ranks and income</small></span><span class="dashboard-plan-stage" id="overview-budget-stage" hidden></span><span class="dashboard-plan-bottom"><strong id="overview-budget-status">Loading</strong><span class="dashboard-plan-value"><small id="overview-budget-balance-label" hidden>Available balance</small><b id="overview-budget-value">PHP 150 activation target</b></span></span></a>
+              <a class="dashboard-plan-item" href="timeline-matrix.html"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 10 9 5 9-5M3 18l9 5 9-5"/></svg><span class="dashboard-plan-copy"><span>Standard Plan</span><small>Timeline exits and monthly income</small></span><span class="dashboard-plan-stage" id="overview-standard-stage" hidden></span><span class="dashboard-plan-bottom"><strong id="overview-standard-status">Loading</strong><span class="dashboard-plan-value"><small id="overview-standard-balance-label" hidden>Available balance</small><b id="overview-standard-value">PHP 693 entry</b></span></span></a>
+              <a class="dashboard-plan-item" href="portal.html?view=premium"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m2 7 5 4 5-7 5 7 5-4-2 12H4L2 7Zm2 15h16"/></svg><span class="dashboard-plan-copy"><span>Premium Plan</span><small>3x3 matrix exits and passive income</small></span><span class="dashboard-plan-stage" id="overview-premium-stage" hidden></span><span class="dashboard-plan-bottom"><strong id="overview-premium-status">Loading</strong><span class="dashboard-plan-value"><small id="overview-premium-balance-label" hidden>Available balance</small><b id="overview-premium-value">PHP 1,500 entry</b></span></span></a>
+              <a class="dashboard-plan-item" href="patronizing-income.html"><svg class="dashboard-plan-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="18" cy="19" r="2"/><path d="m8 11 8-5M8 13l8 5"/></svg><span class="dashboard-plan-copy"><span>Patronizing Income</span><small>Monthly income and purchase discounts</small></span><span class="dashboard-plan-stage" id="overview-patronizing-stage" hidden></span><span class="dashboard-plan-bottom"><strong id="overview-patronizing-status">Loading</strong><span class="dashboard-plan-value"><small id="overview-patronizing-balance-label" hidden>Available balance</small><b id="overview-patronizing-value">From PHP 720</b></span></span></a>
             </div>
           </section>
           <section class="dashboard-overview-section" aria-labelledby="dashboard-funds-title">
@@ -372,7 +372,7 @@
             <div><dt>Pending</dt><dd id="premium-product-pending">PHP 0.00</dd></div>
             <div><dt>Remaining</dt><dd id="premium-product-remaining">PHP 1,500.00</dd></div>
           </dl>
-          <a class="button button-primary button-small" href="packages-orders.html?type=matrix_1200_entry">Continue Buying Products</a>
+          <a id="premium-product-entry-link" class="button button-primary button-small" href="packages-orders.html?type=matrix_1200_entry">Buy Entry Products</a>
         </section>
 
         <section id="premium-activation" class="premium-activation" data-premium-view style="display: none" aria-labelledby="premium-activation-title">
@@ -422,7 +422,6 @@
               <h3>Matrix Income &amp; Claims</h3>
               <p>Review due matrix income and transfer it to Main Funds before requesting a withdrawal.</p>
             </div>
-            <span id="balance-total-badge" class="badge">PHP 0</span>
           </div>
 
           <div class="balance-actions-grid balance-actions-compact">
@@ -537,6 +536,7 @@
   <script src="matrix-db.js"></script>
   <script src="js/portal.js"></script>
   <script src="js/benefit-tabs.js"></script>
+  <script src="js/matrix-tabs-keyboard.js"></script>
   <script src="js/member-navigation.js"></script>
 </body>
 </html>

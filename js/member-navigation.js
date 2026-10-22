@@ -32,6 +32,11 @@
       || ["budget_qualification", "patronizing_entry_product", "patronizing_monthly_requirement", "patronizing_exit_discount"].includes(params.get("purpose"));
   }
 
+  function isShopOrderDetail() {
+    const params = new URLSearchParams(window.location.search);
+    return Boolean(params.get("order") && params.get("source") === "shop");
+  }
+
   function setupMemberNavigation() {
     const menuRoot = document.querySelector("[data-member-menu]");
     if (!menuRoot || menuRoot.dataset.memberMenuReady === "true") {
@@ -50,7 +55,7 @@
 
     menuRoot.dataset.memberMenuReady = "true";
     const currentPage = pageIdFromLocation() === "packages-orders"
-      ? (isProductPlusCatalog() ? "product-plus" : "entry-orders")
+      ? (isShopOrderDetail() ? "orders" : isProductPlusCatalog() ? "product-plus" : "entry-orders")
       : menuRoot.dataset.currentPage || pageIdFromLocation();
     renderMenu(menu, pages, currentPage);
     bindSignOut(menu);
@@ -98,7 +103,7 @@
     const current = pageIdFromLocation();
     const isPremium = current === "portal" && new URLSearchParams(window.location.search).get("view") === "premium";
     const fundsView = new URLSearchParams(window.location.search).get("view");
-    const selected = isPremium || current === "upgrade-entry" || current === "upgrade-entry-production" || current === "exit-action" ? "premium" : current === "portal" ? "overview" : current === "timeline-matrix" ? "standard" : current === "budget-plan" ? "budget" : current === "patronizing-income" ? "patronizing" : current === "shop" ? "shop" : current === "orders" ? "orders" : current === "packages-orders" ? (isProductPlusCatalog() ? "product-plus" : "entry-orders") : current === "passive-income-history" ? "activity" : current === "withdrawal-history" ? "transactions" : current === "withdrawal-request" ? "funds" : current === "main-funds" && (fundsView === "investment" || window.location.hash === "#investment-funds") ? "investment" : current === "main-funds" && (fundsView === "transactions" || window.location.hash === "#funds-activity") ? "transactions" : current === "main-funds" ? "funds" : "";
+    const selected = isPremium || current === "upgrade-entry" || current === "upgrade-entry-production" || current === "exit-action" ? "premium" : current === "portal" ? "overview" : current === "timeline-matrix" ? "standard" : current === "budget-plan" ? "budget" : current === "patronizing-income" ? "patronizing" : current === "shop" ? "shop" : current === "orders" ? "orders" : current === "packages-orders" ? (isShopOrderDetail() ? "orders" : isProductPlusCatalog() ? "product-plus" : "entry-orders") : current === "passive-income-history" ? "activity" : current === "withdrawal-history" ? "transactions" : current === "withdrawal-request" ? "funds" : current === "main-funds" && (fundsView === "investment" || window.location.hash === "#investment-funds") ? "investment" : current === "main-funds" && (fundsView === "transactions" || window.location.hash === "#funds-activity") ? "transactions" : current === "main-funds" ? "funds" : "";
     const icons = {
       menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
       home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
@@ -163,7 +168,9 @@
     backdrop.className = "member-sidebar-backdrop";
     backdrop.type = "button";
     backdrop.setAttribute("aria-label", "Close member navigation");
-    document.body.prepend(sidebar, backdrop);
+    const skipLink = document.querySelector("body > .skip-link");
+    if (skipLink) skipLink.after(sidebar, backdrop);
+    else document.body.prepend(sidebar, backdrop);
     document.querySelector(".member-sidebar[data-shell]")?.remove();
     const header = document.querySelector(".portal-header .header-wrapper");
     if (header) header.prepend(toggle, crumb);
@@ -172,16 +179,30 @@
     document.documentElement.classList.add("member-workspace");
     document.documentElement.classList.remove("member-nav-pending");
     const close = () => {
+      const focusWasInSidebar = sidebar.contains(document.activeElement) || document.activeElement === backdrop;
       document.body.classList.remove("member-sidebar-open");
       toggle.setAttribute("aria-expanded", "false");
       toggle.setAttribute("aria-label", "Open member navigation");
+      if (focusWasInSidebar) toggle.focus();
     };
     toggle.addEventListener("click", () => {
       const open = document.body.classList.toggle("member-sidebar-open");
       toggle.setAttribute("aria-expanded", String(open));
       toggle.setAttribute("aria-label", open ? "Close member navigation" : "Open member navigation");
+      if (open) sidebar.querySelector(".member-sidebar-brand").focus();
     });
     backdrop.addEventListener("click", close);
+    sidebar.addEventListener("keydown", event => {
+      if (event.key !== "Tab" || !document.body.classList.contains("member-sidebar-open")) return;
+      const focusable = Array.from(sidebar.querySelectorAll("a, button:not([disabled])"));
+      if (event.shiftKey && document.activeElement === focusable[0]) {
+        event.preventDefault();
+        focusable[focusable.length - 1].focus();
+      } else if (!event.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+        event.preventDefault();
+        focusable[0].focus();
+      }
+    });
     document.addEventListener("keydown", event => { if (event.key === "Escape") close(); });
     sidebar.querySelector(".member-sidebar-logout").addEventListener("click", async () => {
       try {

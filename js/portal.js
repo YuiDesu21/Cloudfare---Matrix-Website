@@ -140,7 +140,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   let premiumActivationMember = null;
   let premiumActivationLoad = 0;
   const balanceCard = document.getElementById("balance-card");
-  const balanceTotalBadge = document.getElementById("balance-total-badge");
   const balanceTotal = document.getElementById("balance-total");
   const requestWithdrawalBtn = document.getElementById("request-withdrawal-btn");
   const productsPlusCard = document.getElementById("products-plus-card");
@@ -959,6 +958,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       document.getElementById("premium-product-approved").textContent = money(approved);
       document.getElementById("premium-product-pending").textContent = money(pending);
       document.getElementById("premium-product-remaining").textContent = money(remaining);
+      document.getElementById("premium-product-entry-link").textContent = approved > 0 || pending > 0 ? "Continue Entry Purchases" : "Buy Entry Products";
     } catch (error) {
       badge.textContent = "Progress unavailable";
     }
@@ -973,6 +973,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       status.textContent = label;
       status.dataset.state = label.toLowerCase().replace(/\s+/g, "-");
     };
+    const activeExit = exits => {
+      const highest = Math.max(0, ...(exits || []).filter(exit => exit.status === "active").map(exit => Number(exit.exit) || 0));
+      return highest ? `Exit ${highest}` : "Entry";
+    };
     setPlanStatus("overview-premium-status", member.status === "active" ? "Active" : "Not active");
     setPlanStatus("overview-standard-status", standard && standard.isActive ? "Active" : standard && standard.pendingRequest ? "Pending review" : "Not active");
     setPlanStatus("overview-patronizing-status", patronizing && patronizing.entry ? "Active" : patronizing && (patronizing.pendingTokenRequest || patronizing.pendingProductEntryOrder) ? "Pending review" : "Not active");
@@ -983,8 +987,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.matrixSupabase.rpc("get_public_shop_products")
     ]);
     setPlanStatus("overview-budget-status", budgetResult.error ? "Unavailable" : budgetResult.data && budgetResult.data.isActive ? "Active" : budgetResult.data && Number(budgetResult.data.entryCredit || 0) > 0 ? "In progress" : "Not active");
+    const budget = budgetResult.data;
+    const budgetRule = budget && (budget.rules || []).find(rule => Number(rule.rank) === Number(budget.rank));
+    const activePlans = [
+      ["budget", Boolean(!budgetResult.error && budget?.isActive), `Current rank: ${budgetRule?.name || "Entry"}`, "budget-plan"],
+      ["standard", Boolean(standard?.isActive), `Current exit: ${Number(standard?.highestExit) ? `Exit ${standard.highestExit}` : "Entry"}`, "timeline-power3"],
+      ["premium", member.status === "active", `Current exit: ${activeExit(summary?.exits)}`, "power3-passive"],
+      ["patronizing", Boolean(patronizing?.entry), `Current exit: ${activeExit(patronizing?.exits)}`, "patronizing-income"]
+    ];
+    const money = value => `PHP ${Number(value || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    activePlans.forEach(([plan, active, stage, balanceKey]) => {
+      if (!active) return;
+      const stageElement = document.getElementById(`overview-${plan}-stage`);
+      stageElement.textContent = stage;
+      stageElement.hidden = false;
+      document.getElementById(`overview-${plan}-balance-label`).hidden = false;
+      document.getElementById(`overview-${plan}-value`).textContent = fundsResult.error || !fundsResult.data
+        ? "Unavailable" : money(fundsResult.data.matrixBalances?.[balanceKey]);
+    });
     if (!fundsResult.error && fundsResult.data) {
-      const money = value => `PHP ${Number(value || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
       document.getElementById("overview-main-funds").textContent = money(fundsResult.data.mainAvailable);
       document.getElementById("overview-investment-funds").textContent = money(fundsResult.data.investmentAvailable);
     }
@@ -1123,6 +1144,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function handleShippingAddressSubmit(event) {
     event.preventDefault();
     shippingAddressAlert.style.display = "none";
+    const shortField = [
+      [shippingFullName, "Receiver name", 2],
+      [shippingRegion, "Region", 2],
+      [shippingProvince, "Province", 2],
+      [shippingCity, "City / Municipality", 2],
+      [shippingBarangay, "Barangay", 2],
+      [shippingStreet, "Street / House no.", 4]
+    ].find(([field, , minimum]) => field.value.trim().length < minimum);
+    if (shortField) {
+      const [field, label, minimum] = shortField;
+      showShippingAddressAlert(`${label} must contain at least ${minimum} characters.`, "danger");
+      field.focus();
+      return;
+    }
     shippingSaveBtn.disabled = true;
     try {
       await MatrixDB.saveShippingAddress({
@@ -1149,7 +1184,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       }
     } catch (error) {
-      showShippingAddressAlert(error.message, "danger");
+      const constraint = /shipping_addresses_([a-z_]+)_check/.exec(error.message || "")?.[1];
+      const field = {
+        full_name: "Receiver name", phone: "Phone number", region: "Region",
+        province: "Province", city: "City / Municipality", barangay: "Barangay",
+        street_address: "Street / House no.", postal_code: "Postal code", notes: "Delivery notes"
+      }[constraint];
+      showShippingAddressAlert(field ? `Please check ${field} and try again.` : error.message, "danger");
     } finally {
       shippingSaveBtn.disabled = false;
     }
@@ -1250,7 +1291,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const pendingExitBalance = Number(summary ? summary.pendingExitBalance : 0);
     const available = Math.max(earned - pending - pendingExitBalance, 0);
 
-    balanceTotalBadge.textContent = `PHP ${formatNumber(available)}`;
     balanceTotal.textContent = `PHP ${formatNumber(available)}`;
     requestWithdrawalBtn.disabled = false;
     requestWithdrawalBtn.title = "Transfer eligible matrix income to Main Funds";

@@ -10,6 +10,7 @@
   <script src="js/member-navigation-boot.js"></script>
 </head>
 <body class="portal-body">
+  <a class="skip-link" href="#standard-main">Skip to Standard Plan</a>
   <header class="portal-header site-header">
     <div class="container header-wrapper withdrawal-header-wrapper">
       <a class="brand" href="portal.html">
@@ -42,12 +43,12 @@
     </div>
   </header>
 
-  <main class="portal-container withdrawal-page">
+  <main class="portal-container withdrawal-page" id="standard-main">
     <section class="withdrawal-hero">
       <div>
         <span class="withdrawal-eyebrow">3x3 Matrix</span>
         <h1>Standard Plan</h1>
-        <p>Activate once for PHP 693. Placement follows the automatic left-to-right timeline queue.</p>
+        <p id="timeline-hero-description">Activate once for PHP 693. Placement follows the automatic left-to-right timeline queue.</p>
       </div>
       <span id="timeline-status-badge" class="badge">Checking</span>
     </section>
@@ -67,7 +68,7 @@
           <div><dt>Pending</dt><dd id="timeline-product-pending">PHP 0</dd></div>
           <div><dt>Remaining</dt><dd id="timeline-product-remaining">PHP 693</dd></div>
         </dl>
-        <a class="button button-primary button-small" href="packages-orders.html?type=timeline_entry">Continue Buying Products</a>
+        <a id="timeline-product-entry-link" class="button button-primary button-small" href="packages-orders.html?type=timeline_entry">Buy Entry Products</a>
       </div>
       <section class="portal-card matrix-overview-card timeline-payment-card">
         <div class="matrix-card-header budget-token-header">
@@ -99,25 +100,31 @@
       </section>
     </section>
 
-    <section id="timeline-rules-card" class="benefits-section" data-benefits style="display:none" aria-labelledby="timeline-benefits-title">
-      <div class="benefits-heading"><h3 id="timeline-benefits-title">Benefits</h3><p>Track approved timeline income and Products Plus months.</p></div>
-      <div class="benefit-tabs" role="tablist" aria-label="Standard benefits">
-        <button class="benefit-tab" type="button" role="tab" id="timeline-income-tab" aria-controls="timeline-income-panel" data-benefit-tab="timeline-income-panel">Monthly Income</button>
-        <button class="benefit-tab" type="button" role="tab" id="timeline-products-tab" aria-controls="timeline-products-panel" data-benefit-tab="timeline-products-panel">Products Plus</button>
-      </div>
-      <div class="benefit-panel" id="timeline-income-panel" role="tabpanel" aria-labelledby="timeline-income-tab">
-        <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Exit</th><th>Monthly income</th><th>Eligible months</th><th>Status</th></tr></thead><tbody id="timeline-rules-rows"></tbody></table></div>
-      </div>
-      <div class="benefit-panel" id="timeline-products-panel" role="tabpanel" aria-labelledby="timeline-products-tab" hidden>
-        <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Exit</th><th>Monthly purchase</th><th>Voucher reward</th><th>Eligible months</th><th>Status</th></tr></thead><tbody id="timeline-benefit-products-rows"></tbody></table></div>
-      </div>
-    </section>
-
     <section id="timeline-dashboard" class="timeline-dashboard-stack" style="display:none">
       <div class="metrics-row">
-        <div class="metric-card"><span class="title">Timeline Balance</span><span id="timeline-balance" class="value">PHP 0</span></div>
         <div class="metric-card"><span class="title">Members Under You</span><span id="timeline-descendants" class="value">0</span></div>
         <div class="metric-card"><span class="title">Highest Exit</span><span id="timeline-highest-exit" class="value">Entry</span></div>
+      </div>
+
+      <div id="timeline-balance-card" class="portal-card matrix-overview-card" tabindex="-1">
+        <div class="matrix-card-header">
+          <div>
+            <h3>Standard Plan Earnings</h3>
+            <p>Review available Standard Plan income before moving it to Main Funds.</p>
+          </div>
+        </div>
+
+        <div class="balance-actions-grid balance-actions-compact">
+          <section class="matrix-status-panel">
+            <span class="matrix-qualification qualified">Available Standard Earnings</span>
+            <h4 id="timeline-balance-total">PHP 0</h4>
+            <p>Due income stays with this plan until you move it to Main Funds. Withdrawals are requested there.</p>
+            <div class="balance-card-buttons">
+              <a class="button button-primary button-small" href="main-funds.html">View Main Funds</a>
+              <a class="button button-outline button-small" href="passive-income-history.html">Passive Income History</a>
+            </div>
+          </section>
+        </div>
       </div>
 
       <div class="portal-card matrix-overview-card">
@@ -130,28 +137,6 @@
         </div>
         <div id="timeline-tabs" class="matrix-tabs" role="tablist" aria-label="Timeline exits"></div>
         <div id="timeline-exit-detail" class="matrix-exits"></div>
-      </div>
-
-      <div id="timeline-balance-card" class="portal-card matrix-overview-card" tabindex="-1">
-        <div class="matrix-card-header">
-          <div>
-            <h3>Balance &amp; Claims</h3>
-            <p>Review due income from all matrices, request withdrawal, and track where each balance came from.</p>
-          </div>
-          <span id="timeline-balance-total-badge" class="badge">PHP 0</span>
-        </div>
-
-        <div class="balance-actions-grid balance-actions-compact">
-          <section class="matrix-status-panel">
-            <span class="matrix-qualification qualified">Available Balance</span>
-            <h4 id="timeline-balance-total">PHP 0</h4>
-            <p>Income is added here when due. Withdrawal requests are checked and paid manually by admin.</p>
-            <div class="balance-card-buttons">
-              <a class="button button-primary button-small" href="main-funds.html">Main Funds</a>
-              <a class="button button-outline button-small" href="passive-income-history.html">Passive Income History</a>
-            </div>
-          </section>
-        </div>
       </div>
 
       <div id="timeline-products-card" class="portal-card matrix-overview-card">
@@ -199,6 +184,20 @@
         <div id="timeline-tree" class="tree-container"></div>
       </div>
     </section>
+
+    <section id="timeline-rules-card" class="benefits-section" data-benefits style="display:none" aria-labelledby="timeline-benefits-title">
+      <div class="benefits-heading"><h3 id="timeline-benefits-title">Benefits</h3><p>Track approved timeline income and Products Plus months.</p></div>
+      <div class="benefit-tabs" role="tablist" aria-label="Standard benefits">
+        <button class="benefit-tab" type="button" role="tab" id="timeline-income-tab" aria-controls="timeline-income-panel" data-benefit-tab="timeline-income-panel">Monthly Income</button>
+        <button class="benefit-tab" type="button" role="tab" id="timeline-products-tab" aria-controls="timeline-products-panel" data-benefit-tab="timeline-products-panel">Products Plus</button>
+      </div>
+      <div class="benefit-panel" id="timeline-income-panel" role="tabpanel" aria-labelledby="timeline-income-tab">
+        <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Exit</th><th>Monthly income</th><th>Eligible months</th><th>Status</th></tr></thead><tbody id="timeline-rules-rows"></tbody></table></div>
+      </div>
+      <div class="benefit-panel" id="timeline-products-panel" role="tabpanel" aria-labelledby="timeline-products-tab" hidden>
+        <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Exit</th><th>Monthly purchase</th><th>Voucher reward</th><th>Eligible months</th><th>Status</th></tr></thead><tbody id="timeline-benefit-products-rows"></tbody></table></div>
+      </div>
+    </section>
   </main>
 
   <div id="timeline-products-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="timeline-products-title" style="display:none">
@@ -224,5 +223,6 @@
   <script src="js/timeline-matrix-production.js"></script>
   <script src="js/member-navigation.js"></script>
   <script src="js/benefit-tabs.js"></script>
+  <script src="js/matrix-tabs-keyboard.js"></script>
 </body>
 </html>

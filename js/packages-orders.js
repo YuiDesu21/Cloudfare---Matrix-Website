@@ -7,6 +7,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const PRODUCT_PLUS_TYPES = ["product_plus_requirement", "product_plus_voucher"];
   const PATRONIZING_PURPOSES = ["patronizing_entry_product", "patronizing_entry_package", "patronizing_monthly_requirement", "patronizing_exit_discount"];
   const queryParams = new URLSearchParams(window.location.search);
+  const requestedOrderId = queryParams.get("order") || "";
+  const shopOrderContext = Boolean(requestedOrderId && queryParams.get("source") === "shop");
   const patronizingPurpose = PATRONIZING_PURPOSES.includes(queryParams.get("purpose")) ? queryParams.get("purpose") : "";
   const budgetPurpose = queryParams.get("purpose") === "budget_qualification";
   const patronizingExitNumber = Number(queryParams.get("exit") || 0);
@@ -21,8 +23,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const commercePackageList = document.getElementById("commerce-package-list");
   const commerceOrderCount = document.getElementById("commerce-order-count");
   const commerceOrderList = document.getElementById("commerce-order-list");
-  const commerceHistoryCount = document.getElementById("commerce-history-count");
-  const commerceHistoryList = document.getElementById("commerce-history-list");
   const commerceOrderModal = document.getElementById("commerce-order-modal");
   const commerceOrderClose = document.getElementById("commerce-order-close");
   const commerceOrderSummary = document.getElementById("commerce-order-summary");
@@ -58,6 +58,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let pendingBudgetPurpose = false;
   let pendingPatronizingExit = null;
   let pendingPaymentOrder = null;
+  let focusedRequestedOrder = false;
   const productCarts = { product_plus_requirement: [], product_plus_voucher: [] };
   const checkoutDraftKey = "matrix-checkout-address-draft";
   if (requestedPackageType) selectedCommercePackageType = requestedPackageType === "product_plus_voucher" ? "product_plus_requirement" : requestedPackageType;
@@ -85,7 +86,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     sectionTitle: "Discount Products",
     sectionDescription: "Your exit discount and remaining purchase limit are shown in the cart."
   } : null;
-  if (context) {
+  if (shopOrderContext) {
+    document.body.classList.add("commerce-shop-order");
+    document.title = "Shop Order | Matrix Portal";
+    document.getElementById("commerce-page-eyebrow").textContent = "Shop";
+    document.getElementById("commerce-page-title").textContent = "Shop Order";
+    document.getElementById("commerce-page-description").textContent = "Review your order, shipping fee, and payment status.";
+    document.getElementById("commerce-section-title").textContent = "Order status";
+    document.getElementById("commerce-section-description").textContent = "Submit a payment reference when your order is ready to pay.";
+    document.querySelector("#commerce-active-orders h4").textContent = "Your Shop Order";
+    const back = document.getElementById("commerce-page-back");
+    back.href = "orders.html";
+    back.textContent = "Back to Orders";
+    back.hidden = false;
+  } else if (context) {
     document.body.classList.add("commerce-contextual");
     document.title = `${context.title} | Matrix Portal`;
     document.getElementById("commerce-page-eyebrow").textContent = "Patronizing Income";
@@ -98,7 +112,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   } else if (isProductPlusPage) {
     document.title = "Product Plus | Matrix Portal";
     document.getElementById("commerce-page-title").textContent = "Product Plus";
-    document.getElementById("commerce-page-description").textContent = "Browse Product Plus items and review your order requests.";
+    document.getElementById("commerce-page-description").textContent = "Buy toward Product Plus requirements or use vouchers on eligible items. Vouchers do not reduce the buy requirement.";
     document.getElementById("commerce-section-title").textContent = "Product Plus";
     document.getElementById("commerce-section-description").textContent = "Choose products and review your available vouchers at checkout. Shipping is reviewed separately.";
   }
@@ -227,6 +241,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     renderCommerceOrderHistory(orders);
+    if (shopOrderContext) {
+      commercePackageTabs.hidden = true;
+      commercePackageList.hidden = true;
+      commercePackageCount.hidden = true;
+    }
   }
 
   function renderCommercePackageCard(commercePackage, summary, orders = []) {
@@ -540,18 +559,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function renderCommerceOrderHistory(orders = []) {
     const finishedStatuses = new Set(["received", "rejected", "cancelled"]);
-    const activeOrders = orders.filter(order => !finishedStatuses.has(order.status));
-    const historyOrders = orders.filter(order => finishedStatuses.has(order.status));
+    const activeOrders = orders.filter(order => !finishedStatuses.has(order.status)
+      && (!shopOrderContext || order.id === requestedOrderId));
     commerceOrderCount.textContent = `${activeOrders.length} request${activeOrders.length === 1 ? "" : "s"}`;
-    commerceHistoryCount.textContent = `${historyOrders.length} order${historyOrders.length === 1 ? "" : "s"}`;
     if (!activeOrders.length) {
       commerceOrderList.innerHTML = `<div class="empty-state"><p>No order requests yet.</p></div>`;
     } else {
-      commerceOrderList.innerHTML = activeOrders.map(order => renderCommerceOrderCard(order, false)).join("");
+      commerceOrderList.innerHTML = activeOrders.map(renderCommerceOrderCard).join("");
     }
-    commerceHistoryList.innerHTML = historyOrders.length
-      ? historyOrders.map(order => renderCommerceOrderCard(order, true)).join("")
-      : `<div class="empty-state"><p>No completed orders yet.</p></div>`;
+    if (requestedOrderId && !focusedRequestedOrder) {
+      focusedRequestedOrder = true;
+      const selected = [...commerceOrderList.querySelectorAll("[data-commerce-order-id]")]
+        .find(card => card.dataset.commerceOrderId === requestedOrderId);
+      if (selected) {
+        selected.classList.add("commerce-order-focus");
+        requestAnimationFrame(() => { selected.scrollIntoView({ block: "center" }); selected.focus({ preventScroll: true }); });
+      }
+    }
     commerceOrderList.querySelectorAll("[data-pay-order-id]").forEach(button => {
       const order = activeOrders.find(item => item.id === button.dataset.payOrderId);
       button.addEventListener("click", () => openCommercePaymentModal(order));
@@ -572,7 +596,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  function renderCommerceOrderCard(order, isHistory) {
+  function renderCommerceOrderCard(order) {
     const packageSnapshot = order.packageSnapshot || {};
     const canPay = order.status === "approved_for_payment" && Number(order.amountDue || 0) > 0;
     const canReceive = order.status === "shipped";
@@ -589,7 +613,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? `<button class="button button-primary button-small" type="button" data-receive-order-id="${escapeHtml(order.id)}">Order Received</button>`
         : `<span class="withdrawal-status ${commerceOrderStatusClass(order.status)}">${escapeHtml(commerceOrderStatusLabel(order.status))}</span>`;
     return `
-      <article class="product-plus-month ${isHistory || order.status === "rejected" || order.status === "cancelled" ? "upcoming" : "vested"}">
+      <article class="product-plus-month vested" data-commerce-order-id="${escapeHtml(order.id)}" tabindex="-1">
         <div class="product-plus-month-index">${escapeHtml((order.orderCode || "ORD").replace("ORD-", ""))}</div>
         <div>
           <h5>${escapeHtml(packageSnapshot.packageName || "Package order")}: ${commerceOrderTotalLabel(order)}</h5>
@@ -846,7 +870,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function commerceOrderStatusLabel(status) {
     return ({
-      pending_shipping_fee: "Pending Fee",
+      pending_shipping_fee: "Shipping review",
       approved_for_payment: "Ready to Pay",
       payment_submitted: "Payment Review",
       payment_approved: "Paid",

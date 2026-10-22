@@ -38,8 +38,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     reference: document.getElementById("timeline-reference"),
     submit: document.getElementById("timeline-submit"),
     dashboard: document.getElementById("timeline-dashboard"),
-    balance: document.getElementById("timeline-balance"),
-    balanceTotalBadge: document.getElementById("timeline-balance-total-badge"),
     balanceTotal: document.getElementById("timeline-balance-total"),
     descendants: document.getElementById("timeline-descendants"),
     highestExit: document.getElementById("timeline-highest-exit"),
@@ -127,6 +125,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const pending = summary && summary.pendingTimelineRequest;
     elements.statusBadge.textContent = active ? "Active" : pending ? "Pending Approval" : "Not Active";
     elements.statusBadge.className = `badge ${active ? "badge-active" : "badge-pending"}`;
+    document.getElementById("timeline-hero-description").textContent = active
+      ? "Track your timeline exits, monthly income, and Products Plus benefits."
+      : "Activate once for PHP 693. Placement follows the automatic left-to-right timeline queue.";
     elements.activationCard.style.display = active ? "none" : "block";
     elements.dashboard.style.display = active ? "grid" : "none";
 
@@ -197,8 +198,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   function renderMetrics() {
     const available = getAvailableBalance(MatrixDB.getMemberMatrixSummary(member.id, "power3-passive"));
     const activeExits = (summary.exits || []).filter(exit => exit.status === "active");
-    elements.balance.textContent = money(available);
-    elements.balanceTotalBadge.textContent = money(available);
     elements.balanceTotal.textContent = money(available);
     elements.descendants.textContent = Number(summary.descendantCount || 0).toLocaleString();
     elements.highestExit.textContent = activeExits.length ? `Exit ${Math.max(...activeExits.map(exit => Number(exit.exit)))}` : "Entry";

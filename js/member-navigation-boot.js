@@ -23,6 +23,7 @@
   const shell = document.createElement("aside");
   shell.className = "member-sidebar";
   shell.dataset.shell = "true";
+  shell.inert = true;
   shell.setAttribute("aria-label", "Member navigation loading");
   shell.innerHTML = `<a class="member-sidebar-brand" href="portal.html"><span class="member-sidebar-brand-mark">M</span><span><strong>MATRIX</strong><small>MEMBER PORTAL</small></span></a><nav aria-label="Member pages">${links.map(([group, ...items]) => `<span class="member-sidebar-group">${group}</span>${items.map(([label, href]) => `<a class="member-sidebar-link" href="${href}"><span class="member-sidebar-icon" aria-hidden="true"></span><span>${label}</span></a>`).join("")}`).join("")}</nav><div class="member-sidebar-footer"><span class="member-sidebar-account"><span class="member-sidebar-avatar">M</span><span><strong class="member-sidebar-name">Member</strong><small class="member-sidebar-id">Loading account</small></span></span></div>`;
   const mountShell = () => {

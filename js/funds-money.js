@@ -10,13 +10,19 @@
     const parsed = parseCents(String(value ?? "0"));
     return parsed === null ? 0 : parsed;
   }
+  function toSignedCents(value) {
+    const text = String(value ?? "0").trim();
+    const cents = toCents(text.startsWith("-") ? text.slice(1) : text);
+    return text.startsWith("-") && cents ? -cents : cents;
+  }
   function centsToInput(cents) {
     return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
   }
   function money(cents) {
-    return `PHP ${(cents / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const amount = (Math.abs(cents) / 100).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `${cents < 0 ? "-" : ""}PHP ${amount}`;
   }
-  const api = { parseCents, toCents, centsToInput, money };
+  const api = { parseCents, toCents, toSignedCents, centsToInput, money };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.MatrixFundsMoney = api;
 })(typeof window !== "undefined" ? window : globalThis);

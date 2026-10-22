@@ -7,6 +7,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const cartPanel = document.querySelector(".shop-cart");
   const shopShell = document.querySelector(".shop-shell");
   const cartCount = document.getElementById("shop-cart-count");
+  const mobileCartButton = document.getElementById("shop-mobile-cart");
+  const mobileCartSummary = document.getElementById("shop-mobile-cart-summary");
   const subtotalText = document.getElementById("shop-cart-subtotal");
   const dueText = document.getElementById("shop-cart-due");
   const memberCheckout = document.getElementById("shop-member-checkout");
@@ -14,6 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const accountLink = document.getElementById("shop-account-link");
   const addressSelect = document.getElementById("shop-address");
   const voucherInput = document.getElementById("shop-voucher-amount");
+  const voucherGroup = document.getElementById("shop-voucher-group");
   const voucherHint = document.getElementById("shop-voucher-hint");
   const checkoutButton = document.getElementById("shop-checkout");
   const alertBox = document.getElementById("shop-alert");
@@ -32,12 +35,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (!client) {
+    count.textContent = "Products unavailable";
+    productList.replaceChildren();
     showAlert("The shop is temporarily unavailable.", "danger");
     return;
   }
 
-  const { data: catalog, error: catalogError } = await client.rpc("get_public_shop_products");
-  if (catalogError) {
+  let catalog;
+  try {
+    const response = await client.rpc("get_public_shop_products");
+    if (response.error) throw response.error;
+    catalog = response.data;
+  } catch (error) {
+    count.textContent = "Products unavailable";
+    productList.replaceChildren();
     showAlert("Products could not be loaded. Please try again shortly.", "danger");
     return;
   }
@@ -48,6 +59,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (memberSignedIn) {
     accountLink.textContent = "Dashboard";
     accountLink.href = "portal.html";
+    document.getElementById("shop-orders-link").hidden = false;
     signInLink.hidden = true;
     memberCheckout.hidden = false;
     const [eligibleResult, ratesResult, budgetResult] = await Promise.all([
@@ -55,8 +67,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         client.from("budget_plan_categories").select("category,qualification_percent"),
         client.rpc("get_my_budget_plan_dashboard")
     ]);
-    if (eligibleResult.error || ratesResult.error || budgetResult.error) {
-      showAlert("Budget Plan progress could not be loaded. Please refresh the page.", "danger");
+    if (eligibleResult.error || ratesResult.error || budgetResult.error || !budgetResult.data) {
+      showAlert("Budget qualification preview is unavailable. You can still place an order; qualifying credit is calculated after payment approval.", "info");
     } else {
       const eligible = new Map((eligibleResult.data || []).filter(item => item.budgetCategory).map(item => [item.id, item.budgetCategory]));
       (ratesResult.data || []).forEach(item => budgetRates.set(item.category, Number(item.qualification_percent)));
@@ -84,7 +96,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         .reduce((sum, order) => sum + Number(order.voucherAmount || 0), 0);
       voucherAvailable = Math.max(0, Number(vouchersResult.data && vouchersResult.data.balance || 0) - pendingReserved);
       voucherHint.textContent = `Available: ${money(voucherAvailable)}. Eligible products only.`;
-      checkoutReady = !eligibleResult.error && !ratesResult.error && !budgetResult.error;
+      checkoutReady = true;
     }
   }
   cart = cart.filter(item => products.some(product => product.id === item.id));
@@ -92,6 +104,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   search.addEventListener("input", renderProducts);
   voucherInput.addEventListener("input", renderCart);
+  mobileCartButton.addEventListener("click", () => {
+    cartPanel.scrollIntoView({ block: "start" });
+    cartPanel.focus({ preventScroll: true });
+  });
+  window.addEventListener("scroll", updateMobileCartShortcut, { passive: true });
+  window.addEventListener("resize", updateMobileCartShortcut);
   productList.addEventListener("click", event => {
     const button = event.target.closest("[data-shop-add]");
     if (!button) return;
@@ -179,7 +197,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const totals = calculateTotals();
     const voucherAmount = Number(voucherInput.value || 0);
     const validVoucher = Number.isFinite(voucherAmount) && voucherAmount >= 0 && voucherAmount <= totals.eligible && voucherAmount <= voucherAvailable;
+    const hasCart = cart.length > 0;
+    document.getElementById("shop-products-total").hidden = !hasCart;
+    memberCheckout.hidden = !memberSignedIn || !hasCart;
+    signInLink.hidden = memberSignedIn || !hasCart;
+    voucherGroup.hidden = !hasCart || voucherAmount === 0 && (voucherAvailable <= 0 || totals.eligible <= 0);
+    document.getElementById("shop-budget-cart-note").hidden = !budgetEntryNeeded || !hasCart;
     cartCount.textContent = `${totals.quantity} item${totals.quantity === 1 ? "" : "s"}`;
+    mobileCartSummary.textContent = `${cartCount.textContent} · ${money(totals.subtotal)}`;
     subtotalText.textContent = money(totals.subtotal);
     dueText.textContent = money(Math.max(0, totals.subtotal - (validVoucher ? voucherAmount : 0)));
     voucherInput.max = String(Math.min(totals.eligible, voucherAvailable));
@@ -192,6 +217,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     }).join("") : '<p class="shop-cart-empty">Your cart is empty.</p>';
     if (budgetEntryNeeded) renderBudgetProgress(validVoucher ? voucherAmount : 0);
     checkoutButton.disabled = !memberSignedIn || !checkoutReady || !cart.length || !addressSelect.value || !validVoucher;
+    updateMobileCartShortcut();
+  }
+
+  function updateMobileCartShortcut() {
+    const rect = cartPanel.getBoundingClientRect();
+    const cartInView = rect.top < window.innerHeight - 64 && rect.bottom > 64;
+    mobileCartButton.hidden = !cart.length || window.innerWidth > 800 || cartInView;
   }
 
   function renderBudgetProgress(voucherAmount) {

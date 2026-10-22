@@ -9,6 +9,7 @@
   <script src="js/member-navigation-boot.js"></script>
 </head>
 <body class="portal-body">
+  <a class="skip-link" href="#budget-main">Skip to Budget Plan</a>
   <header class="portal-header site-header">
     <div class="container header-wrapper withdrawal-header-wrapper">
       <a class="brand" href="portal.html"><span class="brand-mark">M</span><span><strong>Matrix</strong><small>Budget Plan</small></span></a>
@@ -23,26 +24,22 @@
     </div>
   </header>
 
-  <main class="portal-container withdrawal-page">
+  <main class="portal-container withdrawal-page" id="budget-main">
     <section class="withdrawal-hero">
       <div><span class="withdrawal-eyebrow">Matrix Plans</span><h1>Budget Plan</h1>
         <p>Track approved purchases, matrix rank, monthly income, and investment eligibility.</p></div>
-      <div class="plan-hero-side"><span class="plan-entry-amount"><small>Entry target</small><strong>PHP 150</strong></span><span id="budget-status" class="badge">Checking</span></div>
+      <div class="plan-hero-side"><span class="plan-entry-amount"><small>Entry target</small><strong>PHP 150</strong></span><a id="budget-dashboard-jump" class="budget-dashboard-jump" href="#budget-dashboard-title" hidden>View plan overview <span aria-hidden="true">&darr;</span></a><span id="budget-status" class="badge">Checking</span></div>
     </section>
     <div id="budget-alert" class="alert" hidden></div>
 
     <div id="budget-content" hidden>
-      <section class="portal-card matrix-overview-card budget-purchase-card">
+      <section id="budget-purchase-card" class="portal-card matrix-overview-card budget-purchase-card">
         <div class="budget-progress-summary">
-          <h3>Purchase Progress</h3>
-          <strong id="budget-entry-value">PHP 0 / PHP 150</strong>
-          <p>Approved product or F3 token payments fill entry first, then investment eligibility.</p>
+          <h3 id="budget-progress-title">Matrix Entry</h3>
+          <strong id="budget-progress-value">PHP 0 / PHP 150</strong>
+          <p id="budget-progress-description">Approved product or F3 token payments count toward your entry target.</p>
         </div>
-        <div class="entry-progress-meter"><span id="budget-entry-bar"></span></div>
-        <dl class="entry-progress-stats budget-progress-stats">
-          <div><dt>Matrix entry</dt><dd>PHP 150 target</dd></div>
-          <div><dt>Investment qualification</dt><dd id="budget-investment-value">PHP 0 / PHP 300</dd></div>
-        </dl>
+        <div class="entry-progress-meter" role="progressbar" aria-labelledby="budget-progress-title" aria-valuemin="0" aria-valuemax="150" aria-valuenow="0"><span id="budget-progress-bar"></span></div>
         <p id="budget-eligibility-note" class="withdrawal-history-note"></p>
         <div class="budget-category-legend" aria-label="Qualifying purchase rates"><span>PC 25%</span><span>Groceries 10%</span><span>Lifestyle 25%</span><span>F3 Token 80%</span></div>
         <a class="button button-primary button-small budget-progress-action" href="shop.html">Shop Products</a>
@@ -65,6 +62,38 @@
             <div class="budget-token-submit"><p id="budget-token-wallet" class="funds-note"></p><button id="budget-token-submit" class="button button-primary button-small" type="submit">Request F3 Tokens</button></div>
           </form>
           <div class="budget-token-requests"><h4>Token Requests</h4><div id="budget-token-history" class="funds-rows"></div></div>
+        </div>
+      </section>
+
+      <section id="budget-dashboard" class="budget-dashboard" aria-labelledby="budget-dashboard-title" hidden>
+        <div class="matrix-card-header">
+          <div><h2 id="budget-dashboard-title">Your Budget Plan</h2><p>Your current rank, earnings, and investment position.</p></div>
+        </div>
+        <div class="budget-dashboard-grid">
+          <div class="budget-summary-panel">
+            <span class="budget-summary-label">Current rank</span>
+            <strong id="budget-summary-rank" class="budget-summary-value">Challenger</strong>
+            <p id="budget-summary-next-rank" class="budget-summary-note"></p>
+            <div id="budget-rank-progress" class="budget-rank-progress" role="progressbar" aria-label="Next rank progress" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0" hidden><span id="budget-rank-progress-fill"></span></div>
+          </div>
+          <div class="budget-summary-panel">
+            <span class="budget-summary-label">Available Budget earnings</span>
+            <strong id="budget-summary-earnings" class="budget-summary-value budget-summary-amount">PHP 0.00</strong>
+            <p class="budget-summary-note">Due income not yet moved to Main Funds.</p>
+            <a class="budget-summary-link" href="main-funds.html">Move to Main Funds <span aria-hidden="true">&rarr;</span></a>
+          </div>
+          <div class="budget-summary-panel">
+            <span class="budget-summary-label">Monthly income</span>
+            <strong id="budget-summary-monthly" class="budget-summary-value">PHP 0.00</strong>
+            <p id="budget-summary-months" class="budget-summary-note"></p>
+            <p id="budget-summary-next-month" class="budget-summary-note"></p>
+          </div>
+          <div class="budget-summary-panel">
+            <span class="budget-summary-label">Investment</span>
+            <strong id="budget-summary-investment" class="budget-summary-value">Locked</strong>
+            <p id="budget-summary-investment-detail" class="budget-summary-note"></p>
+            <a class="budget-summary-link" href="main-funds.html?view=investment">Investment Funds <span aria-hidden="true">&rarr;</span></a>
+          </div>
         </div>
       </section>
 

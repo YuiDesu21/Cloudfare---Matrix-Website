@@ -23,8 +23,12 @@
   <main id="shop-main" class="portal-container shop-shell">
     <header class="shop-heading">
       <div><span class="withdrawal-eyebrow">Matrix Shop</span><h1 id="shop-title">Products</h1></div>
+      <a id="shop-orders-link" class="button button-outline button-small" href="orders.html" hidden>View orders</a>
     </header>
     <div id="shop-alert" class="alert" role="status" hidden></div>
+    <button id="shop-mobile-cart" class="shop-mobile-cart" type="button" aria-controls="shop-cart" hidden>
+      <span id="shop-mobile-cart-summary">0 items</span><strong>View cart</strong>
+    </button>
     <div class="shop-layout">
       <section aria-label="Available products">
         <section id="shop-budget-progress" class="shop-budget-progress" aria-label="Budget Plan purchase progress" hidden>
@@ -36,24 +40,24 @@
         <div class="shop-toolbar">
           <label for="shop-search">Search products</label>
           <input id="shop-search" class="form-control" type="search" placeholder="Search products" autocomplete="off">
-          <span id="shop-count" aria-live="polite">0 products</span>
+          <span id="shop-count" aria-live="polite"></span>
         </div>
-        <div id="shop-products" class="shop-products" aria-live="polite"></div>
+        <div id="shop-products" class="shop-products" aria-live="polite"><p class="page-loading-status">Loading products...</p></div>
       </section>
-      <aside class="shop-cart" aria-label="Shopping cart">
+      <aside id="shop-cart" class="shop-cart" aria-label="Shopping cart" tabindex="-1">
         <div class="shop-cart-title"><h2>Cart</h2><span id="shop-cart-count">0 items</span></div>
         <p id="shop-budget-cart-note" class="shop-budget-cart-note" hidden>Budget entry credit varies by product and applies after payment approval.</p>
         <div id="shop-cart-items" class="shop-cart-items"></div>
-        <div class="shop-cart-total"><span>Products</span><strong id="shop-cart-subtotal">PHP 0.00</strong></div>
+        <div id="shop-products-total" class="shop-cart-total" hidden><span>Products</span><strong id="shop-cart-subtotal">PHP 0.00</strong></div>
         <div id="shop-member-checkout" hidden>
           <div class="form-group"><label for="shop-address">Shipping address</label><select id="shop-address" class="form-control"></select><a id="shop-address-link" href="portal.html#profile">Manage addresses</a></div>
           <div id="shop-voucher-group" class="form-group"><label for="shop-voucher-amount">Use vouchers</label><input id="shop-voucher-amount" class="form-control" type="number" min="0" step="0.01" value="0"><small id="shop-voucher-hint"></small></div>
-          <div class="form-group"><label for="shop-order-notes">Order notes</label><textarea id="shop-order-notes" class="form-control" rows="2" maxlength="240"></textarea></div>
+          <details class="shop-order-notes"><summary>Add order notes</summary><div class="form-group"><label for="shop-order-notes">Order notes</label><textarea id="shop-order-notes" class="form-control" rows="2" maxlength="240"></textarea></div></details>
           <div class="shop-cart-total"><span class="shop-cart-due-label">Products after vouchers</span><strong id="shop-cart-due">PHP 0.00</strong></div>
           <p class="shop-shipping-note">Shipping is added after admin review.</p>
           <button id="shop-checkout" class="button button-primary btn-block" type="button" disabled>Request Order</button>
         </div>
-        <a id="shop-sign-in" class="button button-primary btn-block" href="portal.html?returnTo=shop.html">Sign in to checkout</a>
+        <a id="shop-sign-in" class="button button-primary btn-block" href="portal.html?returnTo=shop.html" hidden>Sign in to checkout</a>
       </aside>
     </div>
   </main>

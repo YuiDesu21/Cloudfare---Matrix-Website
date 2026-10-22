@@ -8,7 +8,7 @@
     "sandbox": "node scripts/start-sandbox.js",
     "start": "node scripts/start-staging.js",
     "start:live": "node server.js",
-    "check": "node --check server.js && node scripts/check-javascript.js && node scripts/check-auth-cache.js && node scripts/check-income-history.js && node scripts/check-funds-money.js",
+    "check": "node --check server.js && node scripts/check-javascript.js && node scripts/check-auth-cache.js && node scripts/check-income-history.js && node scripts/check-funds-money.js && node scripts/check-orders-ui.js && node scripts/check-budget-partial.js && node scripts/check-shop-checkout.js && node scripts/check-patronizing-entry-ui.js && node scripts/check-standard-entry-ui.js",
     "check:supabase": "node scripts/check-supabase-public.js",
     "pilot": "node scripts/run-clean-room-pilot.js"
   },

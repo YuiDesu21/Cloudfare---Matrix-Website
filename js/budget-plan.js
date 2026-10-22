@@ -23,22 +23,31 @@ document.addEventListener("DOMContentLoaded", async () => {
       .eq("member_id", sessionData.session.user.id).order("created_at", { ascending: false }),
     window.matrixSupabase.rpc("get_my_dashboard")
   ]);
-  const error = budgetResponse.error || fundsResponse.error || requestsResponse.error
-    || settingsResponse.error || methodsResponse.error || tokensResponse.error || profileResponse.error;
-  if (error) return showError(error.message);
+  if (budgetResponse.error || !budgetResponse.data) {
+    showError(budgetResponse.error?.message || "Budget Plan could not be loaded. Please refresh the page.");
+    return;
+  }
+  const fundsReady = !fundsResponse.error && Boolean(fundsResponse.data);
+  const requestsReady = !requestsResponse.error;
+  const tokenPrice = Number(settingsResponse.data?.unit_price);
+  const tokenPriceReady = !settingsResponse.error && Number.isFinite(tokenPrice) && tokenPrice > 0;
+  const methodsReady = !methodsResponse.error && Array.isArray(methodsResponse.data);
+  const profileReady = !profileResponse.error && Boolean(profileResponse.data?.member);
   const data = budgetResponse.data;
-  const funds = fundsResponse.data;
+  const funds = fundsReady ? fundsResponse.data : { investments: [], matrixBalances: {}, investmentAvailable: 0 };
   const pendingRequests = requestsResponse.data || [];
-  const tokenPrice = Number(settingsResponse.data.unit_price);
-  const methods = methodsResponse.data || [];
-  const walletAddress = profileResponse.data.member?.walletAddress || "";
+  const methods = methodsReady ? methodsResponse.data : [];
+  const walletAddress = profileReady ? profileResponse.data.member.walletAddress || "" : "";
   const contracts = funds.investments || [];
   const contractIds = contracts.map(contract => contract.id);
-  const investmentIncomeResponse = contractIds.length
+  const investmentIncomeResponse = fundsReady && contractIds.length
     ? await window.matrixSupabase.from("budget_investment_income").select("contract_id,due_at").in("contract_id", contractIds)
     : { data: [], error: null };
-  if (investmentIncomeResponse.error) return showError(investmentIncomeResponse.error.message);
+  const investmentReady = fundsReady && requestsReady && !investmentIncomeResponse.error;
   const investmentIncome = investmentIncomeResponse.data || [];
+  if (!fundsReady || !requestsReady || !tokenPriceReady || !methodsReady || tokensResponse.error || !profileReady || !investmentReady) {
+    showError("Some account details could not be loaded. Affected actions are unavailable until you refresh the page.", "info");
+  }
 
   const rules = data.rules || [];
   const rank = Number(data.rank ?? -1);
@@ -48,21 +57,79 @@ document.addEventListener("DOMContentLoaded", async () => {
   const budgetStatus = document.getElementById("budget-status");
   budgetStatus.textContent = data.isActive ? "Active" : "Not Active";
   budgetStatus.className = `badge ${data.isActive ? "badge-active" : "badge-pending"}`;
+  document.querySelector(".plan-hero-side .plan-entry-amount").hidden = Boolean(data.isActive);
+  document.getElementById("budget-dashboard-jump").hidden = !data.isActive;
   const rankBadge = document.getElementById("budget-rank");
   rankBadge.textContent = current ? current.name : "Not Active";
   rankBadge.className = `badge ${data.isActive ? "badge-active" : "badge-pending"}`;
-  document.getElementById("budget-entry-value").textContent = `${money(entryCredit)} / PHP 150`;
-  document.getElementById("budget-investment-value").textContent = `${money(investmentCredit)} / PHP 300`;
-  document.getElementById("budget-entry-bar").style.width = `${Math.min(entryCredit / 150 * 100, 100)}%`;
+  const entryComplete = entryCredit >= 150;
+  const investmentComplete = investmentCredit >= 300;
+  const purchaseCard = document.getElementById("budget-purchase-card");
+  purchaseCard.hidden = entryComplete && investmentComplete;
+  if (!purchaseCard.hidden) {
+    const target = entryComplete ? 300 : 150;
+    const credit = entryComplete ? investmentCredit : entryCredit;
+    document.getElementById("budget-progress-title").textContent = entryComplete ? "Investment Qualification" : "Matrix Entry";
+    document.getElementById("budget-progress-value").textContent = `${money(credit)} / PHP ${target}`;
+    document.getElementById("budget-progress-description").textContent = entryComplete
+      ? "Entry complete. Additional approved purchases count toward investment qualification."
+      : "Approved product or F3 token payments count toward your entry target.";
+    const meter = purchaseCard.querySelector("[role=progressbar]");
+    meter.setAttribute("aria-valuemax", String(target));
+    meter.setAttribute("aria-valuenow", String(Math.min(credit, target)));
+    document.getElementById("budget-progress-bar").style.width = `${Math.min(credit / target * 100, 100)}%`;
+    document.getElementById("budget-eligibility-note").textContent = !entryComplete
+      ? "Matrix placement begins when approved purchases reach PHP 150 in qualifying value."
+      : "Reach Overcomer rank and complete the PHP 300 purchase target to unlock investment eligibility.";
+  }
   const investmentBadge = document.getElementById("budget-investment-status");
   investmentBadge.textContent = data.canInvest ? "Qualified" : "Locked";
   investmentBadge.className = `badge ${data.canInvest ? "badge-active" : "badge-pending"}`;
-  document.getElementById("budget-eligibility-note").textContent = !data.isActive
-    ? "Matrix placement begins when approved purchases reach PHP 150 in qualifying value."
-    : rank < 1
-      ? "Reach Overcomer rank to invest. Additional approved purchases continue filling the PHP 300 qualification."
-      : data.canInvest ? "You meet the purchase and rank requirements for investing." : "Keep purchasing eligible products to complete the PHP 300 investment qualification.";
+  if (data.isActive) {
+    const nextRank = rules.find(rule => Number(rule.rank) === rank + 1);
+    const downlineCount = data.nextRankQualifiedDownlines;
+    const rankProgress = document.getElementById("budget-rank-progress");
+    document.getElementById("budget-summary-rank").textContent = current?.name || "Challenger";
+    document.getElementById("budget-summary-next-rank").textContent = !nextRank
+      ? "Highest rank reached."
+      : Number.isInteger(downlineCount)
+        ? `${Math.min(downlineCount, 3)} of 3 qualifying direct downlines toward ${nextRank.name}.`
+        : `Next: ${nextRank.name}. Requires 3 qualifying direct downlines.`;
+    if (nextRank && Number.isInteger(downlineCount)) {
+      rankProgress.hidden = false;
+      rankProgress.setAttribute("aria-valuenow", String(Math.min(downlineCount, 3)));
+      document.getElementById("budget-rank-progress-fill").style.width = `${Math.min(downlineCount, 3) / 3 * 100}%`;
+    }
 
+    const income = data.passiveIncome || [];
+    const currentIncome = income.filter(item => item.sourceLabel === `Budget Plan ${current?.name}`);
+    const creditedMonths = currentIncome.filter(item => item.status !== "scheduled").length;
+    const nextIncome = income.filter(item => item.status === "scheduled" && Number.isFinite(Date.parse(item.dueAt)))
+      .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt))[0];
+    document.getElementById("budget-summary-earnings").textContent = fundsReady
+      ? money(funds.matrixBalances?.["budget-plan"]) : "Unavailable";
+    document.getElementById("budget-summary-monthly").textContent = money(current?.monthlyPassive);
+    document.getElementById("budget-summary-months").textContent = Number(current?.passiveMonths)
+      ? `${creditedMonths} of ${current.passiveMonths} months credited at ${current.name}.`
+      : "Monthly income starts at Promoter rank.";
+    document.getElementById("budget-summary-next-month").textContent = nextIncome
+      ? `Next eligible month: ${formatDate(nextIncome.dueAt)}`
+      : "No upcoming monthly income scheduled.";
+
+    const activeContracts = contracts.filter(item => Number.isFinite(Date.parse(item.unlocksAt)) && Date.parse(item.unlocksAt) > Date.now());
+    const nextContractEnd = activeContracts.slice().sort((a, b) => Date.parse(a.unlocksAt) - Date.parse(b.unlocksAt))[0];
+    document.getElementById("budget-summary-investment").textContent = !investmentReady ? "Unavailable" : activeContracts.length
+      ? `${activeContracts.length} active ${activeContracts.length === 1 ? "contract" : "contracts"}`
+      : pendingRequests.length ? "Pending review" : data.canInvest ? "Qualified" : "Locked";
+    document.getElementById("budget-summary-investment-detail").textContent = !investmentReady
+      ? "Investment details could not be loaded. Refresh the page to review them."
+      : nextContractEnd
+      ? `${money(activeContracts.reduce((sum, item) => sum + Number(item.principal || 0), 0))} committed. Next contract ends ${formatDate(nextContractEnd.unlocksAt)}.`
+      : pendingRequests.length ? "Your investment request is awaiting approval."
+        : data.canInvest ? "You can request an investment from Investment Funds."
+          : `${rank < 1 ? "Reach Overcomer and complete" : "Complete"} ${money(300 - investmentCredit)} more in qualifying purchase value.`;
+    document.getElementById("budget-dashboard").hidden = false;
+  }
   document.getElementById("budget-passive-rows").innerHTML = rules.map(rule => {
     const months = Number(rule.passiveMonths || 0);
     const eligible = (data.passiveIncome || []).filter(item => item.sourceLabel === `Budget Plan ${rule.name}` && item.status !== "scheduled").length;
@@ -79,12 +146,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     const qualified = data.canInvest && rank >= Number(rule.rank);
     const funded = Number(funds.investmentAvailable || 0) >= Number(rule.investmentAmount);
     const complete = usedMonths >= Number(rule.investmentMonths);
-    const label = complete ? "Complete" : active ? `Unlocks ${new Date(active.unlocksAt).toLocaleDateString()}`
+    const label = !investmentReady ? "Unavailable" : complete ? "Complete" : active ? `Unlocks ${new Date(active.unlocksAt).toLocaleDateString()}`
       : pending ? "Pending approval" : !qualified ? "Locked" : !funded ? "Add funds" : "Request Investment";
-    const actionable = qualified && funded && !complete && !active && !pending;
+    const actionable = investmentReady && qualified && funded && !complete && !active && !pending;
     return `<tr><th scope="row">${escapeHtml(rule.name)}</th><td>${money(rule.investmentAmount)}</td>
-      <td>${money(Number(rule.investmentAmount) * .3)}</td><td>${MatrixBenefits.progress(eligibleMonths, rule.investmentMonths)}</td>
-      <td>${Math.min(Number(rule.contractMonths), Number(rule.investmentMonths) - usedMonths)} months</td>
+      <td>${money(Number(rule.investmentAmount) * .3)}</td><td>${investmentReady ? MatrixBenefits.progress(eligibleMonths, rule.investmentMonths) : "Unavailable"}</td>
+      <td>${investmentReady ? `${Math.min(Number(rule.contractMonths), Number(rule.investmentMonths) - usedMonths)} months` : "Unavailable"}</td>
       <td><button class="button button-outline button-small budget-action" type="button" data-budget-invest-rank="${Number(rule.rank)}" ${actionable ? "" : "disabled"}>${escapeHtml(label)}</button></td></tr>`;
   }).join("");
   document.querySelectorAll("[data-budget-invest-rank]").forEach(button => {
@@ -100,24 +167,29 @@ document.addEventListener("DOMContentLoaded", async () => {
       window.location.reload();
     });
   });
-  document.getElementById("budget-token-price").textContent = `${money(tokenPrice)} / F3`;
+  document.getElementById("budget-token-price").textContent = tokenPriceReady ? `${money(tokenPrice)} / F3` : "Price unavailable";
   const tokenQuantity = document.getElementById("budget-token-quantity");
   const tokenMethod = document.getElementById("budget-token-method");
   const tokenSubmit = document.getElementById("budget-token-submit");
   tokenMethod.innerHTML = `<option value="">Choose payment method</option>${methods.map(method =>
     `<option value="${escapeHtml(method.id)}">${escapeHtml(method.methodName)}</option>`).join("")}`;
-  document.getElementById("budget-token-wallet").innerHTML = walletAddress
+  document.getElementById("budget-token-wallet").innerHTML = !profileReady
+    ? "Saved F3 wallet could not be loaded. Refresh the page before requesting tokens."
+    : walletAddress
     ? `Tokens will be sent to your saved F3 wallet: <strong>${escapeHtml(walletAddress)}</strong>`
     : `Add an F3 wallet address in <a href="portal.html#profile">Profile</a> before requesting tokens.`;
-  tokenSubmit.disabled = !walletAddress || !methods.length;
+  tokenSubmit.disabled = !tokenPriceReady || !walletAddress || !methods.length;
   tokenQuantity.addEventListener("input", updateTokenEstimate);
   tokenMethod.addEventListener("change", renderTokenPaymentMethod);
   updateTokenEstimate();
-  document.getElementById("budget-token-history").innerHTML = (tokensResponse.data || []).length
+  document.getElementById("budget-token-history").innerHTML = tokensResponse.error
+    ? `<p class="funds-empty">Token requests could not be loaded. Refresh the page to try again.</p>`
+    : (tokensResponse.data || []).length
     ? tokensResponse.data.map(request => `<div class="funds-row"><div><strong>${Number(request.quantity)} F3 | ${money(request.amount)}</strong><small>${escapeHtml(request.reference_number)} | ${new Date(request.created_at).toLocaleDateString()}</small></div><span>${escapeHtml(request.status)}${request.delivery_reference ? `<small>${escapeHtml(request.delivery_reference)}</small>` : ""}</span></div>`).join("")
     : `<p class="funds-empty">No F3 token requests yet.</p>`;
   document.getElementById("budget-token-form").addEventListener("submit", async event => {
     event.preventDefault();
+    if (!tokenPriceReady || !walletAddress || !methods.length) return;
     tokenSubmit.disabled = true;
     const { error: requestError } = await window.matrixSupabase.rpc("request_budget_token_purchase", {
       p_quantity: Number(tokenQuantity.value),
@@ -130,6 +202,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("budget-content").hidden = false;
 
   function updateTokenEstimate() {
+    if (!tokenPriceReady) {
+      document.getElementById("budget-token-estimate").textContent = "Price unavailable. Refresh the page before requesting tokens.";
+      return;
+    }
     const quantity = Number(tokenQuantity.value || 0);
     const amount = quantity * tokenPrice;
     document.getElementById("budget-token-estimate").textContent =
@@ -142,13 +218,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     target.innerHTML = method ? `<strong>${escapeHtml(method.methodName)}</strong><span>${escapeHtml(method.accountName)} | ${escapeHtml(method.accountNumber)}</span>${method.instructions ? `<p>${escapeHtml(method.instructions)}</p>` : ""}${method.qrImageData ? `<img src="${escapeHtml(method.qrImageData)}" alt="${escapeHtml(method.methodName)} payment QR code">` : ""}` : "";
   }
 
-  function showError(message) {
+  function showError(message, type = "danger") {
     alert.textContent = message;
-    alert.className = "alert alert-danger";
+    alert.className = `alert alert-${type}`;
     alert.hidden = false;
   }
   function money(value) {
     return `PHP ${Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  function formatDate(value) {
+    return new Intl.DateTimeFormat("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" }).format(new Date(value));
   }
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));

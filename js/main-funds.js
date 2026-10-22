@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const client = window.matrixSupabase;
-  const { parseCents, toCents, centsToInput, money } = window.MatrixFundsMoney;
+  const { parseCents, toCents, toSignedCents, centsToInput, money } = window.MatrixFundsMoney;
   const $ = id => document.getElementById(id);
   const dialog = $("funds-transfer-dialog");
   const from = $("funds-from");
@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const pendingStorageKey = "matrix_pending_wallet_transfer";
   const actionStorageKey = kind => `matrix_pending_${kind}_action`;
   const planLabels = { "power3-passive": "Premium Plan", "timeline-power3": "Standard Plan", "patronizing-income": "Patronizing Income", "budget-plan": "Budget Plan" };
-  const matrixPlans = ["budget-plan", "timeline-power3", "power3-passive"];
+  const matrixPlans = ["budget-plan", "timeline-power3", "power3-passive", "patronizing-income"];
   let dashboard;
   let methods = [];
   let transactions = [];
@@ -27,8 +27,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   let uncertain = false;
   let balanceHidden = false;
 
-  if (!client) return show("Funds are unavailable in this environment.", "danger");
-  const { data: session } = await client.auth.getSession();
+  if (!client) { $("funds-loading").hidden = true; return show("Funds are unavailable in this environment.", "danger"); }
+  let session;
+  try {
+    ({ data: session } = await client.auth.getSession());
+  } catch (error) {
+    $("funds-loading").hidden = true;
+    return show("Funds could not be loaded. Please refresh this page.", "danger");
+  }
   if (!session.session) return location.replace("portal.html");
   if (!["main", "investment", "transactions"].includes(view)) return location.replace("main-funds.html");
   if (legacyView) history.replaceState(null, "", `main-funds.html?view=${view}`);
@@ -36,8 +42,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.title = `${view === "transactions" ? "Transactions" : names[view]} | Matrix Portal`;
   $("funds-page-title").textContent = view === "transactions" ? "Transactions" : names[view];
   $("funds-page-description").textContent = view === "investment"
-    ? "Manage your available investment funds and reinvestments."
-    : view === "transactions" ? "Review your wallet activity." : "Manage your wallet balance and transactions.";
+    ? "Available for investment or transfer to Main Funds. Committed funds stay locked until each contract ends."
+    : view === "transactions" ? "Review activity across both wallets." : "Available for purchases, transfers, and withdrawals.";
+  $("funds-activity-heading").textContent = view === "transactions" ? "All Transactions" : `${names[view]} Activity`;
+  const visibleFilters = view === "investment"
+    ? new Set(["all", "transfers", "investments"])
+    : view === "main" ? new Set(["all", "deposits", "transfers", "matrix", "withdrawals"]) : null;
+  document.querySelectorAll("[data-filter]").forEach(button => {
+    button.hidden = Boolean(visibleFilters && !visibleFilters.has(button.dataset.filter));
+  });
   $("funds-main-tab").setAttribute("aria-current", view === "main" ? "page" : "false");
   $("funds-investment-tab").setAttribute("aria-current", view === "investment" ? "page" : "false");
   $("funds-main-actions").hidden = view !== "main";
@@ -48,7 +61,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.querySelector(".funds-secondary-balance").hidden = view === "transactions";
   document.querySelector(".funds-wallet-tabs").hidden = view === "transactions";
 
-  const methodResponse = await client.rpc("get_active_payment_methods");
+  let methodResponse;
+  try {
+    methodResponse = await client.rpc("get_active_payment_methods");
+  } catch (error) {
+    methodResponse = { data: [], error };
+  }
   if (methodResponse.error) show("Payment methods could not be loaded. Please refresh this page.", "danger");
   methods = methodResponse.data || [];
   methodSelect.innerHTML = `<option value="">Choose payment method</option>${methods.map(method => `<option value="${escapeHtml(method.id)}">${escapeHtml(method.methodName)}</option>`).join("")}`;
@@ -191,15 +209,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function refresh() {
-    const { data, error } = await client.rpc("get_my_member_funds_dashboard");
-    if (error) return show("Wallet balances could not be loaded. Please refresh this page.", "danger");
-    dashboard = data;
-    $("funds-content").hidden = false;
-    renderBalances();
-    renderEarnings();
-    transactions = buildTransactions(data);
-    renderHistory();
-    if (dialog.open) renderRoute();
+    try {
+      const { data, error } = await client.rpc("get_my_member_funds_dashboard");
+      if (error || !data) throw error || new Error("No wallet data");
+      dashboard = data;
+      $("funds-content").hidden = false;
+      renderBalances();
+      renderEarnings();
+      transactions = buildTransactions(data);
+      renderHistory();
+      if (dialog.open) renderRoute();
+    } catch (error) {
+      show("Wallet balances could not be loaded. Please refresh this page.", "danger");
+    } finally {
+      $("funds-loading").hidden = true;
+    }
   }
   function renderBalances() {
     if (!dashboard) return;
@@ -425,12 +449,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     } finally { state.processing = false; setActionBusy("deposit", false); }
   }
   function renderWithdrawalPreview() {
-    const cents = parseCents($("funds-withdraw-amount").value);
-    const valid = cents !== null && cents >= 50000 && cents <= availableCents("main");
+    const entered = $("funds-withdraw-amount").value.trim();
+    const cents = parseCents(entered);
+    const available = availableCents("main");
+    const valid = cents !== null && cents >= 50000 && cents <= available;
+    const hint = $("funds-withdraw-amount-hint");
+    hint.textContent = available < 50000 ? "At least PHP 500.00 in Main Funds is required."
+      : !entered || valid ? "Minimum withdrawal is PHP 500.00."
+      : cents === null ? "Enter an amount with no more than two decimal places."
+      : cents < 50000 ? "Minimum withdrawal is PHP 500.00."
+      : "Amount exceeds available Main Funds.";
+    hint.dataset.invalid = String(Boolean(entered && !valid) || available < 50000);
     $("funds-withdraw-preview-amount").textContent = money(valid ? cents : 0);
     $("funds-withdraw-preview-net").textContent = money(valid ? cents : 0);
-    $("funds-withdraw-preview-remaining").textContent = money(availableCents("main") - (valid ? cents : 0));
-    $("funds-withdraw-continue").disabled = availableCents("main") < 50000;
+    $("funds-withdraw-preview-remaining").textContent = money(available - (valid ? cents : 0));
+    $("funds-withdraw-continue").disabled = !valid;
   }
   function reviewWithdrawal(event) {
     event.preventDefault();
@@ -573,7 +606,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const ledger = (data.fundActivity || []).filter(item => new Date(item.availableAt) <= new Date()).map(item => ({
       title: item.sourceType === "matrix_income_transfer"
         ? `${planLabels[String(item.note || "").split(" ")[0]] || "Matrix earnings"} → Main Funds`
-        : item.note || item.sourceType, account: item.account, amount: toCents(item.amount),
+        : item.note || item.sourceType, account: item.account, amount: toSignedCents(item.amount),
       category: item.sourceType === "verified_topup" ? "deposits" : item.sourceType === "main_withdrawal" ? "withdrawals"
         : item.sourceType === "budget_investment_income" ? "investments" : item.sourceType === "matrix_income_transfer" ? "matrix" : "transfers",
       status: "Completed", reference: item.sourceId || item.id || "", date: item.createdAt || item.availableAt,
@@ -604,7 +637,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       && (!query || `${item.title} ${item.reference} ${item.category}`.toLowerCase().includes(query)));
     $("funds-activity").innerHTML = list.length ? list.slice(0, visibleCount).map(item => {
       const index = transactions.indexOf(item);
-      return `<button class="funds-row funds-transaction" type="button" data-transaction="${index}"><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(names[item.account])} · ${dateTime(item.date)} · ${escapeHtml(item.status)}</small></span><span class="${item.amount < 0 ? "funds-debit" : "funds-credit"}">${item.amount > 0 ? "+" : ""}${money(item.amount)}</span></button>`;
+      return `<button class="funds-row funds-transaction" type="button" data-transaction="${index}"><span class="funds-row-copy"><strong>${escapeHtml(item.title)}</strong><small class="funds-row-meta"><span>${escapeHtml(names[item.account])}</span><span class="funds-row-date">${dateTime(item.date)}</span></small></span><span class="funds-row-side"><strong class="funds-row-amount ${item.amount < 0 ? "funds-debit" : "funds-credit"}">${item.amount > 0 ? "+" : ""}${money(item.amount)}</strong><small class="funds-row-status" data-status="${escapeHtml(item.status.toLowerCase())}">${escapeHtml(item.status)}</small></span></button>`;
     }).join("") : '<p class="funds-empty">No transactions match this view.</p>';
     $("funds-more").hidden = list.length <= visibleCount;
   }

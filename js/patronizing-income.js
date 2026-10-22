@@ -87,30 +87,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         <td>${MatrixBenefits.state(String(exit.status || "locked").replace(/^./, letter => letter.toUpperCase()), exit.status === "active" ? "active" : exit.status === "qualified" ? "pending" : "locked")}</td></tr>`).join("");
     entryBadge.textContent = isActive ? "Active" : pendingToken || pendingProduct ? "Pending" : "Not Active";
     entryBadge.className = `badge ${isActive ? "badge-active" : "badge-pending"}`;
-    entryOptions.innerHTML = renderEntryOptions(isActive, pendingToken, pendingProduct);
+    entryCard.hidden = isActive;
+    document.getElementById("patronizing-hero-description").textContent = isActive
+      ? "Track monthly reflected income and use unlocked exit discounts for product purchases."
+      : "Enter through F3 Token or products, track monthly reflected income, and use unlocked exit discounts for product purchases.";
+    entryOptions.innerHTML = isActive ? "" : renderEntryOptions(pendingToken, pendingProduct);
     dashboardCard.hidden = !isActive;
     exitsCard.hidden = !isActive;
     if (isActive) {
       renderMonthly(entry);
       renderExits();
     }
-    bindEntryButtons();
+    if (!isActive) bindEntryButtons();
   }
 
-  function renderEntryOptions(isActive, pendingToken, pendingProduct) {
+  function renderEntryOptions(pendingToken, pendingProduct) {
     const plans = dashboard.plans || [];
     const entryPurposes = ["patronizing_entry_product", "patronizing_entry_package"];
     const orders = typeof MatrixDB.getCommerceOrders === "function" ? MatrixDB.getCommerceOrders() : [];
-    const startedPurpose = orders.find(order => entryPurposes.includes(order.orderPurpose) && !["rejected", "cancelled"].includes(order.status))?.orderPurpose;
+    const startedPurpose = pendingProduct?.orderPurpose || orders.find(order => entryPurposes.includes(order.orderPurpose) && !["rejected", "cancelled"].includes(order.status))?.orderPurpose;
     return plans.map(plan => {
       const isToken = plan.entryType === "f3_token";
       const purpose = plan.planCode === "products_2800" ? "patronizing_entry_package" : "patronizing_entry_product";
-      const disabled = isActive || Boolean(pendingToken) || (isToken ? Boolean(pendingProduct || startedPurpose) : Boolean(startedPurpose && startedPurpose !== purpose));
-      const progress = isActive || isToken ? null : getProductEntryProgress(plan.entryAmount, purpose);
+      const disabled = Boolean(pendingToken) || (isToken ? Boolean(pendingProduct || startedPurpose) : Boolean(startedPurpose && startedPurpose !== purpose));
+      const progress = isToken ? null : getProductEntryProgress(plan.entryAmount, purpose);
+      const actionLabel = progress && (progress.approved > 0 || progress.pending > 0) ? "Continue Entry" : purpose === "patronizing_entry_package" ? "Choose Packages" : "Choose Products";
       return `
         <article class="patronizing-entry-option">
-          <span>${isToken ? "F3 Token Entry" : purpose === "patronizing_entry_package" ? "Standard Plan Package Entry" : "Product Entry"}</span>
-          <h2>${isToken ? `Buy ${formatNumber(plan.f3Tokens)} F3 Token` : `Buy ${purpose === "patronizing_entry_package" ? "Standard Plan packages" : "products"}`}</h2>
+          <span>${isToken ? "F3 Token Entry" : purpose === "patronizing_entry_package" ? "Package Entry" : "Product Entry"}</span>
+          <h2>${isToken ? `Buy ${formatNumber(plan.f3Tokens)} F3 Token` : `Buy ${purpose === "patronizing_entry_package" ? "qualifying packages" : "products"}`}</h2>
           <strong class="patronizing-entry-price">PHP ${formatNumber(plan.entryAmount)} <small>entry</small></strong>
           <ul>
             <li>${Number(plan.durationMonths)} Months</li>
@@ -121,11 +126,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             <div class="entry-progress-meter"><span style="width:${progress.percent}%"></span></div>
             <div><strong>PHP ${formatNumber(progress.approved)} approved</strong><small>PHP ${formatNumber(progress.pending)} pending · PHP ${formatNumber(progress.remaining)} remaining</small></div>
           </div>` : ""}
-          ${isActive
-            ? `<button class="button button-primary button-small" type="button" disabled>${plan.planCode === dashboard.entry.planCode ? "Active Entry" : "Entry Unavailable"}</button>`
-            : isToken
+          ${isToken
             ? `<button class="button button-primary button-small" type="button" data-patronizing-token-plan="${escapeHtml(plan.planCode)}" ${disabled ? "disabled" : ""}>Request ${formatNumber(plan.f3Tokens)} F3 Entry</button>`
-            : `<a class="button button-primary button-small ${disabled ? "disabled" : ""}" href="${disabled ? "#" : `packages-orders.html?purpose=${purpose}`}">${progress.approved > 0 || progress.pending > 0 ? "Continue Entry" : purpose === "patronizing_entry_package" ? "Choose Packages" : "Choose Products"}</a>`}
+            : disabled
+              ? `<button class="button button-primary button-small" type="button" disabled>${actionLabel}</button>`
+              : `<a class="button button-primary button-small" href="packages-orders.html?purpose=${purpose}">${actionLabel}</a>`}
         </article>`;
     }).join("");
   }
@@ -156,7 +161,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const summary = dashboard.monthlySummary || {};
     document.getElementById("patronizing-active-badge").textContent = entry.entryType === "f3_token"
       ? `${formatNumber(entry.f3Tokens)} F3 Token Entry`
-      : entry.planCode === "products_2800" ? "Standard Plan Package Entry" : "Product Entry";
+      : entry.planCode === "products_2800" ? "Package Entry" : "Product Entry";
     document.getElementById("patronizing-income-status").className = `matrix-qualification ${Number(summary.lockedIncome || 0) > 0 ? "locked" : "qualified"}`;
     document.getElementById("patronizing-income-status").textContent = Number(summary.lockedIncome || 0) > 0 ? "Locked Income" : "Unlocked";
     document.getElementById("patronizing-locked-income").textContent = `PHP ${formatNumber(summary.lockedIncome || 0)}`;
@@ -182,20 +187,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     const exits = dashboard.exits || [];
     const highest = exits.filter(exit => exit.status === "active").reduce((max, exit) => Math.max(max, Number(exit.exit)), 0);
     document.getElementById("patronizing-exit-badge").textContent = `Exit ${highest}`;
+    const selected = exits.find(exit => exit.status === "active") || exits[0];
     document.getElementById("patronizing-exit-tabs").innerHTML = exits.map(exit => `
-      <button class="matrix-tab ${exit.status === "active" ? "active" : "locked"}" type="button" data-patronizing-exit="${exit.exit}">
+      <button class="matrix-tab ${exit.status === "active" ? "" : "locked"} ${exit === selected ? "active" : ""}" type="button" id="patronizing-exit-tab-${Number(exit.exit)}" data-patronizing-exit="${exit.exit}" role="tab" aria-controls="patronizing-exit-detail" aria-selected="${exit === selected}">
         <strong>Exit ${exit.exit}</strong>
         <span class="matrix-tab-status"><span>${exit.status === "active" ? `${formatNumber(exit.discountPercent)}%` : "Locked"}</span></span>
       </button>
     `).join("");
-    const selected = exits.find(exit => exit.status === "active") || exits[0];
-    renderExitDetail(selected);
+    selectExit(selected);
     document.getElementById("patronizing-exit-tabs").querySelectorAll("[data-patronizing-exit]").forEach(button => {
       button.addEventListener("click", () => {
         const exit = exits.find(item => Number(item.exit) === Number(button.dataset.patronizingExit));
-        renderExitDetail(exit);
+        selectExit(exit);
       });
     });
+
+    function selectExit(exit) {
+      if (!exit) return;
+      document.getElementById("patronizing-exit-tabs").querySelectorAll("[data-patronizing-exit]").forEach(button => {
+        const active = Number(button.dataset.patronizingExit) === Number(exit.exit);
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", String(active));
+      });
+      document.getElementById("patronizing-exit-detail").setAttribute("aria-labelledby", `patronizing-exit-tab-${Number(exit.exit)}`);
+      renderExitDetail(exit);
+    }
   }
 
   function renderExitDetail(exit) {
@@ -212,7 +228,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           <div><dt>Already Used</dt><dd>PHP ${formatNumber(exit.usedPurchase)}</dd></div>
           <div><dt>Requirement</dt><dd>${Number(exit.qualifiedDownlines || 0)} / 3</dd></div>
         </dl>
-        <a class="button button-primary button-small ${exit.status === "active" && remaining > 0 ? "" : "disabled"}" href="${exit.status === "active" && remaining > 0 ? `packages-orders.html?purpose=patronizing_exit_discount&exit=${Number(exit.exit)}` : "#"}">Use Exit Discount</a>
+        ${exit.status === "active" && remaining > 0
+          ? `<a class="button button-primary button-small" href="packages-orders.html?purpose=patronizing_exit_discount&exit=${Number(exit.exit)}">Use Exit Discount</a>`
+          : '<button class="button button-primary button-small" type="button" disabled>Use Exit Discount</button>'}
       </section>
     `;
   }

@@ -26,9 +26,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     productApproved: document.getElementById("timeline-product-approved"),
     productPending: document.getElementById("timeline-product-pending"),
     productRemaining: document.getElementById("timeline-product-remaining"),
+    productEntryLink: document.getElementById("timeline-product-entry-link"),
     dashboard: document.getElementById("timeline-dashboard"),
-    balance: document.getElementById("timeline-balance"),
-    balanceBadge: document.getElementById("timeline-balance-total-badge"),
     balanceTotal: document.getElementById("timeline-balance-total"),
     descendants: document.getElementById("timeline-descendants"),
     highestExit: document.getElementById("timeline-highest-exit"),
@@ -122,6 +121,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const pending = timelineDashboard && timelineDashboard.pendingRequest;
     elements.statusBadge.textContent = isActive ? "Active" : pending ? "Pending Approval" : "Not Active";
     elements.statusBadge.className = `badge ${isActive ? "badge-active" : "badge-pending"}`;
+    document.getElementById("timeline-hero-description").textContent = isActive
+      ? "Track your timeline exits, monthly income, and Products Plus benefits."
+      : "Activate once for PHP 693. Placement follows the automatic left-to-right timeline queue.";
     elements.activationCard.style.display = isActive ? "none" : "block";
     elements.dashboard.style.display = isActive ? "grid" : "none";
     renderProductEntryProgress(isActive);
@@ -133,8 +135,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    elements.balance.textContent = money(availableBalance);
-    elements.balanceBadge.textContent = money(availableBalance);
     elements.balanceTotal.textContent = money(availableBalance);
     elements.descendants.textContent = Number(timelineDashboard.directChildrenCount || 0).toLocaleString();
     elements.highestExit.textContent = Number(timelineDashboard.highestExit || 0) ? `Exit ${timelineDashboard.highestExit}` : "Entry";
@@ -156,13 +156,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const approved = Number(progress.approvedAmount || 0);
     const pending = Number(progress.pendingAmount || 0);
     const target = Number(progress.targetAmount || 693);
-    const remaining = Math.max(Number(progress.remainingAmount || target), 0);
+    const remaining = Math.max(Number(progress.remainingAmount ?? target), 0);
     const percent = target > 0 ? Math.min(approved / target * 100, 100) : 0;
     elements.productProgressLabel.textContent = `${money(approved)} / ${money(target)}`;
     elements.productProgressBar.style.width = `${percent}%`;
     elements.productApproved.textContent = money(approved);
     elements.productPending.textContent = money(pending);
     elements.productRemaining.textContent = money(remaining);
+    elements.productEntryLink.textContent = approved > 0 || pending > 0 ? "Continue Entry Purchases" : "Buy Entry Products";
   }
 
   async function submitActivation(event) {

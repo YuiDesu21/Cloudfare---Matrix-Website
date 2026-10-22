@@ -10,6 +10,7 @@
   <script src="js/member-navigation-boot.js"></script>
 </head>
 <body class="portal-body">
+  <a class="skip-link" href="#patronizing-main">Skip to Patronizing Income</a>
   <header class="portal-header site-header">
     <div class="container header-wrapper withdrawal-header-wrapper">
       <a class="brand" href="portal.html">
@@ -27,12 +28,12 @@
     </div>
   </header>
 
-  <main class="portal-container withdrawal-page">
+  <main class="portal-container withdrawal-page" id="patronizing-main">
     <section class="withdrawal-hero">
       <div>
         <span class="withdrawal-eyebrow">Matrix Plans</span>
         <h1>Patronizing Income</h1>
-        <p>Enter through F3 Token or products, track monthly reflected income, and use unlocked exit discounts for product purchases.</p>
+        <p id="patronizing-hero-description">Enter through F3 Token or products, track monthly reflected income, and use unlocked exit discounts for product purchases.</p>
       </div>
     </section>
 
@@ -49,20 +50,6 @@
         </div>
         <div id="patronizing-entry-options" class="patronizing-entry-grid"></div>
       </div>
-
-      <section id="patronizing-rules-card" class="benefits-section" data-benefits aria-labelledby="patronizing-benefits-title">
-        <div class="benefits-heading"><h3 id="patronizing-benefits-title">Benefits</h3><p>Approved monthly income and unlocked exit discounts.</p></div>
-        <div class="benefit-tabs" role="tablist" aria-label="Patronizing benefits">
-          <button class="benefit-tab" type="button" role="tab" id="patronizing-income-tab" aria-controls="patronizing-income-panel" data-benefit-tab="patronizing-income-panel">Monthly Income</button>
-          <button class="benefit-tab" type="button" role="tab" id="patronizing-discounts-tab" aria-controls="patronizing-discounts-panel" data-benefit-tab="patronizing-discounts-panel">Exit Discounts</button>
-        </div>
-        <div class="benefit-panel" id="patronizing-income-panel" role="tabpanel" aria-labelledby="patronizing-income-tab">
-          <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Plan</th><th>Monthly income</th><th>Monthly purchase</th><th>Eligible months</th><th>Status</th></tr></thead><tbody id="patronizing-benefit-income-rows"></tbody></table></div>
-        </div>
-        <div class="benefit-panel" id="patronizing-discounts-panel" role="tabpanel" aria-labelledby="patronizing-discounts-tab" hidden>
-          <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Exit</th><th>Maximum purchase</th><th>Discount</th><th>Used</th><th>Status</th></tr></thead><tbody id="patronizing-rules-rows"></tbody></table></div>
-        </div>
-      </section>
 
       <div id="patronizing-dashboard-card" class="portal-card matrix-overview-card" hidden>
         <div class="matrix-card-header">
@@ -89,10 +76,10 @@
 
           <section>
             <div class="exit-header-row">
-              <h4>24-Month Progress</h4>
+              <h4 id="patronizing-month-progress-title">24-Month Progress</h4>
               <span id="patronizing-requirement-note"></span>
             </div>
-            <div id="patronizing-month-list" class="product-plus-schedule"></div>
+            <div id="patronizing-month-list" class="product-plus-schedule" role="region" aria-labelledby="patronizing-month-progress-title" tabindex="0"></div>
           </section>
         </div>
       </div>
@@ -106,8 +93,22 @@
           <span id="patronizing-exit-badge" class="badge">Exit 0</span>
         </div>
         <div id="patronizing-exit-tabs" class="matrix-tabs product-plus-tabs" role="tablist" aria-label="Patronizing exits"></div>
-        <div id="patronizing-exit-detail" class="patronizing-exit-detail"></div>
+        <div id="patronizing-exit-detail" class="patronizing-exit-detail" role="tabpanel"></div>
       </div>
+
+      <section id="patronizing-rules-card" class="benefits-section" data-benefits aria-labelledby="patronizing-benefits-title">
+        <div class="benefits-heading"><h3 id="patronizing-benefits-title">Benefits</h3><p>Approved monthly income and unlocked exit discounts.</p></div>
+        <div class="benefit-tabs" role="tablist" aria-label="Patronizing benefits">
+          <button class="benefit-tab" type="button" role="tab" id="patronizing-income-tab" aria-controls="patronizing-income-panel" data-benefit-tab="patronizing-income-panel">Monthly Income</button>
+          <button class="benefit-tab" type="button" role="tab" id="patronizing-discounts-tab" aria-controls="patronizing-discounts-panel" data-benefit-tab="patronizing-discounts-panel">Exit Discounts</button>
+        </div>
+        <div class="benefit-panel" id="patronizing-income-panel" role="tabpanel" aria-labelledby="patronizing-income-tab">
+          <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Plan</th><th>Monthly income</th><th>Monthly purchase</th><th>Eligible months</th><th>Status</th></tr></thead><tbody id="patronizing-benefit-income-rows"></tbody></table></div>
+        </div>
+        <div class="benefit-panel" id="patronizing-discounts-panel" role="tabpanel" aria-labelledby="patronizing-discounts-tab" hidden>
+          <div class="benefit-table-wrap"><table class="benefit-table"><thead><tr><th>Exit</th><th>Maximum purchase</th><th>Discount</th><th>Used</th><th>Status</th></tr></thead><tbody id="patronizing-rules-rows"></tbody></table></div>
+        </div>
+      </section>
     </section>
   </main>
 
@@ -151,5 +152,6 @@
   <script src="js/member-navigation.js?v=20260826-menu"></script>
   <script src="js/patronizing-income.js?v=20261006-tiers"></script>
   <script src="js/benefit-tabs.js"></script>
+  <script src="js/matrix-tabs-keyboard.js"></script>
 </body>
 </html>
