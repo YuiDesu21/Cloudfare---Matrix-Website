@@ -54,6 +54,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const current = rules.find(rule => Number(rule.rank) === rank);
   const entryCredit = Number(data.entryCredit || 0);
   const investmentCredit = Number(data.investmentCredit || 0);
+  const qualificationValue = Number(data.qualificationValue ?? (entryCredit + investmentCredit));
   const budgetStatus = document.getElementById("budget-status");
   budgetStatus.textContent = data.isActive ? "Active" : "Not Active";
   budgetStatus.className = `badge ${data.isActive ? "badge-active" : "badge-pending"}`;
@@ -67,18 +68,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   const purchaseCard = document.getElementById("budget-purchase-card");
   purchaseCard.hidden = entryComplete && investmentComplete;
   if (!purchaseCard.hidden) {
-    const target = entryComplete ? 300 : 150;
-    const credit = entryComplete ? investmentCredit : entryCredit;
-    document.getElementById("budget-progress-title").textContent = entryComplete ? "Investment Qualification" : "Matrix Entry";
+    const activeBeforeEntryCredit = data.isActive && !entryComplete;
+    const investmentProgress = entryComplete || activeBeforeEntryCredit;
+    const target = activeBeforeEntryCredit ? 450 : entryComplete ? 300 : 150;
+    const credit = activeBeforeEntryCredit ? qualificationValue : entryComplete ? investmentCredit : entryCredit;
+    document.getElementById("budget-progress-title").textContent = investmentProgress ? "Investment Qualification" : "Matrix Entry";
     document.getElementById("budget-progress-value").textContent = `${money(credit)} / PHP ${target}`;
-    document.getElementById("budget-progress-description").textContent = entryComplete
+    document.getElementById("budget-progress-description").textContent = activeBeforeEntryCredit
+      ? "Your Budget position is active. Approved purchases count toward the PHP 450 investment qualification total."
+      : entryComplete
       ? "Entry complete. Additional approved purchases count toward investment qualification."
       : "Approved product or F3 token payments count toward your entry target.";
     const meter = purchaseCard.querySelector("[role=progressbar]");
     meter.setAttribute("aria-valuemax", String(target));
     meter.setAttribute("aria-valuenow", String(Math.min(credit, target)));
     document.getElementById("budget-progress-bar").style.width = `${Math.min(credit / target * 100, 100)}%`;
-    document.getElementById("budget-eligibility-note").textContent = !entryComplete
+    document.getElementById("budget-eligibility-note").textContent = activeBeforeEntryCredit
+      ? "Investment requires Overcomer rank and PHP 450 in total qualifying purchases."
+      : !entryComplete
       ? "Matrix placement begins when approved purchases reach PHP 150 in qualifying value."
       : "Reach Overcomer rank and complete the PHP 300 purchase target to unlock investment eligibility.";
   }
@@ -127,7 +134,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       ? `${money(activeContracts.reduce((sum, item) => sum + Number(item.principal || 0), 0))} committed. Next contract ends ${formatDate(nextContractEnd.unlocksAt)}.`
       : pendingRequests.length ? "Your investment request is awaiting approval."
         : data.canInvest ? "You can request an investment from Investment Funds."
-          : `${rank < 1 ? "Reach Overcomer and complete" : "Complete"} ${money(300 - investmentCredit)} more in qualifying purchase value.`;
+          : `${rank < 1 ? "Reach Overcomer and complete" : "Complete"} ${money(entryComplete ? 300 - investmentCredit : 450 - qualificationValue)} more in qualifying purchase value.`;
     document.getElementById("budget-dashboard").hidden = false;
   }
   document.getElementById("budget-passive-rows").innerHTML = rules.map(rule => {

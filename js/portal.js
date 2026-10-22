@@ -120,7 +120,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const activeMetricsRow = document.getElementById("active-metrics-row");
   const metricReferrals = document.getElementById("metric-referrals");
-  const metricChildren = document.getElementById("metric-children");
 
   const premiumNextStep = document.getElementById("premium-next-step");
   const premiumNextStepTitle = document.getElementById("premium-next-step-title");
@@ -788,15 +787,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderMemberOverview(member, summary);
 
     if (pos) {
-      // Calculate direct 1200 downlines and total downline children
       metricReferrals.textContent = Number(summary.referralCount || 0);
-      metricChildren.textContent = Number(summary.descendantCount || 0);
 
       // Render matrix tree
       renderDownlineTree(member.id, pos.planId, member);
     } else {
       metricReferrals.textContent = Number(summary.referralCount || 0);
-      metricChildren.textContent = "0";
       treeVisualizer.innerHTML = `<div class="empty-state"><p>Matrix position is not established. Contact admin.</p></div>`;
     }
   }
@@ -1200,30 +1196,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     shippingAddressAlert.className = `alert alert-${type}`;
     shippingAddressAlert.textContent = message;
     shippingAddressAlert.style.display = "block";
-  }
-
-  function countMatrixDescendants(parentMemberId, planId, positions) {
-    const childrenByParent = new Map();
-    positions.forEach(position => {
-      if (position.planId !== planId || !position.parentMemberId) return;
-      const children = childrenByParent.get(position.parentMemberId) || [];
-      children.push(position.memberId);
-      childrenByParent.set(position.parentMemberId, children);
-    });
-
-    const visited = new Set([parentMemberId]);
-    const pending = [...(childrenByParent.get(parentMemberId) || [])];
-    let count = 0;
-
-    while (pending.length) {
-      const memberId = pending.pop();
-      if (visited.has(memberId)) continue;
-      visited.add(memberId);
-      count += 1;
-      pending.push(...(childrenByParent.get(memberId) || []));
-    }
-
-    return count;
   }
 
   function renderFreeAccountDashboard(member) {

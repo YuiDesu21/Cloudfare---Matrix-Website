@@ -78,6 +78,19 @@ async function check() {
   assert.match(methodsMissing("budget-investment-rows").innerHTML, /Request Investment<\/button>/);
   assert.doesNotMatch(methodsMissing("budget-investment-rows").innerHTML, /data-budget-invest-rank="1" disabled/);
 
+  const activeRoot = await render({
+    get_my_budget_plan_dashboard: { data: {
+      ...plan, rank: 0, entryCredit: 0, investmentCredit: 0, qualificationValue: 0, canInvest: false,
+      rules: [{ rank: 0, name: "Challenger", reachedAt: "2026-10-21" }, plan.rules[0]]
+    }, error: null },
+    get_my_member_funds_dashboard: { data: { investments: [], matrixBalances: {}, investmentAvailable: 0 }, error: null },
+    budget_investment_requests: { data: [], error: null }
+  });
+  assert.equal(activeRoot("budget-progress-title").textContent, "Investment Qualification");
+  assert.equal(activeRoot("budget-progress-value").textContent, "PHP 0.00 / PHP 450");
+  assert.match(activeRoot("budget-eligibility-note").textContent, /Overcomer rank and PHP 450/);
+  assert.match(activeRoot("budget-summary-investment-detail").textContent, /PHP 450.00 more/);
+
   const coreMissing = await render({});
   assert.equal(coreMissing("budget-content").hidden, true);
   assert.equal(coreMissing("budget-alert").className, "alert alert-danger");

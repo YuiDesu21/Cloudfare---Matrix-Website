@@ -3563,6 +3563,7 @@ html.member-workspace body.portal-body #timeline-rules-card { margin-block: 2rem
 html.member-workspace body.premium-plan-view #active-metrics-row .metric-card,
 html.member-workspace body.premium-plan-view [data-premium-view] .matrix-status-panel,
 html.member-workspace body.premium-plan-view [data-premium-view] .exit-card { background: rgba(255, 201, 28, .055); border-color: rgba(255, 201, 28, .18); }
+html.member-workspace body.premium-plan-view #active-metrics-row { grid-template-columns: minmax(0, 1fr); }
 html.member-workspace body.premium-plan-view .premium-entry-progress-card { background: rgba(255, 201, 28, .055); border: 1px solid rgba(255, 201, 28, .18); border-radius: 7px; padding: 1.25rem; }
 html.member-workspace body.premium-plan-view .premium-entry-progress-card .entry-progress-stats > div { background: rgba(255, 201, 28, .035); border-color: rgba(255, 201, 28, .18); }
 html.member-workspace body.premium-plan-view .premium-activation { background: rgba(255, 201, 28, .055); border: 1px solid rgba(255, 201, 28, .18); border-radius: 7px; padding: 1.25rem; }
