@@ -64,9 +64,18 @@ async function check() {
   orders[0].status = "payment_approved";
   element("orders-search").listeners.input();
   assert.match(element("orders-list").innerHTML, /Payment confirmed\. Awaiting shipment\./);
+  orders[0].status = "pending_shipping_fee";
+  element("orders-search").listeners.input();
+  assert.match(element("orders-list").innerHTML, /Shipping fee is being reviewed\./);
+  assert.doesNotMatch(element("orders-list").innerHTML, />Pay now|>Confirm receipt/);
   orders[0].status = "shipped";
   element("orders-search").listeners.input();
+  assert.match(element("orders-list").innerHTML, /packages-orders\.html\?order=shop-1(?:&amp;|&)source=shop[^\"]*">Confirm receipt</);
   assert.match(element("orders-list").innerHTML, />Confirm receipt</);
+  assert.doesNotMatch(element("orders-list").innerHTML, />Pay now</);
+  orders[0].status = "received";
+  element("orders-search").listeners.input();
+  assert.doesNotMatch(element("orders-list").innerHTML, />Pay now|>Confirm receipt/);
   orders[0].status = "approved_for_payment";
 
   element("orders-search").value = "soap";
